@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Felipe Freitas | Dog Walker — Passeios com Amor e Segurança</title>
+<meta name="description" content="Felipe Freitas, Dog Walker profissional. Passeios seguros, divertidos e cheios de carinho para o seu cachorro. Agende agora pelo WhatsApp!">
+
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800;900&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --navy:#0F3D3E;
+    --leaf:#1B998B;
+    --mint:#2EC4B6;
+    --coral:#FF6B35;
+    --coral-dark:#e2551f;
+    --cream:#FFF8F0;
+    --sand:#FFE8D6;
+    --white:#ffffff;
+  }
+
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{
+    font-family:'Nunito', sans-serif;
+    background:var(--cream);
+    color:var(--navy);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.heading{ font-family:'Poppins', sans-serif; }
+  img{ max-width:100%; display:block; }
+  a{ color:inherit; text-decoration:none; }
+  ul{ list-style:none; }
+  ::selection{ background:var(--mint); color:#fff; }
+
+  .container{ max-width:1180px; margin:0 auto; padding:0 20px; }
+  @media(min-width:640px){ .container{ padding:0 32px; } }
+
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:10px;
+    font-family:'Poppins', sans-serif; font-weight:700;
+    background:var(--coral); color:#fff;
+    padding:16px 34px; border-radius:999px;
+    box-shadow:0 14px 30px -8px rgba(0,0,0,.35);
+    transition:transform .25s ease, background .25s ease, box-shadow .25s ease;
+    position:relative; overflow:hidden; border:none; cursor:pointer;
+    white-space:nowrap;
+  }
+  .btn:hover{ background:var(--coral-dark); transform:translateY(-3px) scale(1.03); box-shadow:0 18px 34px -8px rgba(0,0,0,.4); }
+  .btn svg{ width:20px; height:20px; fill:currentColor; flex-shrink:0; }
+  .btn.small{ padding:11px 22px; font-size:14px; box-shadow:0 8px 18px -6px rgba(0,0,0,.3); }
+
+  /* ---------- HEADER ---------- */
+  header{
+    position:fixed; top:0; left:0; right:0; z-index:100;
+    background:rgba(255,248,240,.92); backdrop-filter:blur(10px);
+    box-shadow:0 1px 0 rgba(15,61,62,.06);
+  }
+  header .bar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 0;
+  }
+  .logo{
+    display:flex; align-items:center; gap:10px;
+    font-family:'Poppins',sans-serif; font-weight:800; font-size:19px; color:var(--navy);
+  }
+  .logo .badge{
+    width:38px; height:38px; border-radius:50%; background:var(--leaf); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:19px;
+  }
+  nav.links{ display:none; gap:32px; font-weight:700; font-size:15px; }
+  nav.links a{ transition:color .2s ease; }
+  nav.links a:hover{ color:var(--leaf); }
+  @media(min-width:860px){ nav.links{ display:flex; } }
+
+  .header-cta{ display:none; }
+  @media(min-width:600px){ .header-cta{ display:inline-flex; } }
+  .header-cta-mobile{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:42px; height:42px; border-radius:50%; background:var(--coral); color:#fff;
+    box-shadow:0 8px 18px -6px rgba(0,0,0,.35);
+  }
+  @media(min-width:600px){ .header-cta-mobile{ display:none; } }
+  .header-cta-mobile svg{ width:18px; height:18px; fill:currentColor; }
+
+  /* ---------- HERO ---------- */
+  .hero{
+    position:relative; overflow:hidden;
+    background:linear-gradient(135deg, var(--navy) 0%, var(--leaf) 55%, var(--mint) 100%);
+    padding:118px 0 60px;
+  }
+  @media(min-width:768px){ .hero{ padding:150px 0 96px; } }
+  .hero::before{
+    content:''; position:absolute; inset:0; opacity:.35; pointer-events:none;
+    background-image:radial-gradient(circle at 1px 1px, rgba(255,255,255,.18) 1px, transparent 0);
+    background-size:26px 26px;
+  }
+  .blob{ position:absolute; border-radius:50%; filter:blur(60px); pointer-events:none; }
+  .blob.b1{ width:280px; height:280px; top:-60px; right:-60px; background:rgba(255,107,53,.28); }
+  .blob.b2{ width:280px; height:280px; bottom:-60px; left:-70px; background:rgba(46,196,182,.35); }
+
+  .hero-grid{
+    position:relative; display:grid; gap:44px; align-items:center;
+  }
+  @media(min-width:860px){ .hero-grid{ grid-template-columns:1fr 1fr; gap:40px; } }
+
+  .hero-text{ text-align:center; }
+  @media(min-width:860px){ .hero-text{ text-align:left; order:1; } }
+  .hero-img-wrap{ order:-1; display:flex; justify-content:center; }
+  @media(min-width:860px){ .hero-img-wrap{ order:2; } }
+
+  .eyebrow{
+    display:inline-block; background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.25);
+    color:#fff; font-weight:700; font-size:13px; letter-spacing:.05em; text-transform:uppercase;
+    padding:8px 18px; border-radius:999px; margin-bottom:22px; backdrop-filter:blur(4px);
+  }
+  .hero h1{
+    color:#fff; font-weight:800; font-size:38px; line-height:1.12; margin-bottom:22px;
+    letter-spacing:-.01em;
+  }
+  @media(min-width:640px){ .hero h1{ font-size:48px; } }
+  @media(min-width:1024px){ .hero h1{ font-size:56px; } }
+  .hero h1 .accent{ color:var(--sand); }
+
+  .hero p.lead{
+    color:rgba(255,255,255,.92); font-size:18px; margin-bottom:34px; max-width:520px;
+  }
+  @media(min-width:860px){ .hero p.lead{ margin-left:0; margin-right:0; } }
+  .hero-text .lead{ margin-left:auto; margin-right:auto; }
+  @media(min-width:860px){ .hero-text .lead{ margin-left:0; } }
+
+  .hero-cta-row{ display:flex; justify-content:center; }
+  @media(min-width:860px){ .hero-cta-row{ justify-content:flex-start; } }
+
+  .trust-row{
+    margin-top:30px; display:flex; flex-wrap:wrap; gap:22px; justify-content:center;
+    color:rgba(255,255,255,.85); font-size:14px; font-weight:700;
+  }
+  @media(min-width:860px){ .trust-row{ justify-content:flex-start; } }
+  .trust-row span.tick{ color:var(--mint); margin-right:6px; }
+
+  .hero-photo-frame{
+    position:relative; width:100%; max-width:420px;
+  }
+  .hero-photo-frame .glow{
+    position:absolute; inset:-16px; border-radius:34px;
+    background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.25);
+    animation:float 3.6s ease-in-out infinite;
+  }
+  .hero-photo-frame img{
+    position:relative; width:100%; height:420px; object-fit:cover;
+    border-radius:30px; border:4px solid rgba(255,255,255,.35);
+    box-shadow:0 30px 60px -15px rgba(0,0,0,.45);
+  }
+  @media(min-width:640px){ .hero-photo-frame img{ height:480px; } }
+  .stat-chip{
+    position:absolute; left:-18px; bottom:-20px; background:#fff; border-radius:18px;
+    padding:12px 18px; box-shadow:0 16px 30px -10px rgba(15,61,62,.35);
+    display:flex; align-items:center; gap:12px;
+  }
+  .stat-chip .paw{ font-size:26px; }
+  .stat-chip strong{ display:block; font-family:'Poppins',sans-serif; font-weight:800; font-size:14px; color:var(--navy); }
+  .stat-chip span{ font-size:12px; color:rgba(15,61,62,.6); }
+
+  @keyframes float{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-12px);} }
+  @keyframes wag{ 0%,100%{ transform:rotate(-6deg);} 50%{ transform:rotate(6deg);} }
+  @keyframes bob{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-8px);} }
+
+  .paw-divider{
+    height:26px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24'%3E%3Cpath fill='%232EC4B6' fill-opacity='0.28' d='M4.5 10.5c1.1 0 2-1.12 2-2.5s-.9-2.5-2-2.5-2 1.12-2 2.5.9 2.5 2 2.5zm5-3c1.1 0 2-1.12 2-2.5S10.6 2.5 9.5 2.5 7.5 3.62 7.5 5s.9 2.5 2 2.5zm5 0c1.1 0 2-1.12 2-2.5s-.9-2.5-2-2.5-2 1.12-2 2.5.9 2.5 2 2.5zm5 3c1.1 0 2-1.12 2-2.5s-.9-2.5-2-2.5-2 1.12-2 2.5.9 2.5 2 2.5zM12 11c-2.33 0-7 1.17-7 3.5V17c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-2.5c0-2.33-4.67-3.5-7-3.5z'/%3E%3C/svg%3E");
+    background-repeat:repeat-x; background-size:40px 40px; margin-top:50px;
+  }
+
+  /* ---------- SECTION GENERIC ---------- */
+  section.block{ padding:76px 0; }
+  @media(min-width:768px){ section.block{ padding:104px 0; } }
+  .kicker{
+    display:block; color:var(--coral); font-weight:800; text-transform:uppercase;
+    letter-spacing:.06em; font-size:14px; margin-bottom:10px;
+  }
+  .section-title{ font-weight:800; font-size:30px; color:var(--navy); margin-bottom:16px; line-height:1.2; }
+  @media(min-width:640px){ .section-title{ font-size:38px; } }
+  .section-intro{ text-align:center; max-width:640px; margin:0 auto 56px; }
+  .section-intro p{ color:rgba(15,61,62,.7); font-size:18px; }
+
+  /* ---------- SOBRE ---------- */
+  .sobre{ background:#fff; }
+  .sobre-grid{ display:grid; gap:48px; align-items:center; }
+  @media(min-width:860px){ .sobre-grid{ grid-template-columns:1fr 1fr; gap:56px; } }
+  .sobre-photo{ position:relative; }
+  .sobre-photo::before{
+    content:''; position:absolute; inset:-14px; background:var(--sand); border-radius:30px;
+    transform:rotate(-3deg); z-index:0;
+  }
+  .sobre-photo img{
+    position:relative; z-index:1; width:100%; height:380px; object-fit:cover;
+    border-radius:28px; box-shadow:0 26px 50px -18px rgba(15,61,62,.35);
+  }
+  @media(min-width:640px){ .sobre-photo img{ height:440px; } }
+  .sobre-copy p{ color:rgba(15,61,62,.72); font-size:17px; margin-bottom:18px; }
+  .sobre-copy p:last-of-type{ margin-bottom:30px; }
+  .sobre-facts{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .fact{ display:flex; align-items:center; gap:12px; }
+  .fact .ic{
+    width:44px; height:44px; border-radius:50%; background:rgba(46,196,182,.15); color:var(--leaf);
+    display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;
+  }
+  .fact b{ font-size:14px; font-weight:800; color:var(--navy); line-height:1.25; }
+
+  /* ---------- BENEFICIOS ---------- */
+  .beneficios{ background:var(--cream); position:relative; overflow:hidden; }
+  .cards-grid{ display:grid; gap:24px; grid-template-columns:1fr; }
+  @media(min-width:600px){ .cards-grid{ grid-template-columns:1fr 1fr; } }
+  @media(min-width:1024px){ .cards-grid{ grid-template-columns:repeat(4,1fr); } }
+  .card{
+    background:#fff; border-radius:24px; padding:30px 26px; box-shadow:0 10px 30px -14px rgba(15,61,62,.18);
+    border:1px solid rgba(15,61,62,.05);
+    transition:transform .3s cubic-bezier(.2,.8,.2,1), box-shadow .3s ease;
+  }
+  .card:hover{ transform:translateY(-8px); box-shadow:0 26px 46px -18px rgba(15,61,62,.28); }
+  .card .ic-box{
+    width:56px; height:56px; border-radius:16px; display:flex; align-items:center; justify-content:center;
+    font-size:28px; margin-bottom:20px;
+  }
+  .card h3{ font-size:18px; font-weight:700; color:var(--navy); margin-bottom:10px; }
+  .card p{ font-size:14px; color:rgba(15,61,62,.62); }
+  .ic-1{ background:rgba(27,153,139,.12); }
+  .ic-2{ background:rgba(255,107,53,.12); }
+  .ic-3{ background:rgba(46,196,182,.15); }
+  .ic-4{ background:rgba(15,61,62,.1); }
+
+  /* ---------- GALERIA / DEPOIMENTOS ---------- */
+  .gallery-grid{
+    display:flex; flex-direction:column; gap:16px; margin-bottom:70px;
+  }
+  @media(min-width:640px){ .gallery-grid{ gap:22px; } }
+  @media(min-width:768px){ .gallery-grid{ flex-direction:row; height:460px; } }
+  .g-item{ border-radius:24px; overflow:hidden; box-shadow:0 16px 34px -16px rgba(15,61,62,.3); position:relative; }
+  .g-item img{ width:100%; height:100%; object-fit:cover; transition:transform .5s ease; }
+  .g-item:hover img{ transform:scale(1.07); }
+  .g-tall{ height:230px; }
+  @media(min-width:640px){ .g-tall{ height:280px; } }
+  @media(min-width:768px){ .g-tall{ flex:1 1 0; height:100%; } }
+  .g-side{ display:flex; flex-direction:column; gap:16px; }
+  @media(min-width:640px){ .g-side{ gap:22px; } }
+  @media(min-width:768px){ .g-side{ flex:1 1 0; height:100%; } }
+  .g-small{ height:170px; }
+  @media(min-width:640px){ .g-small{ height:210px; } }
+  @media(min-width:768px){ .g-small{ flex:1 1 0; height:auto; } }
+
+  .testi-grid{ display:grid; gap:24px; grid-template-columns:1fr; }
+  @media(min-width:860px){ .testi-grid{ grid-template-columns:repeat(3,1fr); } }
+  .testi{
+    background:var(--cream); border-radius:24px; padding:32px; box-shadow:0 12px 26px -16px rgba(15,61,62,.2);
+    border:1px solid rgba(15,61,62,.05);
+    transition:transform .3s ease, box-shadow .3s ease;
+  }
+  .testi:hover{ transform:translateY(-6px); box-shadow:0 22px 40px -18px rgba(15,61,62,.28); }
+  .stars{ color:var(--coral); font-size:16px; letter-spacing:2px; margin-bottom:16px; }
+  .testi p.quote{ color:rgba(15,61,62,.78); font-size:15px; margin-bottom:22px; }
+  .testi-person{ display:flex; align-items:center; gap:12px; }
+  .avatar{
+    width:42px; height:42px; border-radius:50%; color:#fff; display:flex; align-items:center;
+    justify-content:center; font-weight:800; font-family:'Poppins',sans-serif; flex-shrink:0;
+  }
+  .a1{ background:var(--leaf); } .a2{ background:var(--coral); } .a3{ background:var(--mint); }
+  .testi-person b{ display:block; font-size:14px; color:var(--navy); }
+  .testi-person span{ font-size:12px; color:rgba(15,61,62,.5); }
+
+  /* ---------- CTA FINAL ---------- */
+  .cta-final{
+    position:relative; overflow:hidden; text-align:center;
+    background:linear-gradient(135deg, var(--leaf) 0%, var(--navy) 60%, var(--navy) 100%);
+    padding:88px 0;
+  }
+  .cta-final::before{
+    content:''; position:absolute; inset:0; opacity:.28;
+    background-image:radial-gradient(circle at 1px 1px, rgba(255,255,255,.18) 1px, transparent 0);
+    background-size:26px 26px;
+  }
+  .cta-final .blob{ width:300px; height:300px; bottom:-80px; right:-80px; background:rgba(255,107,53,.22); }
+  .cta-final-inner{ position:relative; max-width:680px; margin:0 auto; padding:0 20px; }
+  .cta-final .paw-emoji{ font-size:46px; display:inline-block; margin-bottom:20px; animation:bob 2.4s ease-in-out infinite; }
+  .cta-final h2{ color:#fff; font-weight:800; font-size:30px; margin-bottom:20px; line-height:1.25; }
+  @media(min-width:640px){ .cta-final h2{ font-size:42px; } }
+  .cta-final h2 .accent{ color:var(--sand); }
+  .cta-final p{ color:rgba(255,255,255,.88); font-size:17px; margin-bottom:36px; }
+  .cta-final .btn{ font-size:17px; padding:19px 40px; }
+
+  /* ---------- FOOTER ---------- */
+  footer{ background:var(--navy); color:rgba(255,255,255,.7); padding:38px 0; }
+  .footer-inner{
+    display:flex; flex-direction:column; align-items:center; gap:22px; text-align:center;
+  }
+  @media(min-width:640px){ .footer-inner{ flex-direction:row; justify-content:space-between; text-align:left; } }
+  .footer-logo{ display:flex; align-items:center; gap:10px; font-family:'Poppins',sans-serif; font-weight:800; font-size:18px; color:#fff; }
+  .footer-logo .badge{ width:36px; height:36px; border-radius:50%; background:var(--mint); color:var(--navy); display:flex; align-items:center; justify-content:center; font-size:16px; }
+  .footer-logo .tag{ font-weight:400; color:rgba(255,255,255,.5); font-size:14px; margin-left:6px; }
+  .footer-contact{ font-size:14px; }
+  .footer-contact a{ display:block; font-weight:700; margin-bottom:6px; transition:color .2s ease; }
+  .footer-contact a:hover{ color:var(--mint); }
+
+  /* ---------- FLOATING WHATSAPP ---------- */
+  .float-wa{
+    position:fixed; bottom:20px; right:20px; z-index:200;
+    width:62px; height:62px; border-radius:50%; background:var(--coral); color:#fff;
+    display:flex; align-items:center; justify-content:center; box-shadow:0 16px 30px -8px rgba(0,0,0,.45);
+    animation:bob 2.6s ease-in-out infinite; transition:transform .25s ease;
+  }
+  .float-wa:hover{ transform:scale(1.1); }
+  .float-wa svg{ width:30px; height:30px; fill:currentColor; }
+
+  /* ---------- SCROLL REVEAL ---------- */
+  .reveal{ opacity:0; transform:translateY(26px); transition:opacity .7s ease, transform .7s ease; }
+  .reveal.in-view{ opacity:1; transform:translateY(0); }
+</style>
+</head>
+
+<body>
+
+<!-- ================= HEADER ================= -->
+<header>
+  <div class="container bar">
+    <a href="#topo" class="logo">
+      <span class="badge">🐾</span>
+      Felipe Freitas
+    </a>
+    <nav class="links">
+      <a href="#sobre">Sobre</a>
+      <a href="#beneficios">Benefícios</a>
+      <a href="#depoimentos">Depoimentos</a>
+    </nav>
+    <a href="https://wa.me/5511996447638?text=Ol%C3%A1%20Felipe!%20Gostaria%20de%20saber%20mais%20sobre%20os%20passeios%20para%20meu%20cachorro."
+       target="_blank" rel="noopener" class="btn small header-cta">
+      <svg viewBox="0 0 448 512"><path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.3-63.3-28.3-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.5 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7.9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/></svg>
+      Chamar no Zap
+    </a>
+    <a href="https://wa.me/5511996447638?text=Ol%C3%A1%20Felipe!%20Gostaria%20de%20saber%20mais%20sobre%20os%20passeios%20para%20meu%20cachorro."
+       target="_blank" rel="noopener" class="header-cta-mobile" aria-label="Chamar no WhatsApp">
+      <svg viewBox="0 0 448 512"><path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.3-63.3-28.3-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.5 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7.9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/></svg>
+    </a>
+  </div>
+</header>
+
+<!-- ================= HERO ================= -->
+<section class="hero" id="topo">
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="container hero-grid">
+    <div class="hero-text">
+      <span class="eyebrow">🐕 Dog Walker em São Paulo</span>
+      <h1>Seu melhor amigo merece <span class="accent">o melhor passeio!</span></h1>
+      <p class="lead">
+        Sou o <strong>Felipe Freitas</strong>, Dog Walker apaixonado por cães.
+        Levo seu pet para passear com toda segurança, carinho e energia que ele merece —
+        enquanto você foca no seu dia com a mente tranquila.
+      </p>
+      <div class="hero-cta-row">
+        <a href="https://wa.me/5511996447638?text=Ol%C3%A1%20Felipe!%20Gostaria%20de%20saber%20mais%20sobre%20os%20passeios%20para%20meu%20cachorro."
+           target="_blank" rel="noopener" class="btn">
+          <svg viewBox="0 0 448 512"><path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.3-63.3-28.3-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.5 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7.9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/></svg>
+          Agendar Passeio Agora
+        </a>
+      </div>
+      <div class="trust-row">
+        <div><span class="tick">✓</span>Passeios individuais</div>
+        <div><span class="tick">✓</span>Total segurança</div>
+      </div>
+    </div>
+
+    <div class="hero-img-wrap">
+      <div class="hero-photo-frame">
+        <div class="glow"></div>
+        <img src="img/foto1.jpg" alt="Crianças fazendo carinho em cachorro feliz durante passeio com Felipe Freitas">
+        <div class="stat-chip">
+          <span class="paw">🐾</span>
+          <div>
+            <strong>+500 passeios</strong>
+            <span>realizados com amor</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="paw-divider"></div>
+</section>
+
+<!-- ================= SOBRE ================= -->
+<section class="block sobre" id="sobre">
+  <div class="container sobre-grid">
+    <div class="sobre-photo reveal">
+      <img src="img/foto2.jpg" alt="Felipe Freitas passeando com cachorro, olhar de confiança entre os dois">
+    </div>
+    <div class="sobre-copy reveal">
+      <span class="kicker">Quem cuida do seu pet</span>
+      <h2 class="section-title">Mais que um passeador, um apaixonado por cães</h2>
+      <p>
+        Meu nome é <strong>Felipe Freitas</strong> e desde pequeno os cachorros
+        sempre foram parte da minha vida. Hoje transformei essa paixão em profissão: cuidar,
+        passear e trazer alegria para os melhores amigos das pessoas — com toda a responsabilidade
+        que eles merecem.
+      </p>
+      <p>
+        Cada passeio é único. Eu conheço o ritmo, os medos e as manias de cada cachorro, porque
+        trato cada um deles como se fosse meu. Você entrega, eu cuido, e o seu peludo volta
+        para casa cansado, feliz e cheio de energia boa.
+      </p>
+      <div class="sobre-facts">
+        <div class="fact">
+          <span class="ic">❤️</span>
+          <b>Amor genuíno por animais</b>
+        </div>
+        <div class="fact">
+          <span class="ic">🛡️</span>
+          <b>Compromisso com a segurança</b>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= BENEFÍCIOS ================= -->
+<section class="block beneficios" id="beneficios">
+  <div class="container">
+    <div class="section-intro reveal">
+      <span class="kicker">Vantagens</span>
+      <h2 class="section-title">Por que contratar um Dog Walker?</h2>
+      <p>Um passeio bem feito muda o dia inteiro do seu cachorro — e o seu também.</p>
+    </div>
+
+    <div class="cards-grid">
+      <div class="card reveal">
+        <div class="ic-box ic-1">🏃</div>
+        <h3>Saúde e Disposição</h3>
+        <p>Exercício diário mantém o peso ideal, o coração forte e as articulações saudáveis por muito mais tempo.</p>
+      </div>
+      <div class="card reveal">
+        <div class="ic-box ic-2">😌</div>
+        <h3>Menos Ansiedade</h3>
+        <p>Gasta energia, reduz o estresse e evita comportamentos destrutivos causados pelo tédio em casa.</p>
+      </div>
+      <div class="card reveal">
+        <div class="ic-box ic-3">🕐</div>
+        <h3>Comodidade pra Você</h3>
+        <p>Sem tempo na rotina corrida? Eu cuido do passeio no horário combinado, com total confiança.</p>
+      </div>
+      <div class="card reveal">
+        <div class="ic-box ic-4">🐕‍🦺</div>
+        <h3>Socialização</h3>
+        <p>Contato com outros cães e pessoas deixa seu pet mais equilibrado, sociável e confiante.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= GALERIA / PROVA SOCIAL ================= -->
+<section class="block sobre" id="depoimentos">
+  <div class="container">
+    <div class="section-intro reveal">
+      <span class="kicker">Momentos reais</span>
+      <h2 class="section-title">Passeios de verdade, cachorros de verdade</h2>
+      <p>Um pouco do dia a dia dos peludos que já são amigos do Felipe.</p>
+    </div>
+
+    <div class="gallery-grid">
+      <div class="g-item g-tall reveal">
+        <img src="img/foto3.jpg" alt="Dois cachorros se cumprimentando durante passeio na rua, felizes e de coleira">
+      </div>
+      <div class="g-side">
+        <div class="g-item g-small reveal">
+          <img src="img/foto4.jpg" alt="Cachorro caramelo sorrindo durante passeio pela calçada">
+        </div>
+        <div class="g-item g-small reveal">
+          <img src="img/foto5.jpg" alt="Cachorro atento e alerta durante passeio ao ar livre">
+        </div>
+      </div>
+    </div>
+
+    <div class="testi-grid">
+      <div class="testi reveal">
+        <div class="stars">★★★★★</div>
+        <p class="quote">"O Felipe cuida do meu Thor como se fosse dele. Chego do trabalho e ele já está cansadinho e feliz. Recomendo de olhos fechados!"</p>
+        <div class="testi-person">
+          <div class="avatar a1">M</div>
+          <div><b>Mariana Costa</b><span>Tutora da Luna</span></div>
+        </div>
+      </div>
+      <div class="testi reveal">
+        <div class="stars">★★★★★</div>
+        <p class="quote">"Pontualidade e muito carinho. Minha cachorra era super ansiosa e depois que começou a passear com o Felipe, ficou outra."</p>
+        <div class="testi-person">
+          <div class="avatar a2">R</div>
+          <div><b>Rodrigo Alves</b><span>Tutor do Bidu</span></div>
+        </div>
+      </div>
+      <div class="testi reveal">
+        <div class="stars">★★★★★</div>
+        <p class="quote">"Profissional atencioso, manda fotos e vídeos durante o passeio. Meus filhos amam ver o cachorro brincando. Nota 10!"</p>
+        <div class="testi-person">
+          <div class="avatar a3">C</div>
+          <div><b>Camila Ferreira</b><span>Tutora do Max</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CTA FINAL ================= -->
+<section class="cta-final">
+  <div class="blob"></div>
+  <div class="cta-final-inner reveal">
+    <span class="paw-emoji">🐕</span>
+    <h2>Que tal ver seu cachorro <span class="accent">mais feliz</span> hoje mesmo?</h2>
+    <p>Fale agora com o Felipe pelo WhatsApp e garanta o primeiro passeio para o seu melhor amigo. Vagas limitadas por região!</p>
+    <a href="https://wa.me/5511996447638?text=Ol%C3%A1%20Felipe!%20Gostaria%20de%20saber%20mais%20sobre%20os%20passeios%20para%20meu%20cachorro."
+       target="_blank" rel="noopener" class="btn">
+      <svg viewBox="0 0 448 512"><path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.3-63.3-28.3-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.5 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7.9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/></svg>
+      Falar com Felipe agora
+    </a>
+  </div>
+</section>
+
+<!-- ================= FOOTER ================= -->
+<footer>
+  <div class="container footer-inner">
+    <div class="footer-logo">
+      <span class="badge">🐾</span>
+      Felipe Freitas <span class="tag">| Dog Walker</span>
+    </div>
+    <div class="footer-contact">
+      <a href="tel:+5511996447638">📞 (11) 99644-7638</a>
+      <p>&copy; <span id="year"></span> Felipe Freitas — Todos os direitos reservados.</p>
+    </div>
+  </div>
+</footer>
+
+<!-- Botão flutuante WhatsApp -->
+<a href="https://wa.me/5511996447638?text=Ol%C3%A1%20Felipe!%20Gostaria%20de%20saber%20mais%20sobre%20os%20passeios%20para%20meu%20cachorro."
+   target="_blank" rel="noopener" aria-label="Falar no WhatsApp" class="float-wa">
+  <svg viewBox="0 0 448 512"><path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.3-63.3-28.3-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.5 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7.9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/></svg>
+</a>
+
+<script>
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  var observer = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if (entry.isIntersecting) {
+        entry.target.classList.add('in-view');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.15 });
+
+  document.querySelectorAll('.reveal').forEach(function(el){ observer.observe(el); });
+</script>
+
+</body>
+</html>
