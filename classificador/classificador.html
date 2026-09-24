@@ -860,9 +860,15 @@ setupDrop('#dropCats', '#fCats', async file => {
 });
 $('#btnRun').addEventListener('click', async () => { const b = $('#btnRun'); b.disabled = true; $('#btnDownload').disabled = true; try { await runAll(); } catch (e) { $('#runState').textContent = 'Erro ao classificar: ' + e.message; } b.disabled = false; });
 $('#fltCat').addEventListener('change', renderPreview); $('#fltMode').addEventListener('change', renderPreview);
+// Salva pelo Claude quando a página roda lá; fora dele (arquivo aberto direto no navegador) baixa por link comum.
+async function salvarArquivo(filename, blob) {
+  let dl = null; try { dl = await cuse('downloads'); } catch (_) {}
+  if (dl) { try { await dl.save({ filename, data: blob }); return; } catch (e) { if (e.code === 'declined') throw e; } }
+  const url = URL.createObjectURL(blob); const a = el('a', { href: url, download: filename });
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
 $('#btnDownload').addEventListener('click', async () => {
-  const dl = await cuse('downloads'); if (!dl) { $('#runState').textContent = 'O download não está disponível nesta visualização. Abra a página no Claude.'; return; }
-  try { const buf = buildWorkbook(); await dl.save({ filename: 'BACKLOG_CLASSIFICADO.xlsx', data: new Blob([buf]) }); $('#runState').textContent = 'Planilha salva.'; }
+  try { const buf = buildWorkbook(); await salvarArquivo('BACKLOG_CLASSIFICADO.xlsx', new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); $('#runState').textContent = 'Planilha salva.'; }
   catch (e) { $('#runState').textContent = e.code === 'declined' ? 'Download cancelado.' : 'Não consegui salvar a planilha (' + (e.code || e.message) + ').'; }
 });
 $('#defCat').addEventListener('change', e => { cfg.categoriaPadrao = e.target.value; saveDraft(); });
@@ -887,8 +893,7 @@ function cfgMsg(t, kind) { const m = $('#cfgMsg'); m.textContent = t; m.classNam
 
 /* config export/import */
 $('#btnExport').addEventListener('click', async () => {
-  const dl = await cuse('downloads'); if (!dl) { cfgMsg('Exportar não está disponível nesta visualização.', 'warn'); return; }
-  try { await dl.save({ filename: (N(cfg.nome || 'configuracao').replace(/ /g, '_') || 'configuracao') + '.json', data: JSON.stringify(cfg, null, 1) }); cfgMsg('Configuração exportada.', 'ok'); } catch (e) { cfgMsg(e.code === 'declined' ? 'Exportação cancelada.' : 'Não consegui exportar.', 'warn'); }
+  try { await salvarArquivo((N(cfg.nome || 'configuracao').replace(/ /g, '_') || 'configuracao') + '.json', new Blob([JSON.stringify(cfg, null, 1)], { type: 'application/json' })); cfgMsg('Configuração exportada.', 'ok'); } catch (e) { cfgMsg(e.code === 'declined' ? 'Exportação cancelada.' : 'Não consegui exportar.', 'warn'); }
 });
 $('#fImport').addEventListener('change', async e => { const f = e.target.files[0]; if (!f) return; try { const c = JSON.parse(await f.text()); if (!c.categorias) throw new Error(); applyJob(c); cfgMsg('Configuração "' + (c.nome || '') + '" importada para a biblioteca e ativada. As outras categorias continuam guardadas.', 'ok'); } catch (_) { cfgMsg('Esse arquivo não é uma configuração exportada por esta página.', 'bad'); } e.target.value = ''; });
 
