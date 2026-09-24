@@ -1,0 +1,40 @@
+Trabalho de MATERIAL DE CONSTRUÇÃO, FERRAGENS E FERRAMENTAS (itens que hoje estão em "MATERIAL OUTROS").
+
+Como decidir a categoria:
+- O tipo do produto é a primeira palavra da descrição (ex.: RALO, PINO, ARAME, SERRA, CADEADO). Ignore no começo códigos de embalagem como ENCART, ENC, ENCARTELADO, UTIL, UD, JD, REF e a marca.
+- Se existir categoria específica para o tipo, use ela. Se não existir, use MATERIAL OUTROS (o descritivo começa pelo próprio tipo).
+
+Categorias específicas:
+- ACESSORIO HIDRAULICA: ralo, ralinho, grelha de ralo, caixa sifonada, sifão, válvula, registro, reparo de válvula/descarga, boia, engate flexível, cuba, tanque, pia, lavatório, bomba d'água (submersa, centrífuga, periférica), regulador de pressão de água.
+- TUBO E CONEXAO: tubo, cano, joelho, tê/TEE, niple, luva soldável/de correr, redução, bucha de redução, curva, união, cap, tampão PVC, espigão, adaptador soldável/curto/com flange, anel de vedação/de borracha para esgoto.
+- CONECTOR ELETRICO: pino (macho, fêmea, adaptador, tripolar), plug/plugue, benjamim, adaptador de tomada ou de 3 saídas, filtro de linha, conector de porcelana/louça/de fio, borne.
+- TOMADA E INTERRUPTOR: tomada, interruptor, placa 4x2/4x4 e placa cega de tomada.
+- MANGUEIRA E ESGUICHO: mangueira, esguicho (também escrito "esguincho"), engate rápido, conector/emenda/adaptador de mangueira.
+- EQUIPAMENTO MANUAL: alicate, torquês/turquês, talhadeira, ponteiro, marreta, martelo, espátula, desempenadeira, colher de pedreiro, arco de serra, serra manual, serrinha, serrote, foice, foicinha, picareta, cavadeira, enxada, enxadão, rastelo, maçarico, pistola aplicadora, rebitador, grampeador, torno de bancada, catraca, chaves (de boca, combinada, estrela, philips, de grifo, mandril, torx), estilete, lima, grosa, pé de cabra, carrinho de mão.
+- ACESSORIO/PECA DE REPOSICAO: broca, serra copo, serra de vídea/widia, disco de serra/corte/desbaste/flap/diamantado, eletrodo, porta-eletrodo, bits, fio/linha para roçadeira.
+- MAQUINA ELETRICA: furadeira, parafusadeira, esmerilhadeira, lixadeira, serra circular, serra mármore, serra tico-tico, ferro de solda, compressor, roçadeira, soprador, lavadora de alta pressão, pistola de cola quente, máquina de solda.
+- MEDICAO E MARCACAO: trena, metro articulado, nível, prumo, esquadro, multímetro, alicate amperímetro, lápis de carpinteiro/marceneiro, giz de linha.
+- TINTA E ACESSORIO: tinta, verniz, esmalte sintético, selador, massa corrida, massa acrílica, fundo preparador, zarcão, thinner, aguarrás, solvente, rolo de pintura (lã/espuma), trincha, pincel de pintura, fita crepe.
+- PISO E REVESTIMENTO: piso, revestimento, porcelanato, cimento, argamassa, rejunte, espaçador e nivelador de piso.
+- BUCHA E PARAFUSO: bucha, parafuso, porca, escápula, barra roscada.
+- FIXACAO OUTROS: rebite, arruela, tarjeta/targeta, tachinha, chumbador.
+- PREGO E GRAMPO: prego, grampo. GANCHO E SUPORTE: gancho, suporte. ABRACADEIRA: abraçadeira (também "braçadeira").
+- DOBRADICA E FECHADURA: dobradiça, fechadura, ferrolho, trinco, cilindro de fechadura, maçaneta, porta-cadeado.
+- CADEADO: cadeado de qualquer tipo, inclusive cadeado para bicicleta.
+- FITA ADESIVA OUTROS: fita isolante, fita veda rosca, fita silver tape, fita autofusão.
+- VARAL ROUPA: varal, corda de varal, kit varal.
+- ACESSORIO DE ILUMINACAO: soquete/bocal de lâmpada, receptáculo, dimmer, sensor de presença, reator.
+- LUMINARIA INTERNA/EXTERNA: luminária, plafon, plafonier, spot, refletor, arandela. LAMPADA: lâmpada.
+- DUCHA CHUVEIRO: chuveiro, ducha, resistência de chuveiro. TORNEIRA: torneira, misturador.
+- JARDINAGEM OUTROS: vaso, regador, pulverizador, semente, terra adubada.
+
+Vão para MATERIAL OUTROS (sem categoria própria): arame, tela (inclusive sombrite), lona, corda (que não seja de varal), cordão, corrente, cabo de aço, fio elétrico (paralelo, flexível, rígido, torcido), fio de nylon, silicone e selante de vedação, vedante, veda calha, veda trinca, massa epóxi/durepoxi, massa plástica, porta, janela, basculante, vitrô, veneziana, portão, grade, forro, telha, cumeeira, calha, rufo, cantoneira, perfil, trilho, rodízio, roldana, puxador, tampa de caixa, tampa cega, pedra (brita, de afiar, de amolar), ratoeira, filtro, linha de pedreiro, ácido muriático, amônia, desengripante, lubrificante, graxa, vaselina, espuma expansiva, cinta de amarração/catraca, canaleta, eletroduto, isolador, campainha, emenda, regulador de gás, lixa (d'água, de ferro, de massa), manta asfáltica/geotêxtil, tijolo, areia, cal, gesso, vergalhão, treliça, mola, argola, feltro adesivo, protetor de ralo/quina/porta, óculos de segurança/proteção, protetor auricular, capacete de segurança, luva de raspa, bobina plástica, saco de entulho/ráfia, ferradura, número residencial.
+
+Nunca usar estas categorias para material (são palavras parecidas, não o produto):
+- ARROZ BRANCO por causa de "BRANCO"; FARINHA ROSCA ou PÃO por causa de "ROSCA"; VITAMINA / SUPLEMENTO por causa de "FERRO", "ZINCO", "COBRE"; BIJUTERIA por causa de "ANEL"; DOCE PADARIA por causa de "BOMBA"; LIMPADOR MULTIUSO por causa de "MULTIUSO"/"MULTI USO"; ABSORVENTE por causa de "TAMPÃO"; MEIA por causa de "SOQUETE"; ROUPA DE CAMA por causa de "MANTA"; AUXILIAR PARA RESPIRAÇÃO por causa de "ESPAÇADOR"; BICICLETA quando o produto é cadeado; LÁPIS (papelaria) quando é lápis de carpinteiro; COLA (papelaria) quando é silicone/selante de construção.
+
+Mandar para OUTRA CATEGORIA (não é material): ração, alimentos e bebidas, tintura de cabelo, cosméticos, medicamentos, itens com "PRODUTO A SER AJUSTADO" ou "PRODUTO SEM DESCRICAO".
+
+Marcas: TIGRE, AMANCO, KRONA, FORTLEV, VEFIX, PRATIKO, NEDO, ELETROLAR, PRATIC, SOLLO, UTILIZE, EXPOTEC, DIPAR, METIDIERI, VONDER, IRWIN, PAPAIZ, TRAMONTINA, LOCTITE, FOXLUX, LORENZETTI, BIRIBA, RAJU e REMA são marcas, nunca o tipo do produto. ENCART, ENC, UTIL, UD, JD, REF, COD, MULTIPACK e PRATIC BOX não são marca.
+
+Quantidade: quando a descrição não trouxer peso, volume ou contagem, usar 1UN. Metragem de rolo (ex.: 10M, 20M, 50M) e medidas (MM, CM, polegadas) fazem parte da descrição, não da quantidade.
