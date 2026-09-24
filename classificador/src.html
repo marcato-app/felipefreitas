@@ -443,7 +443,8 @@ function compile0() {
   return {
     sempre: termRx((() => { const inCats = new Set(); for (const c of actCats()) for (const t of [...(c.incluir || []), ...(c.tambem || []), ...(c.tipo || [])]) inCats.add(N(String(t).replace(/\*/g, ''))); return sempreAtivos().filter(t => !inCats.has(N(String(t).replace(/\*/g, '')))); })()),
     cats: actCats().map(c => ({ c, inc: termRx(c.incluir), tam: termRx(c.tambem), exc: termRx(c.excluir), forte: new Set((c.forte || []).map(N)), pct: (c.pctMin === '' || c.pctMin === null || c.pctMin === undefined) ? null : +c.pctMin, tipo: termRx(c.tipo),
-      words: new Set([...(c.incluir || []), ...(c.tambem || []), ...(c.tipo || [])].flatMap(x => N(String(x).replace(/\*/g, ' ')).split(' '))) })),
+      // palavras de tipo da categoria: 1ª palavra de cada termo de incluir/tipo ("PORTA LAPIS" conta PORTA, não LAPIS) e todo o "também"
+      words: new Set([...[...(c.incluir || []), ...(c.tipo || [])].map(x => N(String(x).replace(/\*/g, ' ')).split(' ')[0]), ...(c.tambem || []).flatMap(x => N(String(x).replace(/\*/g, ' ')).split(' '))]) })),
     names: new Set(actCats().map(c => c.nome)),
     cesta: new Map(actCats().map(c => [c.nome, c.cesta || ''])),
     pa: compilePA(new Set(actCats().map(c => c.nome))),
@@ -522,7 +523,13 @@ function classifyRules(t, C) {
   return hc.x.c.nome;
 }
 // posição da palavra que diz o tipo do produto: pula código de embalagem (ENCART, UTIL...), números e marca do dicionário
-const SKIPTIPO = new Set('ENCART ENCARTELADO ENC ENCT UTIL UTI UTILID UD JD CL TRK BZ MB MC REF COD CJ EMB PCT'.split(' '));
+const SKIPTIPO = new Set('ENCART ENCARTELADO ENC ENCT UTIL UTI UTILID UD JD CL TRK BZ MB MC REF COD CJ EMB PCT BAZAR PAPELARIA PAPELARIAS ESCOLAR ESC OUTROS OUTRAS INATIVO SUBSTITUICAO'.split(' '));
+// categoria dinâmica: o descritivo começa pelo tipo (1ª palavra) quando é um termo da própria categoria (ex.: ESTOJO, PASTA)
+function tipoIni(T, per, cat, C) {
+  const x = C.cats.find(y => y.c.nome === cat); if (!x) return '';
+  for (let i = 0; i < T.length; i++) { if (per[i] !== cat) continue; const hp = headPos(T[i]); if (hp && x.words.has(hp.w)) return NOUN_MAP[hp.w] || hp.w; }
+  return '';
+}
 function headPos(t) {
   let i = 0;
   for (const w of t.split(' ')) {
@@ -761,7 +768,7 @@ async function runAll() {
     const farmaLivre = cc && cc.cesta === 'FARMACIA' && !cc.inicio;
     const paHit = farmaLivre && !bn && C.pa ? it.T.map(t => matchPA(t, C.pa)).find(Boolean) : null;
     const ini = farmaLivre ? (bn ? '' : paHit ? paIni(paHit, it.T) : nounOutra(it.T, bn))
-      : (a.cat === OUT || (cc && cc.dinamico)) ? nounOutra(it.T, bn) : (cc.inicio || cc.nome);
+      : (cc && cc.dinamico) ? (tipoIni(it.T, a.per, a.cat, C) || nounOutra(it.T, bn)) : a.cat === OUT ? nounOutra(it.T, bn) : (cc.inicio || cc.nome);
     const keepT = it.T.filter((t, j) => a.per[j] === a.cat); const T2 = keepT.length ? keepT : it.T;
     const brandTxt = bn ? cleanD(marca) : '';
     const comp = complement(T2, a.cat, ini, bn || '', groupOf(a.cat), cc);
@@ -1198,15 +1205,16 @@ function migrarCategorias() {
   cfg.migracoes = cfg.migracoes || [];
   // vocabulário de material (vocab_material.py): termos novos / genéricos removidos, uma vez; a lista "tipo"
   // (que não aparece no editor) é garantida sempre, porque uma biblioteca antiga do DB em 'replace' a apaga
-  const LP = K.libPatch;
-  if (LP) for (const c of cfg.categorias || []) {
-    const p = LP.cats[c.nome]; if (!p) continue;
-    const add = (k, l) => { c[k] = c[k] || []; for (const t of l || []) if (!c[k].includes(t)) { c[k].push(t); n++; } };
-    add('tipo', p.tipo);
-    if (!cfg.migracoes.includes(LP.id)) { add('incluir', p.incluir); add('excluir', p.excluir);
-      const rm = new Set(p.remover_incluir || []); const k0 = c.incluir.length; c.incluir = c.incluir.filter(t => !rm.has(t)); n += k0 - c.incluir.length; }
+  for (const [pid, cats] of Object.entries(K.libPatches || {})) {
+    for (const c of cfg.categorias || []) {
+      const p = cats[c.nome]; if (!p) continue;
+      const add = (k, l) => { c[k] = c[k] || []; for (const t of l || []) if (!c[k].includes(t)) { c[k].push(t); n++; } };
+      const del = (k, l) => { const rm = new Set(l || []); if (!rm.size || !c[k]) return; const k0 = c[k].length; c[k] = c[k].filter(t => !rm.has(t)); n += k0 - c[k].length; };
+      add('tipo', p.tipo); del('tipo', p.remover_tipo);
+      if (!cfg.migracoes.includes(pid)) { add('incluir', p.incluir); add('excluir', p.excluir); del('incluir', p.remover_incluir); del('excluir', p.remover_excluir); }
+    }
+    if (!cfg.migracoes.includes(pid)) { cfg.migracoes.push(pid); n++; }
   }
-  if (LP && !cfg.migracoes.includes(LP.id)) { cfg.migracoes.push(LP.id); n++; }
   if (!cfg.migracoes.includes('qtdPadraoPapelaria')) {
     const qp = new Map(((K.libSeed && K.libSeed.categorias) || []).filter(x => x.qtdPadrao).map(x => [x.nome, x.qtdPadrao]));
     for (const c of cfg.categorias || []) if (!c.qtdPadrao && qp.has(c.nome)) { c.qtdPadrao = qp.get(c.nome); n++; }

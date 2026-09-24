@@ -88,3 +88,10 @@ Pontos pra checar, em ordem:
 - `vocab_material.py` gera os termos (tipos, frases, exclusões e termos genéricos removidos, como BRANCO em ARROZ BRANCO e ROSCA em FARINHA ROSCA) em `consts.json` e em `libPatch`, que `migrarCategorias()` aplica uma vez nas categorias salvas no navegador (a lista `tipo` é garantida sempre).
 - Resultado no backlog de 12.367 itens de MATERIAL OUTROS (`dados/material_outros_revisao.xlsx`): OUTRA CATEGORIA 8.184 → 2.269; itens em construção/ferramenta 908 → 7.591.
 - Farmácia sem início fixo no manual: o descritivo começa pela marca ou, sem marca, pelo princípio ativo; COMP/CP/CPR = COMPRIMIDO; formas farmacêuticas contam como unidade.
+
+## Vocabulário de papelaria (PAPELARIA OUTROS)
+
+- `vocab_papelaria.py` (rodar depois do `vocab_material.py`, a partir do consts sem patches): tipos de papelaria/armarinho/festa, falsos positivos (TNT → energético, AZ → azeitona, GLITTER TUBOS → tubo…), e `remover_tipo`/`remover_excluir` para tipos do material que eram de papelaria (LINHA, LETRA, BOBINA, GRAMPEADOR, ESTILETE) e exclusões que criavam buraco (PAPELARIA OUTROS excluía LAPIS; LAPIS excluía APONTADOR/BORRACHA).
+- Patches agora ficam em `consts.json → libPatches[id]`; `migrarCategorias()` aplica cada um uma vez nas categorias salvas (tipo sempre).
+- Categoria dinâmica (PAPELARIA/MATERIAL OUTROS…): o descritivo começa pelo tipo que decidiu a categoria (`tipoIni`), mesmo que ele esteja na lista de ruído (ex.: ESTOJO).
+- Backlog de 29.131 itens (`dados/papelaria_outros_revisao.xlsx`): OUTRA CATEGORIA 12.278 → 2.565.

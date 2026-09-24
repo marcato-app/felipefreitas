@@ -2,7 +2,7 @@
 
 Acrescenta tipos de produto às categorias da biblioteca (consts.json -> libSeed) e tira termos genéricos
 demais que puxavam esses itens para categorias erradas (BRANCO -> ARROZ BRANCO, ROSCA -> FARINHA ROSCA,
-FERRO -> vitamina, ANEL -> bijuteria, BOMBA -> doce...). O mesmo patch vai em consts.json -> libPatch,
+FERRO -> vitamina, ANEL -> bijuteria, BOMBA -> doce...). O mesmo patch vai em consts.json -> libPatches[PATCH_ID],
 que o app aplica uma vez nas categorias já salvas no navegador.
 
 Tipo sem categoria própria na biblioteca vai para MATERIAL OUTROS (categoria dinâmica: o descritivo
@@ -33,14 +33,14 @@ PATCH = {
         'SILICONE', 'SELANTE', 'VEDANTE', 'VEDA CALHA', 'VEDA TRINCA', 'VEDACALHA', 'MASSA PLASTICA', 'MASSA DE CALAFETAR',
         'PORTA', 'JANELA', 'BASCULANTE', 'VITRO', 'VENEZIANA', 'FORRO', 'CUMEEIRA', 'CALHA', 'RUFO', 'CANTONEIRA', 'PERFIL',
         'TRILHO', 'RODIZIO', 'ROLDANA', 'PUXADOR', 'TAMPA CEGA', 'TAMPA DE CAIXA', 'TAMPA CAIXA', 'TAMPA DE ESGOTO', 'PLACA CEGA',
-        'PEDRA', 'PEDRA BRITA', 'PEDRA DE AFIAR', 'RATOEIRA', 'FILTRO', 'LINHA', 'LINHA DE PEDREIRO', 'LINHA PEDREIRO',
+        'PEDRA', 'PEDRA BRITA', 'PEDRA DE AFIAR', 'RATOEIRA', 'FILTRO', 'LINHA DE PEDREIRO', 'LINHA PEDREIRO',
         'ACIDO MURIATICO', 'AMONIA', 'DESENGRIPANTE', 'LUBRIFICANTE', 'GRAXA', 'VASELINA', 'ESPUMA EXPANSIVA', 'ESPUMA PU',
         'CINTA', 'CINTA CATRACA', 'CANALETA', 'ELETRODUTO', 'ISOLADOR', 'CAMPAINHA', 'EMENDA', 'REGULADOR', 'REGULADOR DE GAS',
         'PROTETOR AURICULAR', 'FERRADURA', 'SACO DE ENTULHO', 'SACO RAFIA', 'LIXA', 'LIXA DAGUA', 'LIXA MASSA', 'LIXA FERRO',
         'MANTA GEOTEXTIL', 'TELHA', 'TIJOLO', 'LAJOTA', 'CAL', 'GESSO', 'VERGALHAO', 'MALHA POP', 'TRELICA', 'FECHADURA ELETRICA',
-        'FERRAGEM', 'MOLA', 'ARGOLA', 'TAMPAO PVC', 'TAMPAO CEGO', 'PASSA FIO', 'RESISTENCIA', 'BOBINA', 'CORRIMAO',
+        'FERRAGEM', 'MOLA', 'ARGOLA', 'TAMPAO PVC', 'TAMPAO CEGO', 'PASSA FIO', 'RESISTENCIA', 'BOBINA PLASTICA', 'CORRIMAO', 'LINHA DE NYLON', 'LINHA NYLON',
         'ADAPTADOR', 'ADAPT', 'TAMPA', 'PLACA', 'TAMPAO', 'SOLEIRA', 'PINGADEIRA', 'GRADE', 'PORTAO', 'TOLDO', 'TENDA',
-        'FELTRO', 'ALCA', 'PONTEIRA', 'ESCADA MARINHEIRO', 'NUMERO', 'NUMERO RESIDENCIAL', 'LETRA', 'EMPATE', 'ISCA',
+        'FELTRO', 'ALCA', 'PONTEIRA', 'ESCADA MARINHEIRO', 'NUMERO', 'NUMERO RESIDENCIAL', 'LETRA RESIDENCIAL', 'EMPATE', 'ISCA',
         'ENCASTOADOR', 'RAQUETE', 'RAQUETE ELETRICA', 'RAQUETE MATA MOSQUITO', 'MASCARA DE SOLDA', 'MASCARA PFF2',
         'BARRA DE APOIO', 'BARRA APOIO', 'VEDA', 'SOLDA', 'SOLDA ESTANHO', 'FERRAMENTA', 'FERRAMENTAS', 'KIT FERRAMENTA',
         'OCULOS DE SEGURANCA', 'OCULOS SEGURANCA', 'OCULOS DE PROTECAO', 'OCULOS PROTECAO', 'MASSA EPOXI', 'MASSA DUREPOX',
@@ -72,8 +72,8 @@ PATCH = {
         'TORQUES', 'TURQUES', 'TORQUEZ', 'TALHADEIRA', 'PONTEIRO', 'MARRETA', 'MARTELO', 'ESPATULA', 'DESEMPENADEIRA',
         'COLHER DE PEDREIRO', 'COLHER PEDREIRO', 'ARCO DE SERRA', 'ARCO SERRA', 'ARCO', 'SERRA', 'SERRA MANUAL', 'SERRINHA',
         'SERROTE', 'FOICE', 'FOICINHA', 'PICARETA', 'CAVADEIRA', 'ENXADAO', 'RASTELO', 'MACARICO', 'PISTOLA', 'PISTOLA APLICADORA',
-        'REBITADOR', 'GRAMPEADOR', 'TORNO', 'TORNO DE BANCADA', 'CATRACA', 'CHAVE DE BOCA', 'CHAVE COMBINADA', 'CHAVE ESTRELA',
-        'CHAVE PHILIPS', 'CHAVE DE GRIFO', 'CHAVE MANDRIL', 'CHAVE TORX', 'JOGO DE CHAVES', 'ESTILETE', 'LIMA', 'GROSA',
+        'REBITADOR', 'GRAMPEADOR TAPECEIRO', 'GRAMPEADOR DE TAPECEIRO', 'GRAMPEADOR PARA MADEIRA', 'TORNO', 'TORNO DE BANCADA', 'CATRACA', 'CHAVE DE BOCA', 'CHAVE COMBINADA', 'CHAVE ESTRELA',
+        'CHAVE PHILIPS', 'CHAVE DE GRIFO', 'CHAVE MANDRIL', 'CHAVE TORX', 'JOGO DE CHAVES', 'LIMA', 'GROSA',
         'PE DE CABRA', 'CARRINHO DE MAO', 'CARRINHO MAO',
     )},
     'ACESSORIO/PECA DE REPOSICAO': {'incluir': pl(
@@ -146,7 +146,8 @@ def main():
                 if t not in x[k]: x[k].append(t)
         rm = set(p.get('remover_incluir', []))
         x['incluir'] = [t for t in x['incluir'] if t not in rm]
-    c['libPatch'] = {'id': PATCH_ID, 'cats': PATCH}
+    c.pop('libPatch', None)
+    c.setdefault('libPatches', {})[PATCH_ID] = PATCH
     (here / 'consts.json').write_text(json.dumps(c, ensure_ascii=False), encoding='utf-8')
     print(f'{len(PATCH)} categorias ajustadas; {sum(len(p["tipo"]) for p in PATCH.values())} tipos (1a palavra) e '
           f'{sum(len(p["incluir"]) for p in PATCH.values())} frases novas')
