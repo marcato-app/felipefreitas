@@ -372,35 +372,65 @@ async function loadDict(file) {
     const fab = ci.fab >= 0 && row[ci.fab] ? String(row[ci.fab]).trim() : 'OUTRO FABRICANTE';
     const em = ci.em >= 0 && row[ci.em] ? String(row[ci.em]).trim() : '';
     const v = ci.v >= 0 ? num(row[ci.v]) : 1;
+    dictAdd(dict, mn, raw, fab, em, v);
+  }
+  data.dict = dictFinish(dict);
+  return dict.size;
+}
+function dictAdd(dict, mn, raw, fab, em, v) {
     let b = dict.get(mn);
     if (!b) { b = { names: new Map(), total: 0, em: new Map(), fabEm: new Map(), fabAll: new Map() }; dict.set(mn, b); }
     const rn = String(raw).trim(); b.names.set(rn, (b.names.get(rn) || 0) + v + 1e-6); b.total += v;
     b.em.set(em, (b.em.get(em) || 0) + v);
     let fm = b.fabEm.get(em); if (!fm) { fm = new Map(); b.fabEm.set(em, fm); } fm.set(fab, (fm.get(fab) || 0) + v + 1e-6);
     b.fabAll.set(fab, (b.fabAll.get(fab) || 0) + v + 1e-6);
-  }
-  for (const b of dict.values()) { let best = null, bv = -1; for (const [k, v] of b.names) if (v > bv) { bv = v; best = k; } b.canon = best; b.names = null; }
+}
+function dictFinish(dict, semPrimeira) {
+  for (const b of dict.values()) if (b.names) { let best = null, bv = -1; for (const [k, v] of b.names) if (v > bv) { bv = v; best = k; } b.canon = best; b.names = null; }
   // glued & first-word aliases
   const glued = new Map(), first = new Map();
   for (const m of dict.keys()) if (m.includes(' ')) {
     const k = m.replace(/ /g, ''); if (k.length >= 5 && !dict.has(k)) glued.set(k, m);
-    const w0 = m.split(' ')[0]; if (w0.length >= 5 && !GENERIC.has(w0) && !/^\d/.test(w0)) { if (!first.has(w0)) first.set(w0, []); first.get(w0).push(m); }
+    const w0 = m.split(' ')[0]; if (!semPrimeira && w0.length >= 5 && !GENERIC.has(w0) && !/^\d/.test(w0)) { if (!first.has(w0)) first.set(w0, []); first.get(w0).push(m); }
   }
   for (const [k, ms] of first) if (ms.length === 1 && !dict.has(k)) glued.set(k, ms[0]);
-  data.dict = { map: dict, glued };
-  return dict.size;
+  return { map: dict, glued };
 }
+// Base DIMA embutida (dima.py): marca x categoria x fabricante + abreviaturas + categorias sem marca.
+// A marca é procurada primeiro aqui; o dicionário enviado só entra quando a DIMA não acha nada.
+const DIMA_B64 = /*DIMA*/null;
+let dimaP = null;
+function loadDima() {
+  if (dimaP) return dimaP;
+  dimaP = (async () => {
+    if (!DIMA_B64 || typeof DecompressionStream === 'undefined') return null;
+    const bin = Uint8Array.from(atob(DIMA_B64), c => c.charCodeAt(0));
+    const j = JSON.parse(await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
+    const dict = new Map(), R = j.rows;
+    for (let i = 0; i < R.length; i += 3) { const raw = j.marcas[R[i]], mn = N(raw); if (mn) dictAdd(dict, mn, raw, j.fabs[R[i + 2]], j.segs[R[i + 1]], 1); }
+    const alias = [];
+    for (const [mi, ...ab] of j.abr) { const raw = j.marcas[mi], mn = N(raw); if (!mn) continue;
+      if (!dict.has(mn)) dictAdd(dict, mn, raw, 'OUTRO FABRICANTE', '', 1);
+      for (const a of ab) alias.push([N(a), mn]); }
+    const D = dictFinish(dict, true);
+    for (const [k, mn] of alias) if (k && !D.map.has(k)) D.map.set(k, D.map.get(mn)); // abreviação -> mesma marca
+    data.dima = D; return D;
+  })().catch(e => { console.warn('DIMA', e); return null; });
+  return dimaP;
+}
+function brandDicts() { return [data.dima, data.dict].filter(Boolean); }
 
 /* ------------------------------------------------------------------ segments */
 function autoSegments() {
-  if (!data.items || !data.dict) return;
+  const DD = data.dict || data.dima;
+  if (!data.items || !DD) return;
   const black = new Set(cfg.falsasMarcas.map(N));
   for (const c of cfg.categorias) {
     if (c.segmentoManual) continue;
     const s = new Map();
     for (const it of data.items) {
       if (it.sugCat !== c.nome) continue; const mn = N(it.sugMarca); if (!mn || black.has(mn) || mn === 'OUTRA MARCA') continue;
-      const b = data.dict.map.get(mn); if (!b) continue;
+      const b = DD.map.get(mn); if (!b) continue;
       for (const [e, v] of b.em) if (e) s.set(e, (s.get(e) || 0) + v);
     }
     const arr = [...s].sort((a, b) => b[1] - a[1]); const tot = arr.reduce((a, x) => a + x[1], 0);
@@ -505,7 +535,7 @@ function classifyRules(t, C) {
   // 2) tipo do produto: a primeira palavra "de verdade" da descrição (pula código de embalagem e marca).
   //    Categoria que bate exatamente nela ganha da regra antiga quando esta bateu mais para o meio do texto
   //    por outra palavra (ex.: "LIXA ... FERRO" não vai para vitamina; "CADEADO P BICICLETA" vai para cadeado).
-  const hp = headPos(t); if (!hp) return r ? r.x.c.nome : null;
+  const hp = headPos(t, C.headIdx); if (!hp) return r ? r.x.c.nome : null;
   let hc = null;
   const cand = new Set(C.headIdx.get(hp.w) || []); for (const [pre, ids] of C.headWild) if (hp.w.startsWith(pre)) for (const i of ids) cand.add(i);
   for (const i of [...cand].sort((a, b) => a - b)) {
@@ -527,13 +557,13 @@ const SKIPTIPO = new Set('ENCART ENCARTELADO ENC ENCT UTIL UTI UTILID UD JD CL T
 // categoria dinâmica: o descritivo começa pelo tipo (1ª palavra) quando é um termo da própria categoria (ex.: ESTOJO, PASTA)
 function tipoIni(T, per, cat, C) {
   const x = C.cats.find(y => y.c.nome === cat); if (!x) return '';
-  for (let i = 0; i < T.length; i++) { if (per[i] !== cat) continue; const hp = headPos(T[i]); if (hp && x.words.has(hp.w)) return NOUN_MAP[hp.w] || hp.w; }
+  for (let i = 0; i < T.length; i++) { if (per[i] !== cat) continue; const hp = headPos(T[i], C.headIdx); if (hp && x.words.has(hp.w)) return NOUN_MAP[hp.w] || hp.w; }
   return '';
 }
-function headPos(t) {
+function headPos(t, H) {
   let i = 0;
   for (const w of t.split(' ')) {
-    if (w && !SKIPH.has(w) && !SKIPTIPO.has(w) && !/^\d/.test(w) && w.length > 1 && !(data.dict && data.dict.map.has(w))) return { w, i };
+    if (w && !SKIPH.has(w) && !SKIPTIPO.has(w) && !/^\d/.test(w) && w.length > 1 && !((H ? !H.has(w) : true) && brandDicts().some(D => D.map.has(w)))) return { w, i };
     i += w.length + 1;
   }
   return null;
@@ -562,8 +592,10 @@ function aggregate(T, sug, C) {
 }
 
 /* brand */
+// atributos que aparecem como "marca" na base DIMA
+const MARCA_NAO = new Set(['MULTI USO', 'MULTIUSO', 'INOX', 'METAL', 'SUPER UTIL', 'UNIVERSAL', 'PORCELANA', 'PRATA', 'DOURADO', 'DOURADA', 'PRETO', 'BRANCO', 'SORTIDO', 'SORTIDOS', 'COLORIDO']);
 function validCand(g, black, weakOk) {
-  if (black.has(g) || GPHR.has(g)) return false;
+  if (black.has(g) || GPHR.has(g) || SKIPTIPO.has(g) || MARCA_NAO.has(g)) return false;
   const w = g.split(' ');
   if (w.length <= 2 && w.every(x => GENERIC.has(x) || /^\d+$/.test(x) || x.length <= 2)) { if (!(weakOk && w.length >= 2)) return false; }
   if (g.replace(/ /g, '').length <= 2) return false;
@@ -572,34 +604,61 @@ function validCand(g, black, weakOk) {
   if (/\d+(G|KG|ML|L|GR)$/.test(g)) return false;
   return true;
 }
-function relSales(mn, seg) { const b = data.dict.map.get(mn); if (!b || !seg || !seg.length) return 0; let s = 0; for (const e of seg) s += b.em.get(e) || 0; return s; }
-function fabricante(mn, seg) {
-  const b = data.dict.map.get(mn); if (!b) return 'OUTRO FABRICANTE';
+function relSales(mn, seg, DD) { const b = DD.map.get(mn); if (!b || !seg || !seg.length) return 0; let s = 0; for (const e of seg) s += b.em.get(e) || 0; return s; }
+function fabricante(mn, seg, DD) {
+  const b = DD.map.get(mn); if (!b) return 'OUTRO FABRICANTE';
   const s = new Map(); for (const e of seg || []) { const fm = b.fabEm.get(e); if (fm) for (const [f, v] of fm) s.set(f, (s.get(f) || 0) + v); }
   const pick = m => { let best = null, bv = -1; for (const [f, v] of m) if (f !== 'OUTRO FABRICANTE' && v > bv) { bv = v; best = f; } return best; };
   return pick(s) || pick(b.fabAll) || 'OUTRO FABRICANTE';
 }
-function findBrand(T, seg, sug, black) {
-  if (!data.dict) return null;
-  const D = data.dict.map, sugn = N(sug);
+const SEG_STOP = new Set('ACESSORIO ACESSORIOS OUTROS OUTRO OUTRAS PARA DE DA DO DOS E COM EM GERAL PRODUTOS PRODUTO ITEM ITENS'.split(' '));
+function segParecido(g, vocab, DD) {
+  const b = DD.map.get(g); if (!b) return false; const nome = vocab.nome || new Set();
+  for (const e of b.em.keys()) for (const w of N(e).split(' ')) if (!SEG_STOP.has(w) && w.length > 2 && nome.has(w)) return true;
+  return false;
+}
+function catVocab(C, cat) {
+  C.vocab = C.vocab || new Map(); if (C.vocab.has(cat)) return C.vocab.get(cat);
+  const x = C.cats.find(y => y.c.nome === cat); const v = new Set(N(cat).split(' '));
+  if (x) for (const t of [...(x.c.incluir || []), ...(x.c.tipo || []), ...(x.c.tambem || [])]) for (const w of N(String(t).replace(/\*/g, ' ')).split(' ')) v.add(w);
+  v.nome = new Set(N(cat).split(' ').filter(w => !SEG_STOP.has(w)));
+  // palavras soltas de tipo de produto (lista "tipo" de todas as categorias ativas: PIA, RALO, FITA...)
+  if (!C.tipos) { C.tipos = new Set(); for (const y of C.cats) for (const t of y.c.tipo || []) C.tipos.add(N(t)); }
+  v.tipos = C.tipos; C.vocab.set(cat, v); return v;
+}
+function findBrand(T, seg, sug, black, DD, vocab) {
+  if (!DD) return null;
+  const D = DD.map, sugn = N(sug);
   const cov = new Map();
   T.forEach((t, i) => {
     const w = t.split(' '); const seen = new Set(); const wt = Math.pow(0.75, i);
     for (let n = 1; n <= 6; n++) for (let k = 0; k + n <= w.length; k++) { const g = w.slice(k, k + n).join(' '); if (seen.has(g) || !D.has(g)) continue; seen.add(g); cov.set(g, (cov.get(g) || 0) + wt); }
-    for (const tok of new Set(w)) { const gb = data.dict.glued.get(tok); if (gb && !seen.has(gb)) { seen.add(gb); cov.set(gb, (cov.get(gb) || 0) + wt); } }
+    for (const tok of new Set(w)) { const gb = DD.glued.get(tok); if (gb && !seen.has(gb)) { seen.add(gb); cov.set(gb, (cov.get(gb) || 0) + wt); } }
     if (sugn && D.has(sugn) && !seen.has(sugn) && validCand(sugn, black)) {
       const key = sugn.split(' ').filter(x => !GENERIC.has(x) && x.length > 2);
       if (key.length && key.every(x => new RegExp('(?<![A-Z0-9])' + escRx(x) + '(?![A-Z0-9])').test(t))) { seen.add(sugn); cov.set(sugn, (cov.get(sugn) || 0) + wt); }
     }
   });
   const cands = new Map();
-  for (const [g, c] of cov) { if (validCand(g, black)) cands.set(g, c); else if (validCand(g, black, true) && (g === sugn || relSales(g, seg) > 5e5)) cands.set(g, c); }
+  for (const [g, c] of cov) { if (validCand(g, black)) cands.set(g, c); else if (validCand(g, black, true) && (g === sugn || relSales(g, seg, DD) > 5e5)) cands.set(g, c); }
+  // palavra do vocabulário da própria categoria (CADEADO, PIA, CARIOCA em FEIJAO CARIOCA) só vira marca se não houver
+  // outra candidata e se a base registra essa marca numa categoria de nome parecido (NINHO em LEITE..., PILAO em CAFE...)
+  if (vocab && vocab.heads) for (const g of [...cands.keys()]) if (!g.includes(' ') && vocab.heads.has(g)) cands.delete(g); // o tipo do produto (1ª palavra) não é marca
+  // 1º sem as palavras de vocabulário/tipo (PIA, CARIOCA...); se não sobrar marca, tenta com elas quando a base
+  // registra a marca numa categoria de nome parecido (NINHO em LEITE..., PILAO em CAFE...)
+  const isVoc = g => vocab && !g.includes(' ') && (vocab.has(g) || (vocab.tipos && vocab.tipos.has(g)));
+  const outras = new Map([...cands].filter(([g]) => !isVoc(g)));
+  const voc = new Map([...cands].filter(([g]) => isVoc(g) && segParecido(g, vocab, DD)));
+  return escolheMarca(outras, seg, sugn, DD) || escolheMarca(voc, seg, sugn, DD);
+}
+function escolheMarca(cands, seg, sugn, DD) {
   if (!cands.size) return null;
+  const D = DD.map;
   const keys = [...cands.keys()].sort((a, b) => b.length - a.length); const drop = new Set();
   for (const a of keys) for (const b of keys) if (a !== b && b.length < a.length && new RegExp('(?<![A-Z0-9])' + escRx(b) + '(?![A-Z0-9])').test(a) && cands.get(a) >= 0.6 * cands.get(b)) drop.add(b);
   let best = null;
   for (const [g, c] of cands) {
-    if (drop.has(g)) continue; const rs = relSales(g, seg); const rel = rs > 0 ? 1 : 0;
+    if (drop.has(g)) continue; const rs = relSales(g, seg, DD); const rel = rs > 0 ? 1 : 0;
     const sc = seg && seg.length ? c * (1 + rel) + 0.1 * (g.split(' ').length - 1) + (g === sugn ? 1.5 : 0) + (rs ? Math.log10(rs + 1) / 12 : 0)
       : c + 0.1 * (g.split(' ').length - 1) + (g === sugn ? 1.5 : 0) + Math.log10((D.get(g).total || 0) + 1) / 12;
     if (!best || sc > best.sc) best = { g, sc, c, rel };
@@ -753,15 +812,18 @@ const cleanD = s => N(s).replace(/[^A-Z0-9. ]/g, ' ').replace(/(?<!\d)\.|\.(?!\d
 
 /* run */
 async function runAll() {
+  await loadDima();
   const C = compile(); autoSegments(); const res = []; const items = data.items; const t0 = performance.now();
   const byName = new Map(cfg.categorias.map(c => [c.nome, c]));
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
     const a = aggregate(it.T, it.sugCat, C);
     const cc = byName.get(a.cat); const seg = cc ? cc.segmento : [];
-    const bn = findBrand(it.T, seg, it.sugMarca, C.black);
-    const marca = bn ? data.dict.map.get(bn).canon : 'OUTRA MARCA';
-    const fab = bn ? fabricante(bn, seg) : 'OUTRO FABRICANTE';
+    let bn = null, BD = null;
+    const vocab = catVocab(C, a.cat); vocab.heads = new Set(it.T.map(t => (headPos(t, C.headIdx) || {}).w).filter(Boolean));
+    for (const DD of brandDicts()) { bn = findBrand(it.T, seg, it.sugMarca, C.black, DD, vocab); if (bn) { BD = DD; break; } }
+    const marca = bn ? BD.map.get(bn).canon : 'OUTRA MARCA';
+    const fab = bn ? fabricante(bn, seg, BD) : 'OUTRO FABRICANTE';
     let q = itemQty(it.T, it.sugQt);
     if (q.tot === null) { const u = countQty(it.T); if (u) q = u; else { const d = defaultQty((cc && cc.qtdPadrao) || cfg.qtdPadrao); if (d) q = d; } }
     // Farmácia sem início fixo no manual: começa pela marca; sem marca, pelo princípio ativo (ou pelo nome do produto)
@@ -937,7 +999,7 @@ function status(id, html, ok) { const s = $(id); s.innerHTML = html; s.closest('
 const escH = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 setupDrop('#dropBacklog', '#fBacklog', async file => {
   status('#stBacklog', 'Lendo ' + escH(file.name) + '…');
-  try { const n = await loadBacklog(file); status('#stBacklog', `<b>${n.toLocaleString('pt-BR')}</b> itens · ${escH(file.name)}<br>${data.sugCounts.size} categorias sugeridas`, true); $('#btnRun').disabled = false; $('#runState').textContent = data.dict ? 'Pronto para classificar.' : 'Pronto. Sem o dicionário, a marca fica OUTRA MARCA.'; autoSegments(); renderCats(); }
+  try { const n = await loadBacklog(file); status('#stBacklog', `<b>${n.toLocaleString('pt-BR')}</b> itens · ${escH(file.name)}<br>${data.sugCounts.size} categorias sugeridas`, true); $('#btnRun').disabled = false; $('#runState').textContent = data.dict ? 'Pronto para classificar.' : 'Pronto. Sem o dicionário, a marca vem só da base DIMA embutida.'; autoSegments(); renderCats(); }
   catch (e) { status('#stBacklog', 'Não consegui ler: ' + escH(e.message)); }
 });
 setupDrop('#dropDict', '#fDict', async file => {
@@ -1187,6 +1249,7 @@ Decida a ESTRUTURA pedida pelas regras e responda somente com JSON, sem texto an
   } finally { $('#btnRules').disabled = false; $('#btnStop').classList.add('hidden'); }
 });
 
+loadDima().then(() => { if (data.items) { autoSegments(); renderCats(); } });
 loadDraft(); normCfg(cfg); mergeInto(cfg, normCfg(JSON.parse(JSON.stringify(K.cfg))), 'add');
 if (K.libSeed && K.libSeed.categorias) mergeInto(cfg, normCfg({ categorias: K.libSeed.categorias }), 'add');
 // Migração: categorias já salvas (localStorage/biblioteca) antes da correção do início "PRODUTO"/"MARCA" travado

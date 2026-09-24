@@ -95,3 +95,11 @@ Pontos pra checar, em ordem:
 - Patches agora ficam em `consts.json → libPatches[id]`; `migrarCategorias()` aplica cada um uma vez nas categorias salvas (tipo sempre).
 - Categoria dinâmica (PAPELARIA/MATERIAL OUTROS…): o descritivo começa pelo tipo que decidiu a categoria (`tipoIni`), mesmo que ele esteja na lista de ruído (ex.: ESTOJO).
 - Backlog de 29.131 itens (`dados/papelaria_outros_revisao.xlsx`): OUTRA CATEGORIA 12.278 → 2.565.
+
+## Base de marcas DIMA (marca antes do dicionário)
+
+- `dados/DIMA_Peso_Fixo.xlsx` → `python3 dima.py` → `dima.json.gz` (1,4 MB), embutido pelo `build.py` em base64 (`/*DIMA*/null`). Carregado ao abrir a página (`loadDima`, DecompressionStream).
+- Abas: Mapeio (categoria EST MER 6 × marca × fabricante, 175 mil linhas), Abreviaturas (apelidos → mesma marca), Sheet3 (padrão OUTRA MARCA por categoria — é só o valor padrão; não trava marca, porque lista CERVEJA, REFRIGERANTE… que têm marca).
+- `runAll`: marca/fabricante procurados primeiro na DIMA; o dicionário enviado só entra se a DIMA não achar nada (`brandDicts()`).
+- Para a DIMA não virar "marca" de palavra comum: sem apelido pela 1ª palavra (`dictFinish(dict, true)`); o tipo do produto (1ª palavra) nunca é marca; palavra do vocabulário da categoria ou da lista `tipo` só é marca se não houver outra candidata e a DIMA tiver a marca numa categoria de nome parecido (`segParecido`); `MARCA_NAO` (INOX, METAL, MULTI USO…).
+- Sem dicionário enviado: alimentos 50/60 com marca (os 10 restantes são itens sem marca ou NINHO, que já era palavra genérica); papelaria 19.047/29.131; material 7.751/12.367.
