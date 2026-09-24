@@ -256,7 +256,7 @@ const PHRASE = K.const.PHRASE.map(([p, r]) => [new RegExp(p, 'g'), r]);
 const PROTECT = K.const.PROTECT.map(p => [new RegExp('(?<![A-Z_])' + p + '(?![A-Z_])', 'g'), p.replace(/ /g, '_')]);
 
 /* ------------------------------------------------------------------ library (categories are never lost) */
-const LISTK = ['incluir', 'tambem', 'excluir', 'forte', 'remover', 'preferirSugerida'];
+const LISTK = ['incluir', 'tambem', 'excluir', 'forte', 'remover', 'preferirSugerida', 'tipo'];
 const actCats = () => cfg.categorias.filter(c => c.ativa !== false);
 const actNames = () => new Set(actCats().map(c => c.nome));
 function normCfg(c) {
@@ -427,10 +427,23 @@ function computeWordSug() {
 }
 
 /* ------------------------------------------------------------------ engine */
+function headIndex(cats) {
+  const idx = new Map(), wild = new Map();
+  cats.forEach((x, i) => { for (const t of [...(x.c.incluir || []), ...(x.c.tipo || [])]) {
+    const f = N(String(t).split('*')[0]).split(' ')[0]; if (!f) continue;
+    const star = String(t).includes('*') && !N(String(t).split('*')[0]).includes(' ');
+    const M = star ? wild : idx; if (!M.has(f)) M.set(f, new Set()); M.get(f).add(i);
+  } });
+  return { idx, wild };
+}
 function compile() {
+  const C = compile0(); const H = headIndex(C.cats); C.headIdx = H.idx; C.headWild = H.wild; return C;
+}
+function compile0() {
   return {
-    sempre: termRx((() => { const inCats = new Set(); for (const c of actCats()) for (const t of [...(c.incluir || []), ...(c.tambem || [])]) inCats.add(N(String(t).replace(/\*/g, ''))); return sempreAtivos().filter(t => !inCats.has(N(String(t).replace(/\*/g, '')))); })()),
-    cats: actCats().map(c => ({ c, inc: termRx(c.incluir), tam: termRx(c.tambem), exc: termRx(c.excluir), forte: new Set((c.forte || []).map(N)), pct: (c.pctMin === '' || c.pctMin === null || c.pctMin === undefined) ? null : +c.pctMin })),
+    sempre: termRx((() => { const inCats = new Set(); for (const c of actCats()) for (const t of [...(c.incluir || []), ...(c.tambem || []), ...(c.tipo || [])]) inCats.add(N(String(t).replace(/\*/g, ''))); return sempreAtivos().filter(t => !inCats.has(N(String(t).replace(/\*/g, '')))); })()),
+    cats: actCats().map(c => ({ c, inc: termRx(c.incluir), tam: termRx(c.tambem), exc: termRx(c.excluir), forte: new Set((c.forte || []).map(N)), pct: (c.pctMin === '' || c.pctMin === null || c.pctMin === undefined) ? null : +c.pctMin, tipo: termRx(c.tipo),
+      words: new Set([...(c.incluir || []), ...(c.tambem || []), ...(c.tipo || [])].flatMap(x => N(String(x).replace(/\*/g, ' ')).split(' '))) })),
     names: new Set(actCats().map(c => c.nome)),
     cesta: new Map(actCats().map(c => [c.nome, c.cesta || ''])),
     pa: compilePA(new Set(actCats().map(c => c.nome))),
@@ -479,12 +492,42 @@ function classifyRules(t, C) {
   if (!t || t === 'SEM DESCRICAO') return null;
   if (C.sempre && C.sempre.test(t)) return OUT;
   const h = head(t);
+  const ok = x => { if (!x.forte.has(h) && x.exc && x.exc.test(t)) return false; return !x.tam || x.tam.test(t); };
+  // 1) regra antiga: a primeira categoria (pela prioridade) que bate
+  let r = null;
   for (const x of C.cats) {
-    const forte = x.forte.has(h);
-    if (!forte && x.exc && x.exc.test(t)) continue;
-    const tamOK = !x.tam || x.tam.test(t);
-    if (x.inc && tamOK && x.inc.test(t)) return x.c.nome;
-    if (x.pct !== null && tamOK && (pct(t) || 0) > x.pct) return x.c.nome;
+    if (!ok(x)) continue;
+    const m = x.inc && x.inc.exec(t);
+    if (m) { r = { x, pos: m.index, len: m[0].length }; break; }
+    if (x.pct !== null && (pct(t) || 0) > x.pct) { r = { x, pct: true }; break; }
+  }
+  // 2) tipo do produto: a primeira palavra "de verdade" da descrição (pula código de embalagem e marca).
+  //    Categoria que bate exatamente nela ganha da regra antiga quando esta bateu mais para o meio do texto
+  //    por outra palavra (ex.: "LIXA ... FERRO" não vai para vitamina; "CADEADO P BICICLETA" vai para cadeado).
+  const hp = headPos(t); if (!hp) return r ? r.x.c.nome : null;
+  let hc = null;
+  const cand = new Set(C.headIdx.get(hp.w) || []); for (const [pre, ids] of C.headWild) if (hp.w.startsWith(pre)) for (const i of ids) cand.add(i);
+  for (const i of [...cand].sort((a, b) => a - b)) {
+    const x = C.cats[i]; if (!ok(x)) continue;
+    const tt = t.slice(hp.i);
+    for (const rx of [x.inc, x.tipo]) { const m = rx && rx.exec(tt); if (m && m.index === 0 && (!hc || m[0].length > hc.len)) hc = { x, len: m[0].length }; }
+  }
+  if (!hc) return r ? r.x.c.nome : null;
+  if (!r || r.x === hc.x) return hc.x.c.nome;
+  if (r.pct) return r.x.c.nome;
+  if (r.pos === hp.i) return (hc.len > r.len ? hc : r).x.c.nome;
+  if (r.x.words.has(hp.w)) return r.x.c.nome; // a categoria antiga também fala do tipo (ex.: BISCOITO + RECHEADO)
+  // ... ou já é uma categoria daquele tipo, mais específica (BISCOITO AGUA E SAL, CHOCOLATE TABLETE)
+  if (N(r.x.c.nome).split(' ')[0] === hp.w || N(r.x.c.inicio || '').split(' ')[0] === hp.w) return r.x.c.nome;
+  return hc.x.c.nome;
+}
+// posição da palavra que diz o tipo do produto: pula código de embalagem (ENCART, UTIL...), números e marca do dicionário
+const SKIPTIPO = new Set('ENCART ENCARTELADO ENC ENCT UTIL UTI UTILID UD JD CL TRK BZ MB MC REF COD CJ EMB PCT'.split(' '));
+function headPos(t) {
+  let i = 0;
+  for (const w of t.split(' ')) {
+    if (w && !SKIPH.has(w) && !SKIPTIPO.has(w) && !/^\d/.test(w) && w.length > 1 && !(data.dict && data.dict.map.has(w))) return { w, i };
+    i += w.length + 1;
   }
   return null;
 }
@@ -659,7 +702,7 @@ function tidy(words) {
 function complement(T, cat, ini, bn, grp, catCfg) {
   const Tx = T.filter(t => t && t !== 'SEM DESCRICAO').map(t => expand(t, grp)); if (!Tx.length) return '';
   const bw = new Set(bn ? bn.split(' ') : []); const bw4 = [...bw].filter(x => x.length >= 4);
-  const drop = new Set([...(catCfg ? catCfg.remover || [] : []), ...ini.split(' '), ...bw]);
+  const drop = new Set([...(catCfg ? catCfg.remover || [] : []), ...ini.split(' '), ...bw, ...SKIPTIPO]);
   const lists = Tx.slice(0, 6).map(t => {
     let tt = t; if (bn) { tt = tt.replace(new RegExp('(?<![A-Z0-9])' + escRx(bn) + '(?![A-Z0-9])', 'g'), ' ').replace(new RegExp('(?<![A-Z0-9])' + escRx(bn.replace(/ /g, '')) + '(?![A-Z0-9])', 'g'), ' '); }
     return cleanTokens(tt, drop).filter(w => !bw4.some(x => w.includes(x)) && !(w.length >= 4 && bn && bn.replace(/ /g, '').includes(w)) && !['STA', 'STO', 'SR', 'SRA', 'DONA', 'SEU'].includes(w));
@@ -687,7 +730,7 @@ function nounOutra(T, bn) {
   const cnt = new Map(); const order = [];
   T.forEach((t, i) => { for (let x of t.split(' ')) {
     x = NOUN_MAP[deCod(x)] || deCod(x);
-    if (SKIPH.has(x) || NOISE.has(x) || bw.has(x) || ATTR.has(x) || FLAVORS.has(x) || /\d/.test(x) || x.length < 3) continue;
+    if (SKIPH.has(x) || SKIPTIPO.has(x) || NOISE.has(x) || bw.has(x) || ATTR.has(x) || FLAVORS.has(x) || /\d/.test(x) || x.length < 3) continue;
     if (!cnt.has(x)) { cnt.set(x, 0); order.push(x); }
     cnt.set(x, cnt.get(x) + Math.pow(0.8, i));
   } });
@@ -1153,6 +1196,17 @@ function migrarCategorias() {
     else if (ini === 'MARCA') { c.inicio = ''; n++; }
   }
   cfg.migracoes = cfg.migracoes || [];
+  // vocabulário de material (vocab_material.py): termos novos / genéricos removidos, uma vez; a lista "tipo"
+  // (que não aparece no editor) é garantida sempre, porque uma biblioteca antiga do DB em 'replace' a apaga
+  const LP = K.libPatch;
+  if (LP) for (const c of cfg.categorias || []) {
+    const p = LP.cats[c.nome]; if (!p) continue;
+    const add = (k, l) => { c[k] = c[k] || []; for (const t of l || []) if (!c[k].includes(t)) { c[k].push(t); n++; } };
+    add('tipo', p.tipo);
+    if (!cfg.migracoes.includes(LP.id)) { add('incluir', p.incluir); add('excluir', p.excluir);
+      const rm = new Set(p.remover_incluir || []); const k0 = c.incluir.length; c.incluir = c.incluir.filter(t => !rm.has(t)); n += k0 - c.incluir.length; }
+  }
+  if (LP && !cfg.migracoes.includes(LP.id)) { cfg.migracoes.push(LP.id); n++; }
   if (!cfg.migracoes.includes('qtdPadraoPapelaria')) {
     const qp = new Map(((K.libSeed && K.libSeed.categorias) || []).filter(x => x.qtdPadrao).map(x => [x.nome, x.qtdPadrao]));
     for (const c of cfg.categorias || []) if (!c.qtdPadrao && qp.has(c.nome)) { c.qtdPadrao = qp.get(c.nome); n++; }

@@ -80,3 +80,11 @@ Pontos pra checar, em ordem:
 - Combinações e formas exigem todas as partes (AMOXICILINA+CLAVULANATO; TIMOLOL + COLIRIO; CETOCONAZOL + CREME…); a mais específica ganha, e no empate vale o princípio que aparece primeiro.
 - Princípio em mais de uma classe: destino em `PRIMARIA` no `farma_pa.py`. Erros evidentes da base (vitaminas A/D/E/K em "VITAMINA B1" etc.) estão em `CORRECOES`.
 - Alerta "Categoria pelo princípio ativo X" em todo item decidido assim; vai para a aba REVISAO só quando a base marca VALIDAR ou o destino foi corrigido.
+
+## Tipo do produto na frente + vocabulário de material (MATERIAL OUTROS)
+
+- `classifyRules`: além da regra antiga (1ª categoria pela prioridade), olha a **1ª palavra "de verdade"** da descrição (`headPos`: pula códigos de embalagem `SKIPTIPO` — ENCART, ENC, UTIL… —, números e marcas do dicionário). Categoria que bate exatamente nela ganha quando a regra antiga bateu mais para o meio do texto por outra palavra — exceto se a categoria antiga também fala daquele tipo (termos ou nome começando com ele: BISCOITO AGUA E SAL, CHOCOLATE TABLETE). Empate na 1ª palavra: termo mais longo ganha.
+- Nova lista por categoria, **`tipo`**: palavras soltas que só valem como 1ª palavra (FIO, PORTA, PINO, RALO…), para não pegarem "PORTA RETRATO", "LIMA" (fruta) etc. Termos em `tipo` também desligam o mesmo termo em "sempre OUTRA CATEGORIA".
+- `vocab_material.py` gera os termos (tipos, frases, exclusões e termos genéricos removidos, como BRANCO em ARROZ BRANCO e ROSCA em FARINHA ROSCA) em `consts.json` e em `libPatch`, que `migrarCategorias()` aplica uma vez nas categorias salvas no navegador (a lista `tipo` é garantida sempre).
+- Resultado no backlog de 12.367 itens de MATERIAL OUTROS (`dados/material_outros_revisao.xlsx`): OUTRA CATEGORIA 8.184 → 2.269; itens em construção/ferramenta 908 → 7.591.
+- Farmácia sem início fixo no manual: o descritivo começa pela marca ou, sem marca, pelo princípio ativo; COMP/CP/CPR = COMPRIMIDO; formas farmacêuticas contam como unidade.
