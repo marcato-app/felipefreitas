@@ -103,3 +103,9 @@ Pontos pra checar, em ordem:
 - `runAll`: marca/fabricante procurados primeiro na DIMA; o dicionário enviado só entra se a DIMA não achar nada (`brandDicts()`).
 - Para a DIMA não virar "marca" de palavra comum: sem apelido pela 1ª palavra (`dictFinish(dict, true)`); o tipo do produto (1ª palavra) nunca é marca; palavra do vocabulário da categoria ou da lista `tipo` só é marca se não houver outra candidata e a DIMA tiver a marca numa categoria de nome parecido (`segParecido`); `MARCA_NAO` (INOX, METAL, MULTI USO…).
 - Sem dicionário enviado: alimentos 50/60 com marca (os 10 restantes são itens sem marca ou NINHO, que já era palavra genérica); papelaria 19.047/29.131; material 7.751/12.367.
+
+## Código com descrições de produtos diferentes (ex.: ESTOJO + OVOS + PNEU)
+
+- `coerentes()` em `aggregate`: a referência é a 1ª descrição (ou a coluna de descrição principal do backlog — DESCRIPCION/DESCRICAO/DESCRITIVO…, se existir, vai para o 1º lugar). Descrições sem nenhuma palavra em comum com a referência (igual ou prefixo ≥4 letras, ignorando números, códigos de embalagem, atributos) não votam na categoria nem entram em marca, quantidade e descritivo. Alerta "Descrições de produtos diferentes no mesmo código" (prioridade 1 na revisão).
+- Não usar "maioria" como referência: no backlog de papelaria as duas descrições de fora muitas vezes são do mesmo produto errado.
+- Papelaria com as 3 descrições (Descripcion + TOP + MAX): itens com tipo diferente do da descrição principal 1.197 → 837 (de 26.719).

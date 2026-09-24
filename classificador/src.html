@@ -341,12 +341,17 @@ async function loadBacklog(file) {
     cat: findCol(hdr, [h => h.includes('CATEGORIA')]), mar: findCol(hdr, [h => h.includes('MARCA')]),
     fab: findCol(hdr, [h => h.includes('FABRICANTE')]), qt: findCol(hdr, [h => h.includes('QUANTIDADE') || h.includes('CONTENIDO')]),
   };
+  // descrição principal (a do cadastro do produto), se o arquivo tiver: vira a referência do tipo do item
+  ci.main = findCol(hdr, [h => ['DESCRIPCION', 'DESCRICAO', 'DESCRITIVO', 'DESCRIPTION', 'DESCRICAOPRODUTO', 'DESCRITIVOATUAL', 'DESCRICAOPRINCIPAL'].includes(h)]);
+  if (ci.main === ci.ds) ci.main = -1;
   if (ci.bc < 0 || ci.ds < 0) throw new Error('Não encontrei as colunas de código (barcode) e descrições (descriptions) no backlog.');
   const items = [];
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r]; if (!row || row[ci.bc] === null || row[ci.bc] === undefined || row[ci.bc] === '') continue;
     const D = parseDescs(row[ci.ds]);
-    items.push({ barcode: row[ci.bc], D, T: D.map(N), sugCat: ci.cat >= 0 ? String(row[ci.cat] ?? '').trim() : '', sugMarca: ci.mar >= 0 ? String(row[ci.mar] ?? '').trim() : '',
+    const mainD = ci.main >= 0 && row[ci.main] ? String(row[ci.main]).trim() : '';
+    if (mainD) { const k = D.findIndex(x => N(x) === N(mainD)); if (k >= 0) D.splice(k, 1); D.unshift(mainD); }
+    items.push({ barcode: row[ci.bc], D, T: D.map(N), main: !!mainD, sugCat: ci.cat >= 0 ? String(row[ci.cat] ?? '').trim() : '', sugMarca: ci.mar >= 0 ? String(row[ci.mar] ?? '').trim() : '',
       sugFab: ci.fab >= 0 ? String(row[ci.fab] ?? '').trim() : '', sugQt: ci.qt >= 0 ? row[ci.qt] : null });
   }
   data.items = items; data.sugCounts = new Map();
@@ -568,7 +573,28 @@ function headPos(t, H) {
   }
   return null;
 }
-function aggregate(T, sug, C) {
+// Mesmo código com descrições de produtos diferentes (ex.: ESTOJO XERYUS + OVOS MARYLU + PNEU): a referência é a
+// descrição principal (coluna própria) ou, sem ela, a 1ª da lista (a outra maioria pode ser o produto errado). Descrição sem
+// nenhuma palavra em comum com a referência não vota nem entra no descritivo/marca/quantidade.
+const TOK_STOP = new Set('COM SEM PARA POR UND UNID UNIDADE CAIXA PACOTE PCT KIT NOVO NOVA TAM TAMANHO COR CORES SORTIDO SORTIDA SORTIDOS MOD MODELO REF COD'.split(' '));
+function toksDesc(t) { return new Set(t.split(' ').filter(w => w.length >= 3 && !/\d/.test(w) && !SKIPH.has(w) && !SKIPTIPO.has(w) && !TOK_STOP.has(w) && !ATTR.has(w) && !CONNECT.has(w))); }
+function parecidas(a, b) { for (const x of a) for (const y of b) if (x === y || (x.length >= 4 && y.length >= 4 && (x.startsWith(y) || y.startsWith(x)))) return true; return false; }
+function coerentes(T) {
+  if (T.length < 2) return null;
+  const S = T.map(toksDesc);
+  const ref = 0; // a 1ª descrição (ou a da coluna principal, que o loadBacklog põe em 1º) é a do produto
+  if (!S[ref].size) return null;
+  const keep = S.map((si, i) => i === ref || !si.size || parecidas(si, S[ref]));
+  if (keep.every(Boolean)) return null;
+  // referência primeiro, depois as outras que combinam, na ordem original
+  const idx = [ref, ...keep.map((k, i) => k && i !== ref ? i : -1).filter(i => i >= 0)];
+  return { T: idx.map(i => T[i]), drop: keep.filter(k => !k).length };
+}
+function aggregate(T0, sug, C, main) {
+  const K = coerentes(T0); const T = K ? K.T : T0;
+  const r = aggregate0(T, sug, C); r.T = T; r.misturadas = K ? K.drop : 0; return r;
+}
+function aggregate0(T, sug, C) {
   const votes = new Map(); const per = [];
   T.forEach((t, i) => { const c = classifyDesc(t, C); per.push(c); if (c) votes.set(c, (votes.get(c) || 0) + Math.pow(0.75, i)); });
   if (!votes.size) {
@@ -817,27 +843,28 @@ async function runAll() {
   const byName = new Map(cfg.categorias.map(c => [c.nome, c]));
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
-    const a = aggregate(it.T, it.sugCat, C);
+    const a = aggregate(it.T, it.sugCat, C, it.main); const T = a.T;
     const cc = byName.get(a.cat); const seg = cc ? cc.segmento : [];
     let bn = null, BD = null;
-    const vocab = catVocab(C, a.cat); vocab.heads = new Set(it.T.map(t => (headPos(t, C.headIdx) || {}).w).filter(Boolean));
-    for (const DD of brandDicts()) { bn = findBrand(it.T, seg, it.sugMarca, C.black, DD, vocab); if (bn) { BD = DD; break; } }
+    const vocab = catVocab(C, a.cat); vocab.heads = new Set(T.map(t => (headPos(t, C.headIdx) || {}).w).filter(Boolean));
+    for (const DD of brandDicts()) { bn = findBrand(T, seg, it.sugMarca, C.black, DD, vocab); if (bn) { BD = DD; break; } }
     const marca = bn ? BD.map.get(bn).canon : 'OUTRA MARCA';
     const fab = bn ? fabricante(bn, seg, BD) : 'OUTRO FABRICANTE';
-    let q = itemQty(it.T, it.sugQt);
-    if (q.tot === null) { const u = countQty(it.T); if (u) q = u; else { const d = defaultQty((cc && cc.qtdPadrao) || cfg.qtdPadrao); if (d) q = d; } }
+    let q = itemQty(T, it.sugQt);
+    if (q.tot === null) { const u = countQty(T); if (u) q = u; else { const d = defaultQty((cc && cc.qtdPadrao) || cfg.qtdPadrao); if (d) q = d; } }
     // Farmácia sem início fixo no manual: começa pela marca; sem marca, pelo princípio ativo (ou pelo nome do produto)
     const farmaLivre = cc && cc.cesta === 'FARMACIA' && !cc.inicio;
-    const paHit = farmaLivre && !bn && C.pa ? it.T.map(t => matchPA(t, C.pa)).find(Boolean) : null;
-    const ini = farmaLivre ? (bn ? '' : paHit ? paIni(paHit, it.T) : nounOutra(it.T, bn))
-      : (cc && cc.dinamico) ? (tipoIni(it.T, a.per, a.cat, C) || nounOutra(it.T, bn)) : a.cat === OUT ? nounOutra(it.T, bn) : (cc.inicio || cc.nome);
-    const keepT = it.T.filter((t, j) => a.per[j] === a.cat); const T2 = keepT.length ? keepT : it.T;
+    const paHit = farmaLivre && !bn && C.pa ? T.map(t => matchPA(t, C.pa)).find(Boolean) : null;
+    const ini = farmaLivre ? (bn ? '' : paHit ? paIni(paHit, T) : nounOutra(T, bn))
+      : (cc && cc.dinamico) ? (tipoIni(T, a.per, a.cat, C) || nounOutra(T, bn)) : a.cat === OUT ? nounOutra(T, bn) : (cc.inicio || cc.nome);
+    const keepT = T.filter((t, j) => a.per[j] === a.cat); const T2 = keepT.length ? keepT : T;
     const brandTxt = bn ? cleanD(marca) : '';
     const comp = complement(T2, a.cat, ini, bn || '', groupOf(a.cat), cc);
     const desc = cleanD([ini, brandTxt, comp, qtyText(q)].filter(Boolean).join(' '));
     const alerts = [];
-    { const C0 = C.pa && it.T.map(t => matchPA(t, C.pa)).find(p => p && p.cat === a.cat);
+    { const C0 = C.pa && T.map(t => matchPA(t, C.pa)).find(p => p && p.cat === a.cat);
       if (C0) alerts.push('Categoria pelo princípio ativo ' + C0.pa + (C0.corrigido ? ' (destino corrigido em relação à base)' : C0.validar ? ' (base pede validação)' : '')); }
+    if (a.misturadas) alerts.push(`Descrições de produtos diferentes no mesmo código (${a.misturadas} ignorada${a.misturadas > 1 ? 's' : ''})`);
     if (a.flag === 'SEM_EVIDENCIA') alerts.push('Nenhuma categoria reconhecida na descrição');
     if (a.flag === 'SEM_EVIDENCIA_SUG') alerts.push('Sem evidência; usada a categoria sugerida');
     if (a.flag === 'PADRAO') alerts.push('Nada indicou a categoria; usada a categoria padrão');
