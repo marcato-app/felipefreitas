@@ -916,6 +916,7 @@ async function syncLibrary() {
       cfg.configsMescladas.push(key); changed = true; }
   } catch (e) {}
   libReady = true;
+  if (migrarCategorias()) changed = true;
   if (changed) { autoSegments(); renderCats(); }
   saveDraft();
 }
@@ -1087,14 +1088,25 @@ if (K.libSeed && K.libSeed.categorias) mergeInto(cfg, normCfg({ categorias: K.li
 // Migração: categorias já salvas (localStorage/biblioteca) antes da correção do início "PRODUTO"/"MARCA" travado
 // nunca são atualizadas pelo merge 'add' (que só adiciona categorias novas, nunca sobrescreve as existentes).
 // Corrige aqui, uma vez, direto nas categorias já salvas do usuário, preservando tudo o mais (incluir/excluir/etc).
-(function migrarInicioPlaceholder() {
-  let n1 = 0, n2 = 0;
+// Roda de novo depois do syncLibrary, porque uma biblioteca antiga do DB em modo 'replace' pode trazer o placeholder de volta.
+// Também preenche o "1UN" padrão das categorias de papelaria já salvas antes de ele existir na biblioteca embutida
+// (uma vez só, marcado em cfg.migracoes, para não voltar se o usuário apagar de propósito).
+function migrarCategorias() {
+  let n = 0;
   for (const c of cfg.categorias || []) {
     const ini = (c.inicio || '').trim();
-    if (ini === 'PRODUTO') { c.inicio = ''; c.dinamico = true; n1++; }
-    else if (ini === 'MARCA') { c.inicio = ''; n2++; }
+    if (ini === 'PRODUTO') { c.inicio = ''; c.dinamico = true; n++; }
+    else if (ini === 'MARCA') { c.inicio = ''; n++; }
   }
-  if (n1 || n2) { saveDraft(); }
-})();
+  cfg.migracoes = cfg.migracoes || [];
+  if (!cfg.migracoes.includes('qtdPadraoPapelaria')) {
+    const qp = new Map(((K.libSeed && K.libSeed.categorias) || []).filter(x => x.qtdPadrao).map(x => [x.nome, x.qtdPadrao]));
+    for (const c of cfg.categorias || []) if (!c.qtdPadrao && qp.has(c.nome)) { c.qtdPadrao = qp.get(c.nome); n++; }
+    cfg.migracoes.push('qtdPadraoPapelaria'); n++;
+  }
+  if (n) saveDraft();
+  return n;
+}
+migrarCategorias();
 renderCats();
 </script>
