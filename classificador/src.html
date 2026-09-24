@@ -429,10 +429,48 @@ function compile() {
     sempre: termRx((() => { const inCats = new Set(); for (const c of actCats()) for (const t of [...(c.incluir || []), ...(c.tambem || [])]) inCats.add(N(String(t).replace(/\*/g, ''))); return sempreAtivos().filter(t => !inCats.has(N(String(t).replace(/\*/g, '')))); })()),
     cats: actCats().map(c => ({ c, inc: termRx(c.incluir), tam: termRx(c.tambem), exc: termRx(c.excluir), forte: new Set((c.forte || []).map(N)), pct: (c.pctMin === '' || c.pctMin === null || c.pctMin === undefined) ? null : +c.pctMin })),
     names: new Set(actCats().map(c => c.nome)),
+    cesta: new Map(actCats().map(c => [c.nome, c.cesta || ''])),
+    pa: compilePA(new Set(actCats().map(c => c.nome))),
     black: new Set([...cfg.falsasMarcas.map(N), ...K.const.USER_BLACK]),
   };
 }
+// Princípio ativo (base farmacêutica, K.farmaPA): cada regra exige todas as "partes" na descrição
+// (combinações e formas como COLÍRIO); só entram regras cuja categoria está ativa.
+const RX_PET = /(?<![A-Z0-9])(?:PET|PETS|CAO|CAES|CACHORRO|CACHORROS|GATO|GATOS|CANINO|CANINOS|FELINO|FELINOS|VET|VETERINARIO|VETERINARIA|EQUINO|BOVINO|AVES)(?![A-Z0-9])/;
+function compilePA(active) {
+  const rules = (K.farmaPA || []).filter(r => active.has(r.cat)).map(r => ({ ...r, alts: r.partes.map(p => p.split('|').map(N).filter(Boolean)) }));
+  if (!rules.length) return null;
+  const idx = new Map();
+  rules.forEach((r, i) => r.alts.forEach(a => a.forEach(x => { if (!idx.has(x)) idx.set(x, new Set()); idx.get(x).add(i); })));
+  const terms = [...idx.keys()].sort((a, b) => b.length - a.length);
+  return { rules, idx, rx: new RegExp('(?<![A-Z0-9])(?:' + terms.map(escRx).join('|') + ')(?![A-Z0-9])', 'g') };
+}
+function matchPA(t, P) {
+  if (!P || !t) return null;
+  const pos = new Map(); let m; P.rx.lastIndex = 0;
+  while ((m = P.rx.exec(t))) if (!pos.has(m[0])) pos.set(m[0], m.index);
+  if (!pos.size) return null;
+  const cand = new Set(); for (const x of pos.keys()) for (const i of P.idx.get(x)) cand.add(i);
+  let best = null, bk = null;
+  for (const i of cand) {
+    const r = P.rules[i]; let first = Infinity, ok = true;
+    for (const a of r.alts) { const ps = a.filter(x => pos.has(x)).map(x => pos.get(x)); if (!ps.length) { ok = false; break; } first = Math.min(first, Math.min(...ps)); }
+    if (!ok) continue;
+    // mais partes (combinação/forma) ganha; empate: o princípio que aparece primeiro na descrição
+    const k = [r.alts.length, -first];
+    if (!bk || k[0] > bk[0] || (k[0] === bk[0] && k[1] > bk[1])) { best = r; bk = k; }
+  }
+  return best;
+}
 function classifyDesc(t, C) {
+  const r = classifyRules(t, C);
+  if (r === OUT && C.sempre && C.sempre.test(t)) return r;
+  // princípio ativo decide dentro de Farmácia (e ganha da cesta PET quando a descrição não fala de animal);
+  // categoria de outra cesta que bateu pelas regras (shampoo com cetoconazol, bicarbonato culinário) continua valendo
+  if (C.pa && (!r || C.cesta.get(r) === 'FARMACIA' || (C.cesta.get(r) === 'PET' && !RX_PET.test(t)))) { const p = matchPA(t, C.pa); if (p) return p.cat; }
+  return r;
+}
+function classifyRules(t, C) {
   if (!t || t === 'SEM DESCRICAO') return null;
   if (C.sempre && C.sempre.test(t)) return OUT;
   const h = head(t);
@@ -677,6 +715,8 @@ async function runAll() {
     const comp = complement(T2, a.cat, ini, bn || '', groupOf(a.cat), cc);
     const desc = cleanD([ini, brandTxt, comp, qtyText(q)].filter(Boolean).join(' '));
     const alerts = [];
+    { const C0 = C.pa && it.T.map(t => matchPA(t, C.pa)).find(p => p && p.cat === a.cat);
+      if (C0) alerts.push('Categoria pelo princípio ativo ' + C0.pa + (C0.corrigido ? ' (destino corrigido em relação à base)' : C0.validar ? ' (base pede validação)' : '')); }
     if (a.flag === 'SEM_EVIDENCIA') alerts.push('Nenhuma categoria reconhecida na descrição');
     if (a.flag === 'SEM_EVIDENCIA_SUG') alerts.push('Sem evidência; usada a categoria sugerida');
     if (a.flag === 'PADRAO') alerts.push('Nada indicou a categoria; usada a categoria padrão');
@@ -688,7 +728,7 @@ async function runAll() {
     if (q.flag === 'SEM_QTD') alerts.push('Sem quantidade na descrição');
     else if (q.flag === 'QTD_PADRAO') alerts.push('Sem quantidade na descrição; usado o padrão ' + qtyText(q));
     else if (q.flag === 'QTD_DIV') alerts.push('Quantidades diferentes entre descrições');
-    const pri = alerts.some(x => /^(Nenhuma|Descrições|Sem evidência)/.test(x)) ? 1 : alerts.length ? 2 : 0;
+    const pri = alerts.some(x => /^(Nenhuma|Descrições|Sem evidência)/.test(x)) ? 1 : alerts.some(x => !x.startsWith('Categoria pelo princípio ativo') || /\((base pede validação|destino corrigido em relação à base)\)$/.test(x)) ? 2 : 0;
     res.push({ it, cat: a.cat, marca, fab, qt: q.tot, desc, alerts, pri });
     if (i % 250 === 0) { $('#prog').style.width = (100 * i / items.length).toFixed(1) + '%'; $('#runState').textContent = `Classificando ${i.toLocaleString('pt-BR')} de ${items.length.toLocaleString('pt-BR')}…`; await new Promise(r => setTimeout(r, 0)); }
   }
