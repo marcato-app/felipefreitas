@@ -1,0 +1,1100 @@
+<title>Classificador de Backlog</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#F3F5F2; --surface:#FFFFFF; --sunk:#E8ECE6; --ink:#16232E; --ink2:#4A5864; --line:#D3DAD2;
+  --accent:#0B6E5B; --accent-ink:#FFFFFF; --accent-soft:#D6EDE6; --warn:#9A5B00; --warn-soft:#FBEBD0; --bad:#B42318; --bad-soft:#FBE2DF;
+  --ok:#1C7C3A; --chip:#EEF1EC; --focus:#1F6FEB;
+  --display:"Archivo", "Helvetica Neue", Arial, sans-serif; --body:"IBM Plex Sans", "Segoe UI", Arial, sans-serif; --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ color-scheme:dark;
+    --bg:#10171D; --surface:#172129; --sunk:#0C1216; --ink:#E4EAEE; --ink2:#9BAAB5; --line:#2A3843;
+    --accent:#3CC4A2; --accent-ink:#06231C; --accent-soft:#163C33; --warn:#E6A94A; --warn-soft:#3A2B12; --bad:#F08A7E; --bad-soft:#3D1D19; --ok:#5ED28A; --chip:#1F2B34; --focus:#6CA8FF; }
+}
+:root[data-theme="dark"]{ color-scheme:dark;
+  --bg:#10171D; --surface:#172129; --sunk:#0C1216; --ink:#E4EAEE; --ink2:#9BAAB5; --line:#2A3843;
+  --accent:#3CC4A2; --accent-ink:#06231C; --accent-soft:#163C33; --warn:#E6A94A; --warn-soft:#3A2B12; --bad:#F08A7E; --bad-soft:#3D1D19; --ok:#5ED28A; --chip:#1F2B34; --focus:#6CA8FF; }
+*{box-sizing:border-box}
+body{background:var(--bg); color:var(--ink); font-family:var(--body); font-size:14px; line-height:1.5; padding-inline:16px; padding-block:0 64px}
+.wrap{max-width:1080px; margin:0 auto; display:flex; flex-direction:column; gap:28px}
+header.top{display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:12px; padding-block:28px 4px; border-bottom:2px solid var(--ink)}
+h1{font-family:var(--display); font-weight:800; font-size:30px; letter-spacing:-.01em; margin:0; text-wrap:balance}
+h1 small{display:block; font-family:var(--mono); font-weight:400; font-size:12px; letter-spacing:.06em; color:var(--ink2); text-transform:uppercase; margin-bottom:4px}
+.lead{color:var(--ink2); max-width:60ch; margin:6px 0 0}
+section.step{display:flex; flex-direction:column; gap:14px}
+.step-h{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
+.step-h .n{font-family:var(--mono); font-size:12px; color:var(--accent); border:1px solid var(--accent); border-radius:3px; padding:1px 6px}
+h2{font-family:var(--display); font-weight:700; font-size:20px; margin:0}
+.step-h p{margin:0; color:var(--ink2); flex-basis:100%}
+.grid3{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px}
+.drop{background:var(--surface); border:1.5px dashed var(--line); border-radius:6px; padding:14px; display:flex; flex-direction:column; gap:8px; position:relative; min-height:128px}
+.drop.drag{border-color:var(--accent); background:var(--accent-soft)}
+.drop.done{border-style:solid; border-color:var(--accent)}
+.drop h3{margin:0; font-size:14px; font-weight:600}
+.drop .req{font-family:var(--mono); font-size:11px; color:var(--ink2); text-transform:uppercase; letter-spacing:.05em}
+.drop .st{font-size:13px; color:var(--ink2)}
+.drop .st b{color:var(--ink)}
+.drop input[type=file]{position:absolute; inset:0; opacity:0; cursor:pointer}
+.bar{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+button,.btn{font:inherit; font-weight:500; border-radius:5px; border:1px solid var(--line); background:var(--surface); color:var(--ink); padding:7px 12px; cursor:pointer}
+button:hover{border-color:var(--ink2)}
+button.pri{background:var(--accent); color:var(--accent-ink); border-color:var(--accent)}
+button.pri:hover{filter:brightness(1.07)}
+button.ghost{background:transparent}
+button:disabled{opacity:.5; cursor:not-allowed}
+button.sm{padding:3px 8px; font-size:12px}
+:focus-visible{outline:2px solid var(--focus); outline-offset:2px}
+input[type=text],input[type=number],textarea,select{font:inherit; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:5px; padding:6px 8px; width:100%}
+textarea{font-family:var(--mono); font-size:12.5px; line-height:1.45; resize:vertical}
+label.f{display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:600; color:var(--ink2)}
+label.f span.h{font-weight:400}
+.panel{background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:14px; display:flex; flex-direction:column; gap:12px}
+.note{font-size:13px; color:var(--ink2)}
+.msg{font-size:13px; padding:8px 10px; border-radius:5px; background:var(--chip)}
+.msg.ok{background:var(--accent-soft)} .msg.warn{background:var(--warn-soft)} .msg.bad{background:var(--bad-soft)}
+.cats{display:flex; flex-direction:column; border:1px solid var(--line); border-radius:6px; overflow:hidden; background:var(--surface)}
+details.cat{border-top:1px solid var(--line)}
+details.cat:first-child{border-top:0}
+details.cat.off > summary{opacity:.5}
+.act{display:flex; align-items:center; gap:6px; font-variant-numeric:tabular-nums; color:var(--muted,#777); font-size:13px}
+.act input{width:18px; height:18px; margin:0; cursor:pointer}
+details.cat summary{list-style:none; display:grid; grid-template-columns:58px minmax(0,1fr) auto; gap:10px; align-items:center; padding:9px 12px; cursor:pointer}
+details.cat summary::-webkit-details-marker{display:none}
+details.cat[open] summary{background:var(--sunk)}
+.prio{font-family:var(--mono); font-size:12px; color:var(--ink2); text-align:right}
+.cname{display:flex; flex-direction:column; min-width:0}
+.cname b{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.cname i{font-style:normal; font-family:var(--mono); font-size:11.5px; color:var(--ink2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.pills{display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end}
+.pill{font-family:var(--mono); font-size:11px; padding:1px 7px; border-radius:10px; background:var(--chip); color:var(--ink2); white-space:nowrap}
+.pill.a{background:var(--accent-soft); color:var(--ink)} .pill.w{background:var(--warn-soft); color:var(--warn)}
+.cbody{padding:12px 12px 16px 56px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px}
+.cbody .full{grid-column:1/-1}
+.chips{display:flex; flex-wrap:wrap; gap:5px}
+.chip{font-family:var(--mono); font-size:11.5px; border:1px dashed var(--line); background:transparent; border-radius:10px; padding:1px 8px; cursor:pointer; color:var(--ink2)}
+.chip:hover{border-color:var(--accent); color:var(--ink)}
+.progress{height:8px; background:var(--sunk); border-radius:4px; overflow:hidden}
+.progress>div{height:100%; width:0; background:var(--accent); transition:width .2s}
+.tbl{overflow-x:auto; border:1px solid var(--line); border-radius:6px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-size:12.5px}
+th,td{padding:6px 9px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top}
+th{font-weight:600; background:var(--sunk); position:sticky; top:0; white-space:nowrap}
+td.num,th.num{text-align:right; font-variant-numeric:tabular-nums; font-family:var(--mono)}
+td.mono{font-family:var(--mono); font-size:12px; white-space:nowrap}
+td.alert{color:var(--warn); font-size:12px}
+.sum{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px}
+.kpi{background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:10px 12px}
+.kpi b{display:block; font-family:var(--display); font-size:22px; font-variant-numeric:tabular-nums}
+.kpi span{font-size:12px; color:var(--ink2)}
+.row2{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px}
+.switch{display:flex; gap:8px; align-items:center; font-size:13px}
+.hidden{display:none}
+@media (max-width:640px){ .cbody{padding-left:12px; grid-template-columns:1fr} .row2{grid-template-columns:1fr} details.cat summary{grid-template-columns:52px minmax(0,1fr)} .pills{grid-column:2; justify-content:flex-start} h1{font-size:24px} }
+@media (prefers-reduced-motion: reduce){ .progress>div{transition:none} }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1><small>Categoria · Marca · Fabricante · Conteúdo · Descritivo</small>Classificador de Backlog</h1>
+      <p class="lead">Envie o backlog e o dicionário, ajuste as regras de cada categoria e baixe a planilha classificada com a aba de revisão.</p>
+    </div>
+    <div class="bar"><span class="pill a" id="cfgNamePill">Exemplo carregado</span></div>
+  </header>
+
+  <!-- 1 -->
+  <section class="step" aria-labelledby="s1">
+    <div class="step-h"><span class="n">1</span><h2 id="s1">Arquivos</h2>
+      <p>O backlog precisa das colunas barcode, descriptions e, se tiver, CATEGORIA / MARCA / FABRICANTE / QUANTIDADE SUGERIDA. O dicionário pode ser .csv (inclusive UTF-16) ou .xlsx. Os arquivos são lidos só no seu navegador.</p></div>
+    <div class="grid3">
+      <div class="drop" id="dropBacklog"><span class="req">Obrigatório</span><h3>Backlog</h3><div class="st" id="stBacklog">Arraste o .xlsx ou clique para escolher</div><input type="file" id="fBacklog" accept=".xlsx,.xls,.csv"></div>
+      <div class="drop" id="dropDict"><span class="req">Obrigatório para marca</span><h3>Dicionário de marcas</h3><div class="st" id="stDict">Arraste o .csv ou .xlsx</div><input type="file" id="fDict" accept=".csv,.txt,.xlsx,.xls"></div>
+      <div class="drop" id="dropCats"><span class="req">Opcional</span><h3>Planilha de categorias</h3><div class="st" id="stCats">Colunas CATEGORIAS e INICIO DO DESCRITIVO. Categorias novas entram no fim da lista.</div><input type="file" id="fCats" accept=".xlsx,.xls,.csv"></div>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="step" aria-labelledby="s2">
+    <div class="step-h"><span class="n">2</span><h2 id="s2">Categorias e regras</h2>
+      <p>Cada descrição é testada de cima para baixo e fica na primeira categoria que servir. Deixe as mais específicas no topo. Termos em maiúsculas sem acento, separados por vírgula; <code>*</code> no fim vale como curinga (CHOC* pega CHOC, CHOCOLATE, CHOCOLATES).</p></div>
+
+    <div class="panel">
+      <div class="row2">
+        <label class="f">Nome desta configuração<input type="text" id="cfgName"></label>
+        <div class="bar" style="align-self:end">
+          <button id="btnSave">Salvar</button>
+          <select id="selLoad" aria-label="Configurações salvas" style="width:auto"><option value="">Carregar salva…</option></select>
+          <button id="btnExport" class="ghost">Exportar .json</button>
+          <label class="btn ghost" style="position:relative">Importar .json<input type="file" id="fImport" accept=".json" style="position:absolute;inset:0;opacity:0;cursor:pointer"></label>
+        </div>
+      </div>
+      <div class="msg hidden" id="cfgMsg"></div>
+    </div>
+
+    <div class="panel">
+      <label class="f">Regras em texto, do jeito que você escreveria para uma pessoa
+        <span class="h">O Claude lê o texto e transforma em termos de incluir / excluir / % mínimo nas categorias acima. Revise o resultado antes de classificar.</span>
+        <textarea id="rulesText" rows="6"></textarea></label>
+      <div class="bar"><button id="btnRules" class="pri">Aplicar regras com Claude</button><button id="btnStop" class="ghost hidden">Parar</button><span class="note" id="rulesState"></span></div>
+      <div class="msg hidden" id="rulesMsg"></div>
+    </div>
+
+    <div class="bar">
+      <button id="btnAddFromBacklog">Adicionar categorias sugeridas no backlog</button>
+      <button id="btnNewCat" class="ghost">Nova categoria</button>
+      <button id="btnAllOff" class="ghost">Desativar todas</button>
+      <button id="btnAllOn" class="ghost">Ativar todas</button>
+      <label class="switch"><input type="checkbox" id="showOff"> Mostrar as desativadas</label>
+      <input type="text" id="catSearch" placeholder="Buscar por nome ou cesta…" style="max-width:220px">
+      <select id="cestaSel" style="width:auto"><option value="">Cesta…</option></select>
+      <button id="btnCestaOn" class="ghost">Ativar cesta</button>
+      <span class="note" id="catsCount"></span>
+    </div>
+    <p class="note" style="margin:0">A biblioteca guarda todas as categorias que você já criou, com as regras aprendidas. Nada é apagado quando você aplica regras novas: cada trabalho só marca as categorias que vai usar (caixinha ao lado do número). <span id="libState"></span></p>
+    <div class="cats" id="cats"></div>
+  </section>
+
+  <!-- 3 -->
+  <section class="step" aria-labelledby="s3">
+    <div class="step-h"><span class="n">3</span><h2 id="s3">Marcas e exceções</h2>
+      <p>A marca só é aceita se existir no dicionário. As falsas marcas e as palavras genéricas nunca são usadas como marca. Sem marca, fica OUTRA MARCA e OUTRO FABRICANTE.</p></div>
+    <div class="row2">
+      <label class="f">Falsas marcas (nunca são marca)<textarea id="blackText" rows="5"></textarea></label>
+      <label class="f">Termos que sempre mandam para OUTRA CATEGORIA<span class="h">Vale antes de qualquer categoria. Cada termo fica ligado às categorias ativas quando foi criado, então a lista de alimentos não atrapalha um trabalho de shampoo, por exemplo. Termos que estejam em "Incluir" de uma categoria ativa são ignorados aqui.</span><textarea id="outraText" rows="5"></textarea><button type="button" class="sm ghost" id="btnClearOutra" style="align-self:flex-start">Limpar lista</button></label>
+    </div>
+    <label class="f" style="max-width:420px">Categoria padrão (quando nada na descrição indicar a categoria)<select id="defCat"></select></label>
+    <label class="switch"><input type="checkbox" id="useSug"> Quando nenhuma descrição indicar categoria, usar a CATEGORIA SUGERIDA em vez de OUTRA CATEGORIA</label>
+  </section>
+
+  <!-- 4 -->
+  <section class="step" aria-labelledby="s4">
+    <div class="step-h"><span class="n">4</span><h2 id="s4">Classificar</h2>
+      <p>Categoria por votação entre as descrições de cada código (as primeiras pesam mais; a sugerida desempata). Conteúdo em g ou ml, packs somados. Descritivo = início + marca + complementos + quantidade.</p></div>
+    <div class="bar"><button class="pri" id="btnRun" disabled>Classificar</button><button id="btnDownload" disabled>Baixar planilha .xlsx</button><span class="note" id="runState">Envie o backlog para começar.</span></div>
+    <div class="progress" aria-hidden="true"><div id="prog"></div></div>
+    <div id="results" class="hidden" style="display:flex;flex-direction:column;gap:14px">
+      <div class="sum" id="kpis"></div>
+      <div class="row2">
+        <label class="f">Filtrar categoria<select id="fltCat"></select></label>
+        <label class="f">Mostrar<select id="fltMode"><option value="all">Todos os itens</option><option value="alert">Só itens com alerta</option></select></label>
+      </div>
+      <div class="tbl" style="max-height:520px"><table id="prev"><thead><tr><th>Código</th><th>Categoria</th><th>Marca</th><th>Fabricante</th><th class="num">Conteúdo</th><th>Descritivo</th><th>Alerta</th><th>1ª descrição</th></tr></thead><tbody></tbody></table></div>
+      <p class="note" id="prevNote"></p>
+      <div class="tbl"><table id="catTbl"><thead><tr><th>Categoria</th><th class="num">Itens</th><th class="num">Sem marca</th><th class="num">Sem conteúdo</th><th class="num">Com alerta</th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const K = /*CONSTS*/null;
+const OUT = 'OUTRA CATEGORIA';
+const $ = s => document.querySelector(s);
+const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'class') e.className = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else if (v !== undefined && v !== null) e.setAttribute(k, v); } for (const c of kids) e.append(c instanceof Node ? c : document.createTextNode(c ?? '')); return e; };
+
+/* ------------------------------------------------------------------ text utils */
+function N(s) {
+  s = String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+  s = s.replace(/[^A-Z0-9%,. ]+/g, ' ');
+  s = s.replace(/(\d),(?=\d)/g, '$1.').replace(/,/g, ' ');
+  s = s.replace(/\.(?!\d)/g, ' ').replace(/(?<!\d)\./g, ' ');
+  return s.replace(/\s+/g, ' ').trim();
+}
+function parseDescs(s) {
+  if (s === null || s === undefined) return [];
+  s = String(s).trim();
+  if (s.startsWith('{') && s.endsWith('}')) s = s.slice(1, -1);
+  const out = []; const rx = /"((?:[^"\\]|\\.)*)"|([^,]+)/g; let m;
+  while ((m = rx.exec(s))) { const v = (m[1] ?? m[2] ?? '').trim(); if (v) out.push(v); }
+  return out;
+}
+const splitList = t => String(t || '').split(/[,\n;]/).map(x => x.trim()).filter(Boolean);
+const escRx = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function termRx(terms) {
+  const parts = [];
+  for (const t of terms || []) {
+    const pieces = String(t).split('*').map(p => escRx(N(p)));
+    const p = pieces.join('[A-Z0-9]*').trim();
+    if (p && p !== '[A-Z0-9]*') parts.push(p);
+  }
+  if (!parts.length) return null;
+  parts.sort((a, b) => b.length - a.length);
+  return new RegExp('(?<![A-Z0-9])(?:' + parts.join('|') + ')(?![A-Z0-9])');
+}
+const SKIPH = new Set('F N A HF FLV CX UN PCT KIT IMP DP FD ZZ P X NEW NOVO DE O OS AS SUPER MINI MEGA COMBO PROMO LV LEVE PAGUE RF CF SM FF BS CONS CONSERVA TEMP COND PRODUTOS PROD IND BR HORT FVL FE MP PJP PC SC SH'.split(' '));
+function head(t) { for (const w of t.split(' ')) if (w && !SKIPH.has(w) && !/^\d/.test(w)) return w; return ''; }
+const PCT1 = /(?<![0-9.])(\d{2,3})\s*%?\s*(?:DE\s+)?(?:CACAU|CACAO|COCOA|CAC|DARK|AMARGO|INTENSO|EXTRA AMARGO)(?![A-Z])/g;
+const PCT2 = /(?<![0-9.])(\d{2,3})\s*%/g;
+function pct(t) {
+  const v = []; let m;
+  PCT1.lastIndex = 0; while ((m = PCT1.exec(t))) v.push(+m[1]);
+  if (/CHOC|CACAU|CACAO|DARK|AMARGO/.test(t)) { PCT2.lastIndex = 0; while ((m = PCT2.exec(t))) v.push(+m[1]); }
+  const f = v.filter(x => x >= 20 && x <= 100); return f.length ? Math.max(...f) : null;
+}
+
+/* ------------------------------------------------------------------ state */
+let cfg = JSON.parse(JSON.stringify(K.cfg));
+cfg.falsasMarcas = cfg.falsasMarcas || []; cfg.sempreOutra = (cfg.sempreOutra || []).filter(x => !/^AMEND/.test(x));
+cfg.regrasTexto = cfg.regrasTexto || `Todos os itens só podem ser classificados nas categorias da lista. Caso não entre em nenhuma, alocar em OUTRA CATEGORIA.
+Cuidado especial com as categorias de chocolate e farinha.
+CHOCOLATE CAIXA BOMBOM entra somente bombons em caixa (presenteáveis).
+Todo chocolate com percentual acima de 75% cacau entra em CHOCOLATE SAUDAVEL, assim como chocolates zero açúcar e proteicos.
+Em FARINHA OUTROS entram farinhas que não se encaixam em nenhuma das outras categorias de farinha, como trigo para kibe.
+Na categoria CAFE PREMIUM só entram cafés especiais moídos; cafés premium em grãos entram em CAFE EM GRAO e cafés especiais em cápsula entram em CAFE CAPSULA.
+Na categoria SUPLEMENTO OUTROS entram somente itens voltados a academia que não se encaixam em nenhuma das outras categorias.
+Não são marcas: CHOC, SABOR, AMEND, PUPUNHA, ESPECIAL, TERERE, GOMA, COGUMELO, EXTRA, 100 WHEY, NATURAL, PURE, ARABICA, CASEIRO, REAL, PANKO, OURO, ECOGUMELO, ARTESANAL.`;
+let data = { items: null, dict: null, results: null, sugCounts: new Map(), wordSug: new Map() };
+const GENERIC = new Set(K.const.GENERIC), GPHR = new Set(K.const.GENERIC_PHRASES);
+const FLAVORS = new Set(K.const.FLAVORS), ATTR = new Set(K.const.ATTR), NOISE = new Set(K.const.NOISE);
+const TOK = K.const.TOK, GROUP_TOK = K.const.GROUP_TOK;
+const PHRASE = K.const.PHRASE.map(([p, r]) => [new RegExp(p, 'g'), r]);
+const PROTECT = K.const.PROTECT.map(p => [new RegExp('(?<![A-Z_])' + p + '(?![A-Z_])', 'g'), p.replace(/ /g, '_')]);
+
+/* ------------------------------------------------------------------ library (categories are never lost) */
+const LISTK = ['incluir', 'tambem', 'excluir', 'forte', 'remover', 'preferirSugerida'];
+const actCats = () => cfg.categorias.filter(c => c.ativa !== false);
+const actNames = () => new Set(actCats().map(c => c.nome));
+function normCfg(c) {
+  c.categorias = (c.categorias || []).filter(x => x && x.nome); c.falsasMarcas = c.falsasMarcas || []; c.sempreOutra = c.sempreOutra || []; c.sempreDono = c.sempreDono || {}; c.removidas = c.removidas || [];
+  const food = new Set(K.cfg.sempreOutra || []), ex = K.cfg.categorias.map(x => x.nome), all = c.categorias.map(x => x.nome);
+  for (const t of c.sempreOutra) if (!c.sempreDono[t] || !c.sempreDono[t].length) c.sempreDono[t] = food.has(t) ? ex : all;
+  return c;
+}
+function sempreAtivos() { const A = actNames(), D = cfg.sempreDono || {}; return (cfg.sempreOutra || []).filter(t => { const o = D[t]; return !o || !o.length || o.some(n => A.has(n)); }); }
+function setSempreAtivos(list) {
+  const A = [...actNames()], D = cfg.sempreDono = cfg.sempreDono || {};
+  const cur = new Set(sempreAtivos()), nw = new Set(list);
+  for (const t of cur) if (!nw.has(t)) { const o = (D[t] || []).filter(n => !A.includes(n)); if (o.length) D[t] = o; else { delete D[t]; cfg.sempreOutra = cfg.sempreOutra.filter(x => x !== t); } }
+  for (const t of nw) if (!cur.has(t)) { if (!cfg.sempreOutra.includes(t)) cfg.sempreOutra.push(t); D[t] = [...new Set([...(D[t] || []), ...A])]; }
+}
+function unionCat(d, s) {
+  for (const k of LISTK) if (s[k] && s[k].length) d[k] = [...new Set([...(d[k] || []), ...s[k]])];
+  if (!d.inicio && s.inicio) d.inicio = s.inicio;
+  if ((d.pctMin === null || d.pctMin === undefined || d.pctMin === '') && s.pctMin !== null && s.pctMin !== undefined && s.pctMin !== '') d.pctMin = s.pctMin;
+  if (!d.regra && s.regra) d.regra = s.regra;
+  if (!d.qtdPadrao && s.qtdPadrao) d.qtdPadrao = s.qtdPadrao;
+  if (!d.cesta && s.cesta) d.cesta = s.cesta;
+}
+// mode: 'add' = only categories missing here; 'union' = also union the term lists; 'replace' = src's rules win for shared categories
+function mergeInto(dst, src, mode) {
+  let add = 0; normCfg(dst);
+  if (mode === 'replace') { const keepN = new Set(src.categorias.map(x => x.nome)); for (const n of src.removidas || []) if (!keepN.has(n)) dst.categorias = dst.categorias.filter(x => x.nome !== n); dst.removidas = [...new Set([...dst.removidas, ...(src.removidas || [])])].filter(n => !keepN.has(n)); }
+  const rem = new Set(dst.removidas);
+  for (const s of src.categorias || []) {
+    if (!s || !s.nome || rem.has(s.nome)) continue;
+    const d = dst.categorias.find(x => x.nome === s.nome);
+    if (!d) { const nc = JSON.parse(JSON.stringify(s)); nc.ativa = s.ativa === true; dst.categorias.push(nc); add++; continue; }
+    if (mode === 'replace') { const a = d.ativa; for (const k of LISTK) d[k] = [...(s[k] || [])]; for (const k of ['inicio', 'pctMin', 'regra', 'segmento', 'segmentoManual', 'qtdPadrao', 'cesta']) if (s[k] !== undefined) d[k] = s[k]; d.ativa = a; }
+    else if (mode === 'union') unionCat(d, s);
+  }
+  dst.falsasMarcas = [...new Set([...dst.falsasMarcas, ...(src.falsasMarcas || [])])];
+  for (const t of src.sempreOutra || []) { if (!dst.sempreOutra.includes(t)) dst.sempreOutra.push(t); dst.sempreDono[t] = [...new Set([...(dst.sempreDono[t] || []), ...((src.sempreDono || {})[t] || [])])]; }
+  return add;
+}
+let hadDraft = false, libReady = false, libTimer = null;
+function libState(t) { const e = document.getElementById('libState'); if (e) e.textContent = t; }
+function saveDraft() {
+  cfg.atualizado = new Date().toISOString();
+  try { localStorage.setItem('cb-draft', JSON.stringify(cfg)); } catch (e) {}
+  if (DB && libReady) { clearTimeout(libTimer); libTimer = setTimeout(pushLib, 1500); }
+}
+async function pushLib() {
+  try { await DB.doc('biblioteca/principal').set({ atualizado: cfg.atualizado, cfg: JSON.stringify(cfg) }); libState('Biblioteca salva às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '.'); }
+  catch (e) { libState('A biblioteca está salva neste navegador. Para guardar uma cópia fora dele, use "Exportar .json".'); }
+}
+function loadDraft() { try { const s = localStorage.getItem('cb-draft'); if (s) { const c = JSON.parse(s); if (c && c.categorias) { cfg = c; hadDraft = true; } } } catch (e) {} }
+
+/* ------------------------------------------------------------------ file reading */
+async function readTable(file) {
+  const buf = await file.arrayBuffer();
+  const name = file.name.toLowerCase();
+  if (name.endsWith('.csv') || name.endsWith('.txt')) {
+    const u8 = new Uint8Array(buf); let enc = 'utf-8';
+    if (u8[0] === 0xFF && u8[1] === 0xFE) enc = 'utf-16le'; else if (u8[0] === 0xFE && u8[1] === 0xFF) enc = 'utf-16be';
+    else if (u8.length > 3 && u8[1] === 0 && u8[3] === 0) enc = 'utf-16le';
+    let text = new TextDecoder(enc).decode(buf);
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+    const first = text.slice(0, text.indexOf('\n'));
+    const delim = first.includes('\t') ? '\t' : (first.split(';').length > first.split(',').length ? ';' : ',');
+    const rows = [];
+    for (const line of text.split(/\r?\n/)) { if (!line) continue; rows.push(delim === '\t' ? line.split('\t') : splitCsvLine(line, delim)); }
+    return rows;
+  }
+  const wb = XLSX.read(buf, { type: 'array' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  return XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
+}
+function splitCsvLine(line, d) { const out = []; let cur = '', q = false; for (let i = 0; i < line.length; i++) { const c = line[i]; if (q) { if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; } else if (c === '"') q = false; else cur += c; } else if (c === '"') q = true; else if (c === d) { out.push(cur); cur = ''; } else cur += c; } out.push(cur); return out; }
+const normH = h => N(h).replace(/ /g, '');
+function findCol(hdr, tests) { const H = hdr.map(normH); for (const t of tests) { const i = H.findIndex(h => t(h)); if (i >= 0) return i; } return -1; }
+
+async function loadBacklog(file) {
+  const rows = await readTable(file); const hdr = rows[0] || [];
+  const ci = {
+    bc: findCol(hdr, [h => h === 'BARCODE', h => h.includes('CODIGOBARRAS'), h => h.includes('EAN'), h => h.includes('BARCODE')]),
+    ds: findCol(hdr, [h => h === 'DESCRIPTIONS', h => h.includes('DESCRIPTION'), h => h.includes('DESCRI')]),
+    cat: findCol(hdr, [h => h.includes('CATEGORIA')]), mar: findCol(hdr, [h => h.includes('MARCA')]),
+    fab: findCol(hdr, [h => h.includes('FABRICANTE')]), qt: findCol(hdr, [h => h.includes('QUANTIDADE') || h.includes('CONTENIDO')]),
+  };
+  if (ci.bc < 0 || ci.ds < 0) throw new Error('Não encontrei as colunas de código (barcode) e descrições (descriptions) no backlog.');
+  const items = [];
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r]; if (!row || row[ci.bc] === null || row[ci.bc] === undefined || row[ci.bc] === '') continue;
+    const D = parseDescs(row[ci.ds]);
+    items.push({ barcode: row[ci.bc], D, T: D.map(N), sugCat: ci.cat >= 0 ? String(row[ci.cat] ?? '').trim() : '', sugMarca: ci.mar >= 0 ? String(row[ci.mar] ?? '').trim() : '',
+      sugFab: ci.fab >= 0 ? String(row[ci.fab] ?? '').trim() : '', sugQt: ci.qt >= 0 ? row[ci.qt] : null });
+  }
+  data.items = items; data.sugCounts = new Map();
+  for (const it of items) data.sugCounts.set(it.sugCat, (data.sugCounts.get(it.sugCat) || 0) + 1);
+  computeWordSug();
+  return items.length;
+}
+
+async function loadDict(file) {
+  const rows = await readTable(file); const hdr = rows[0] || [];
+  const ci = {
+    fab: findCol(hdr, [h => h === 'FABRICANTE', h => h.includes('FABRICANTE')]),
+    mar: findCol(hdr, [h => h === 'MARCA', h => h.startsWith('MARCA') && !h.includes('ALGORITMO') && !h.includes('PROPIA')]),
+    em: findCol(hdr, [h => h.includes('MER6DESC') || h.includes('ESTMER6DESCRIPCION'), h => h.includes('6DESCRIPCION'), h => h.includes('SEGMENTO'), h => h.includes('CATEGORIA')]),
+    v: findCol(hdr, [h => h.includes('VENTA') || h.includes('VENDA'), h => h.includes('IMP')]),
+  };
+  if (ci.mar < 0) throw new Error('Não encontrei a coluna Marca no dicionário.');
+  const dict = new Map();
+  const num = v => { if (typeof v === 'number') return v; if (v === null || v === undefined) return 0; const s = String(v).trim(); if (!s) return 0; const t = s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s.replace(/\./g, ''); const n = parseFloat(t); return isNaN(n) ? 0 : n; };
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r]; if (!row) continue;
+    const raw = row[ci.mar]; if (!raw) continue; const mn = N(raw); if (!mn) continue;
+    const fab = ci.fab >= 0 && row[ci.fab] ? String(row[ci.fab]).trim() : 'OUTRO FABRICANTE';
+    const em = ci.em >= 0 && row[ci.em] ? String(row[ci.em]).trim() : '';
+    const v = ci.v >= 0 ? num(row[ci.v]) : 1;
+    let b = dict.get(mn);
+    if (!b) { b = { names: new Map(), total: 0, em: new Map(), fabEm: new Map(), fabAll: new Map() }; dict.set(mn, b); }
+    const rn = String(raw).trim(); b.names.set(rn, (b.names.get(rn) || 0) + v + 1e-6); b.total += v;
+    b.em.set(em, (b.em.get(em) || 0) + v);
+    let fm = b.fabEm.get(em); if (!fm) { fm = new Map(); b.fabEm.set(em, fm); } fm.set(fab, (fm.get(fab) || 0) + v + 1e-6);
+    b.fabAll.set(fab, (b.fabAll.get(fab) || 0) + v + 1e-6);
+  }
+  for (const b of dict.values()) { let best = null, bv = -1; for (const [k, v] of b.names) if (v > bv) { bv = v; best = k; } b.canon = best; b.names = null; }
+  // glued & first-word aliases
+  const glued = new Map(), first = new Map();
+  for (const m of dict.keys()) if (m.includes(' ')) {
+    const k = m.replace(/ /g, ''); if (k.length >= 5 && !dict.has(k)) glued.set(k, m);
+    const w0 = m.split(' ')[0]; if (w0.length >= 5 && !GENERIC.has(w0) && !/^\d/.test(w0)) { if (!first.has(w0)) first.set(w0, []); first.get(w0).push(m); }
+  }
+  for (const [k, ms] of first) if (ms.length === 1 && !dict.has(k)) glued.set(k, ms[0]);
+  data.dict = { map: dict, glued };
+  return dict.size;
+}
+
+/* ------------------------------------------------------------------ segments */
+function autoSegments() {
+  if (!data.items || !data.dict) return;
+  const black = new Set(cfg.falsasMarcas.map(N));
+  for (const c of cfg.categorias) {
+    if (c.segmentoManual) continue;
+    const s = new Map();
+    for (const it of data.items) {
+      if (it.sugCat !== c.nome) continue; const mn = N(it.sugMarca); if (!mn || black.has(mn) || mn === 'OUTRA MARCA') continue;
+      const b = data.dict.map.get(mn); if (!b) continue;
+      for (const [e, v] of b.em) if (e) s.set(e, (s.get(e) || 0) + v);
+    }
+    const arr = [...s].sort((a, b) => b[1] - a[1]); const tot = arr.reduce((a, x) => a + x[1], 0);
+    const seg = []; let acc = 0; for (const [e, v] of arr) { if (seg.length >= 6 || (tot && acc / tot >= 0.85)) break; seg.push(e); acc += v; }
+    c.segmento = seg;
+  }
+}
+
+/* ------------------------------------------------------------------ keyword suggestions from backlog */
+function computeWordSug() {
+  const df = new Map(), byCat = new Map(), nCat = new Map(); const n = data.items.length;
+  for (const it of data.items) {
+    const ws = new Set(it.T.join(' ').split(' ').filter(w => w.length >= 4 && !/\d/.test(w) && !NOISE.has(w)));
+    for (const w of ws) df.set(w, (df.get(w) || 0) + 1);
+    const c = it.sugCat; nCat.set(c, (nCat.get(c) || 0) + 1);
+    let m = byCat.get(c); if (!m) { m = new Map(); byCat.set(c, m); } for (const w of ws) m.set(w, (m.get(w) || 0) + 1);
+  }
+  data.wordSug = new Map();
+  for (const [c, m] of byCat) {
+    const nc = nCat.get(c); const sc = [];
+    for (const [w, k] of m) { if (k < Math.max(3, nc * 0.08)) continue; const s = (k / nc) * Math.log(n / (df.get(w) + 1)); sc.push([s, w]); }
+    sc.sort((a, b) => b[0] - a[0]); data.wordSug.set(c, sc.slice(0, 12).map(x => x[1]));
+  }
+}
+
+/* ------------------------------------------------------------------ engine */
+function compile() {
+  return {
+    sempre: termRx((() => { const inCats = new Set(); for (const c of actCats()) for (const t of [...(c.incluir || []), ...(c.tambem || [])]) inCats.add(N(String(t).replace(/\*/g, ''))); return sempreAtivos().filter(t => !inCats.has(N(String(t).replace(/\*/g, '')))); })()),
+    cats: actCats().map(c => ({ c, inc: termRx(c.incluir), tam: termRx(c.tambem), exc: termRx(c.excluir), forte: new Set((c.forte || []).map(N)), pct: (c.pctMin === '' || c.pctMin === null || c.pctMin === undefined) ? null : +c.pctMin })),
+    names: new Set(actCats().map(c => c.nome)),
+    black: new Set([...cfg.falsasMarcas.map(N), ...K.const.USER_BLACK]),
+  };
+}
+function classifyDesc(t, C) {
+  if (!t || t === 'SEM DESCRICAO') return null;
+  if (C.sempre && C.sempre.test(t)) return OUT;
+  const h = head(t);
+  for (const x of C.cats) {
+    const forte = x.forte.has(h);
+    if (!forte && x.exc && x.exc.test(t)) continue;
+    const tamOK = !x.tam || x.tam.test(t);
+    if (x.inc && tamOK && x.inc.test(t)) return x.c.nome;
+    if (x.pct !== null && tamOK && (pct(t) || 0) > x.pct) return x.c.nome;
+  }
+  return null;
+}
+function aggregate(T, sug, C) {
+  const votes = new Map(); const per = [];
+  T.forEach((t, i) => { const c = classifyDesc(t, C); per.push(c); if (c) votes.set(c, (votes.get(c) || 0) + Math.pow(0.75, i)); });
+  if (!votes.size) {
+    if (cfg.usarSugerida && C.names.has(sug)) return { cat: sug, flag: 'SEM_EVIDENCIA_SUG', per };
+    if (cfg.categoriaPadrao && C.names.has(cfg.categoriaPadrao)) return { cat: cfg.categoriaPadrao, flag: 'PADRAO', per };
+    return { cat: OUT, flag: 'SEM_EVIDENCIA', per };
+  }
+  if (votes.has(sug)) votes.set(sug, votes.get(sug) + 0.2);
+  const top = [...votes].sort((a, b) => b[1] - a[1]); const best = top[0][1];
+  const ties = top.filter(x => Math.abs(x[1] - best) < 1e-9).map(x => x[0]);
+  let cat = top[0][0]; if (ties.length > 1) cat = ties.includes(sug) ? sug : (ties.find(x => x !== OUT) || cat);
+  const cc0 = cfg.categorias.find(c => c.nome === cat);
+  if (cc0 && (cc0.preferirSugerida || []).includes(sug) && C.names.has(sug)) return { cat: sug, flag: 'TROCA_SUG', per: per.map(p => p === cat ? sug : p) };
+  // % rule on any description (e.g. cacau > 75)
+  for (const x of C.cats) if (x.pct !== null && x.c.nome !== cat) {
+    const same = C.names.has(cat) && cfg.categorias.find(c => c.nome === cat); if (!same) continue;
+    const fam = x.c.inicio && same.inicio && x.c.inicio.split(' ')[0] === same.inicio.split(' ')[0];
+    if (fam && T.some(t => (pct(t) || 0) > x.pct)) { cat = x.c.nome; break; }
+  }
+  return { cat, flag: votes.size > 1 ? 'DIVERGENTE' : '', per };
+}
+
+/* brand */
+function validCand(g, black, weakOk) {
+  if (black.has(g) || GPHR.has(g)) return false;
+  const w = g.split(' ');
+  if (w.length <= 2 && w.every(x => GENERIC.has(x) || /^\d+$/.test(x) || x.length <= 2)) { if (!(weakOk && w.length >= 2)) return false; }
+  if (g.replace(/ /g, '').length <= 2) return false;
+  if (/^[\d ]+$/.test(g)) return false;
+  if (['DE', 'DA', 'DO', 'E', 'C', 'COM', 'SEM', 'EM'].includes(w[0]) || ['DE', 'DA', 'DO', 'E', 'C', 'COM', 'EM'].includes(w[w.length - 1])) return false;
+  if (/\d+(G|KG|ML|L|GR)$/.test(g)) return false;
+  return true;
+}
+function relSales(mn, seg) { const b = data.dict.map.get(mn); if (!b || !seg || !seg.length) return 0; let s = 0; for (const e of seg) s += b.em.get(e) || 0; return s; }
+function fabricante(mn, seg) {
+  const b = data.dict.map.get(mn); if (!b) return 'OUTRO FABRICANTE';
+  const s = new Map(); for (const e of seg || []) { const fm = b.fabEm.get(e); if (fm) for (const [f, v] of fm) s.set(f, (s.get(f) || 0) + v); }
+  const pick = m => { let best = null, bv = -1; for (const [f, v] of m) if (f !== 'OUTRO FABRICANTE' && v > bv) { bv = v; best = f; } return best; };
+  return pick(s) || pick(b.fabAll) || 'OUTRO FABRICANTE';
+}
+function findBrand(T, seg, sug, black) {
+  if (!data.dict) return null;
+  const D = data.dict.map, sugn = N(sug);
+  const cov = new Map();
+  T.forEach((t, i) => {
+    const w = t.split(' '); const seen = new Set(); const wt = Math.pow(0.75, i);
+    for (let n = 1; n <= 6; n++) for (let k = 0; k + n <= w.length; k++) { const g = w.slice(k, k + n).join(' '); if (seen.has(g) || !D.has(g)) continue; seen.add(g); cov.set(g, (cov.get(g) || 0) + wt); }
+    for (const tok of new Set(w)) { const gb = data.dict.glued.get(tok); if (gb && !seen.has(gb)) { seen.add(gb); cov.set(gb, (cov.get(gb) || 0) + wt); } }
+    if (sugn && D.has(sugn) && !seen.has(sugn) && validCand(sugn, black)) {
+      const key = sugn.split(' ').filter(x => !GENERIC.has(x) && x.length > 2);
+      if (key.length && key.every(x => new RegExp('(?<![A-Z0-9])' + escRx(x) + '(?![A-Z0-9])').test(t))) { seen.add(sugn); cov.set(sugn, (cov.get(sugn) || 0) + wt); }
+    }
+  });
+  const cands = new Map();
+  for (const [g, c] of cov) { if (validCand(g, black)) cands.set(g, c); else if (validCand(g, black, true) && (g === sugn || relSales(g, seg) > 5e5)) cands.set(g, c); }
+  if (!cands.size) return null;
+  const keys = [...cands.keys()].sort((a, b) => b.length - a.length); const drop = new Set();
+  for (const a of keys) for (const b of keys) if (a !== b && b.length < a.length && new RegExp('(?<![A-Z0-9])' + escRx(b) + '(?![A-Z0-9])').test(a) && cands.get(a) >= 0.6 * cands.get(b)) drop.add(b);
+  let best = null;
+  for (const [g, c] of cands) {
+    if (drop.has(g)) continue; const rs = relSales(g, seg); const rel = rs > 0 ? 1 : 0;
+    const sc = seg && seg.length ? c * (1 + rel) + 0.1 * (g.split(' ').length - 1) + (g === sugn ? 1.5 : 0) + (rs ? Math.log10(rs + 1) / 12 : 0)
+      : c + 0.1 * (g.split(' ').length - 1) + (g === sugn ? 1.5 : 0) + Math.log10((D.get(g).total || 0) + 1) / 12;
+    if (!best || sc > best.sc) best = { g, sc, c, rel };
+  }
+  if (!best) return null;
+  if (!(best.rel || best.g === sugn || best.c >= 0.9)) return null;
+  return best.g;
+}
+
+/* quantity */
+const U = '(KG|KGS|KILO|KILOS|K|G|GR|GRS|GRAMAS|GRAMA|GRM|ML|L|LT|LTS|LITRO|LITROS|OZ|LB)';
+const NUM = '(\\d+(?:\\.\\d+)?)';
+function conv(v, u) {
+  if (['KG', 'KGS', 'KILO', 'KILOS', 'K'].includes(u)) return [v * 1000, 'G'];
+  if (['G', 'GR', 'GRS', 'GRAMAS', 'GRAMA', 'GRM'].includes(u)) return [v, 'G'];
+  if (u === 'ML') return [v, 'ML'];
+  if (['L', 'LT', 'LTS', 'LITRO', 'LITROS'].includes(u)) return [v * 1000, 'ML'];
+  if (u === 'OZ') return [v * 28.35, 'G']; if (u === 'LB') return [v * 453.6, 'G'];
+  return [null, null];
+}
+function prepQ(t) { return t.replace(/(?<![0-9.])(\d) (0\d{1,2})\s*(KG|G|L)(?![A-Z])/g, '$1.$2$3').replace(/(\d)\s*GR?S?(?=\d)/g, '$1G '); }
+const RX_P1 = new RegExp('(?<![0-9.])(\\d{1,3})\\s*X\\s*' + NUM + '\\s*' + U + '(?![A-Z])', 'g');
+const RX_P2 = new RegExp('(?<![0-9.])' + NUM + '\\s*' + U + '\\s*X\\s*(\\d{1,3})(?![0-9.])(?!\\s*(G|GR|KG|ML|L|CM|MM)(?![A-Z]))', 'g');
+const RX_PC = new RegExp('(?<![0-9.])' + NUM + '\\s*' + U + '\\s*(?:C|COM|CX|CX C|CX COM)\\s*(\\d{1,3})\\s*(?:UN|UND|UNID|UNIDADES|U)?(?![A-Z0-9.])', 'g');
+const RX_S = new RegExp('(?<![0-9.A-Z])' + NUM + '\\s*' + U + '(?![A-Z])', 'g');
+function parseQ(t) {
+  t = prepQ(t); const out = [], used = []; let m;
+  const inUsed = i => used.some(([a, b]) => a <= i && i < b);
+  RX_P1.lastIndex = 0; while ((m = RX_P1.exec(t))) { const n = +m[1]; const [v, b] = conv(+m[2], m[3]); if (v && n >= 1) { out.push([n * v, b, n, v, n > 1 ? 'pack' : 'single']); used.push([m.index, m.index + m[0].length]); } }
+  RX_P2.lastIndex = 0; while ((m = RX_P2.exec(t))) { if (inUsed(m.index)) continue; const [v, b] = conv(+m[1], m[2]); const n = +m[3]; if (v && n >= 1) { out.push([n * v, b, n, v, n > 1 ? 'pack' : 'single']); used.push([m.index, m.index + m[0].length]); } }
+  RX_PC.lastIndex = 0; while ((m = RX_PC.exec(t))) { if (inUsed(m.index)) continue; const [v, b] = conv(+m[1], m[2]); const n = +m[3]; if (v && n > 1 && n <= 100 && v <= 60) { out.push([n * v, b, n, v, 'packc']); used.push([m.index, m.index + m[0].length]); } }
+  RX_S.lastIndex = 0; while ((m = RX_S.exec(t))) { if (inUsed(m.index)) continue; const [v, b] = conv(+m[1], m[2]); if (v && v > 0) out.push([v, b, 1, v, 'single']); }
+  return out;
+}
+const rnd = x => x >= 50 ? Math.round(x) : Math.round(x * 10) / 10;
+const RX_UN = /(?<![0-9.A-Z])(\d{1,3})\s*(?:UN|UND|UNID|UNIDADE|UNIDADES|UNI|UNDS|UNS|UNDS)(?![A-Z])/g;
+const RX_CN = /(?<![A-Z0-9])(?:C|COM|CX|CX C|CX COM|BANDEJA|BDJ|EMB|CARTELA|PENTE)\s*(\d{1,3})(?![0-9.])(?!\s*(?:G|GR|GRS|KG|ML|L|LT|MG|CM|MM|M|X|%)(?![A-Z]))/g;
+const RX_DZ = /(?<![A-Z0-9.])(?:(\d{1,2})\s*)?(MEIA\s+)?(?:DZ|DUZ|DUZIA|DUZIAS)(?![A-Z])/;
+function parseU(t) {
+  let m; RX_UN.lastIndex = 0; if ((m = RX_UN.exec(t)) && +m[1] > 0) return +m[1];
+  RX_CN.lastIndex = 0; if ((m = RX_CN.exec(t)) && +m[1] > 1) return +m[1];
+  if ((m = RX_DZ.exec(t))) return m[2] ? 6 : 12 * (m[1] ? +m[1] : 1);
+  return null;
+}
+function countQty(T) {
+  const v = new Map(); T.forEach((t, i) => { const n = parseU(t); if (n) v.set(n, (v.get(n) || 0) + Math.pow(0.75, i)); });
+  if (!v.size) return null; const top = [...v].sort((a, b) => b[1] - a[1]);
+  return { tot: top[0][0], base: 'UN', n: 1, uv: top[0][0], flag: v.size > 1 ? 'QTD_DIV' : '' };
+}
+function defaultQty(txt) {
+  const t = N(txt || '').replace(/\s+/g, ''); if (!t) return null;
+  const c = parseQ(t); if (c.length) { const x = c[0]; return { tot: x[0], base: x[1], n: x[2], uv: x[3], flag: 'QTD_PADRAO' }; }
+  const m = /^(\d+(?:\.\d+)?)([A-Z]+)$/.exec(t); if (!m) return null;
+  const u = ['UN', 'UND', 'UNID', 'UNIDADE', 'UNIDADES', 'U'].includes(m[2]) ? 'UN' : m[2];
+  return { tot: +m[1], base: u, n: 1, uv: +m[1], flag: 'QTD_PADRAO' };
+}
+function itemQty(T, sug) {
+  const votes = new Map(), reps = new Map(); const key = (t, b) => t + '|' + b;
+  T.forEach((t, i) => {
+    const c = parseQ(t); if (!c.length) return; const w = Math.pow(0.75, i);
+    let bb = c.find(x => x[4] === 'pack'); if (!bb) { const s = c.filter(x => x[4] === 'single'); bb = s.length ? s.reduce((a, x) => x[0] > a[0] ? x : a) : c.find(x => x[4] === 'packc'); }
+    if (!bb) return;
+    const add = (x, ww) => { const k = key(rnd(x[0]), x[1]); votes.set(k, (votes.get(k) || 0) + ww); if (!reps.has(k)) reps.set(k, new Map()); const rk = x[2] + '|' + rnd(x[3]); reps.get(k).set(rk, (reps.get(k).get(rk) || 0) + ww); };
+    add(bb, w); for (const x of c) if (x[4] === 'packc' && x !== bb) add(x, w * 0.5);
+  });
+  let sv = parseFloat(sug); if (!(sv > 1)) sv = null;
+  if (sv) for (const k of votes.keys()) if (Math.abs(+k.split('|')[0] - sv) < 0.6) votes.set(k, votes.get(k) + 0.4);
+  if (!votes.size) return { tot: null, flag: 'SEM_QTD' };
+  const top = [...votes].sort((a, b) => b[1] - a[1]); let k = top[0][0];
+  const ties = top.filter(x => Math.abs(x[1] - top[0][1]) < 1e-9).map(x => x[0]);
+  if (ties.length > 1) { if (sv) { const m = ties.find(x => Math.abs(+x.split('|')[0] - sv) < 0.6); if (m) k = m; } else { const p = ties.find(x => [...reps.get(x).keys()].some(r => +r.split('|')[0] > 1)); if (p) k = p; } }
+  const [tot, base] = [+k.split('|')[0], k.split('|')[1]];
+  const R = [...reps.get(k)]; let rep = R.sort((a, b) => b[1] - a[1])[0][0];
+  const packs = R.filter(([r]) => +r.split('|')[0] > 1); const singleW = R.filter(([r]) => +r.split('|')[0] === 1).reduce((a, x) => a + x[1], 0);
+  if (packs.length) { const pr = packs.sort((a, b) => b[1] - a[1])[0]; if (pr[1] >= 0.5 * singleW || !singleW) rep = pr[0]; }
+  const [n, uv] = rep.split('|').map(Number);
+  return { tot, base, n, uv, flag: votes.size > 1 ? 'QTD_DIV' : '' };
+}
+const fmtn = v => Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : String(+v.toFixed(3));
+function fmtUnit(v, base) { if (base !== 'G' && base !== 'ML') return fmtn(v) + base; if (v >= 1000) return fmtn(Math.round(v) / 1000) + (base === 'G' ? 'KG' : 'L'); return fmtn(v) + (base === 'G' ? 'G' : 'ML'); }
+function qtyText(q) { if (!q || q.tot === null) return ''; return q.n > 1 ? q.n + 'X' + fmtUnit(q.uv, q.base) : fmtUnit(q.tot, q.base); }
+
+/* descritivo */
+function groupOf(cat) { if (cat.startsWith('CAFE')) return 'CAFE'; if (cat.startsWith('FARINHA')) return 'FARINHA'; if (cat.startsWith('CHOCOLATE')) return 'CHOCOLATE'; if (cat.includes('CONSERVA') || cat === 'AZEITONA') return 'CONSERVA'; return null; }
+function expand(t, grp) { t = prepQ(t); for (const [rx, r] of PHRASE) t = t.replace(rx, r); const g = GROUP_TOK[grp] || {}; return t.split(' ').map(x => g[x] || TOK[x] || x).join(' '); }
+const QTY_RX = new RegExp('(?<![A-Z])(\\d{1,3}\\s*X\\s*)?\\d+(?:\\.\\d+)?\\s*' + U + '(\\s*X\\s*\\d{1,3})?(?![A-Z])', 'g');
+const CONNECT = new Set(['COM', 'SEM', 'AO', 'DE', 'DO', 'DA', 'E']);
+function cleanTokens(t, drop) {
+  for (const [rx, r] of PROTECT) t = t.replace(rx, r);
+  t = t.replace(QTY_RX, ' ').replace(/(?<![A-Z0-9])C\s*\d{1,3}\s*(UN|UND|UNID|UNIDADES|U|SACHES|SACHE|SC|SAQ|S)?(?![A-Z0-9])/g, ' ')
+       .replace(/(?<![A-Z0-9])\d{1,3}\s*(UN|UND|UNID|UNIDADES|SACHES|SACHE|SACHETS|SC|SAQ|SQ|CAPS|CAPSULAS|DOSES|DS|SAC|UNI|PCS|P)(?![A-Z])/g, ' ');
+  t = t.replace(/(?<![0-9.])(\d{2,3})\s*%?\s*(?:DE\s+)?(CACAU|CACAO|COCOA|CAC)(?![A-Z])/g, ' ').replace(/(?<![0-9.])\d{2,3}\s*%/g, ' ');
+  // codigo interno colado no comeco da palavra (ex.: 003MINI, 012PAPEL) -> mantem so a parte com letras
+  t = t.replace(/(?<![A-Z0-9])\d{1,5}([A-Z]{2,})(?![A-Z0-9])/g, '$1');
+  t = t.replace(/\b\d+\b/g, ' ').replace(/\b\w*\d\w*\b/g, ' ');
+  return t.split(' ').filter(w => w && !drop.has(w) && !(NOISE.has(w) && !CONNECT.has(w)));
+}
+function tidy(words) {
+  const res = [], seen = new Set();
+  for (const w of words) { if (!CONNECT.has(w) && seen.has(w)) continue; res.push(w); seen.add(w); }
+  const out = [];
+  for (const w of res) { if (CONNECT.has(w) && out.length && CONNECT.has(out[out.length - 1])) { if (['COM', 'SEM', 'AO'].includes(w)) out[out.length - 1] = w; continue; } out.push(w); }
+  while (out.length && CONNECT.has(out[0]) && !['SEM', 'AO', 'COM'].includes(out[0])) out.shift();
+  while (out.length && CONNECT.has(out[out.length - 1])) out.pop();
+  return out;
+}
+function complement(T, cat, ini, bn, grp, catCfg) {
+  const Tx = T.filter(t => t && t !== 'SEM DESCRICAO').map(t => expand(t, grp)); if (!Tx.length) return '';
+  const bw = new Set(bn ? bn.split(' ') : []); const bw4 = [...bw].filter(x => x.length >= 4);
+  const drop = new Set([...(catCfg ? catCfg.remover || [] : []), ...ini.split(' '), ...bw]);
+  const lists = Tx.slice(0, 6).map(t => {
+    let tt = t; if (bn) { tt = tt.replace(new RegExp('(?<![A-Z0-9])' + escRx(bn) + '(?![A-Z0-9])', 'g'), ' ').replace(new RegExp('(?<![A-Z0-9])' + escRx(bn.replace(/ /g, '')) + '(?![A-Z0-9])', 'g'), ' '); }
+    return cleanTokens(tt, drop).filter(w => !bw4.some(x => w.includes(x)) && !(w.length >= 4 && bn && bn.replace(/ /g, '').includes(w)) && !['STA', 'STO', 'SR', 'SRA', 'DONA', 'SEU'].includes(w));
+  });
+  const cnt = new Map(); for (const L of lists) for (const w of new Set(L)) cnt.set(w, (cnt.get(w) || 0) + 1);
+  const n = lists.length;
+  const score = L => [...new Set(L)].reduce((a, w) => a + ((cnt.get(w) >= 2) ? 1 : 0) + (FLAVORS.has(w) ? 1 : 0), 0) - 0.05 * L.length;
+  const base = lists.slice(0, 4).reduce((a, L) => score(L) > score(a) ? L : a, lists[0]);
+  const keep = [];
+  for (const w of base) { const good = FLAVORS.has(w) || w.includes('_') || (n <= 2 && w.length >= 3) || cnt.get(w) >= 2 || CONNECT.has(w) || ATTR.has(w); if (!good) continue; if (w.length <= 2 && !CONNECT.has(w)) continue; keep.push(w); }
+  for (const [w, c] of [...cnt].sort((a, b) => b[1] - a[1])) if (FLAVORS.has(w) && !keep.includes(w) && c >= Math.max(2, Math.floor(n / 2) + 1)) keep.push(w);
+  let words = tidy(keep);
+  if (cat.startsWith('CHOCOLATE')) { const p = Tx.map(pct).find(x => x); if (p) words = words.filter(w => w !== 'CACAU').concat([String(p), 'CACAU']); }
+  const iw = new Set(ini.split(' '));
+  return words.slice(0, 9).filter(w => !iw.has(w) && !bw.has(w)).join(' ').replace(/_/g, ' ');
+}
+const NOUN_MAP = { AMEND: 'AMENDOIM', AMENDOIN: 'AMENDOIM', AMEN: 'AMENDOIM', MIST: 'MISTURA', BISC: 'BISCOITO', MAC: 'MACARRAO', BEB: 'BEBIDA', IOG: 'IOGURTE', TEMP: 'TEMPERO', COND: 'CONDIMENTO', SUPL: 'SUPLEMENTO', SUPLEM: 'SUPLEMENTO', PIC: 'PICOLE', CAM: 'CAMISETA', CR: 'CREME', SALG: 'SALGADINHO', ACHOC: 'ACHOCOLATADO', CAD: 'CADERNO', CADER: 'CADERNO', LAP: 'LAPIS', LAPIS: 'LAPIS', CANET: 'CANETA', BORR: 'BORRACHA', ENV: 'ENVELOPE', EMBAL: 'EMBALAGEM', PAP: 'PAPEL', ESPJ: 'ESPONJA' };
+// Escolhe um nome de produto para itens sem categoria (OUTRA CATEGORIA): a palavra mais
+// frequente/relevante entre TODAS as descrições do código (não só as 3 primeiras), preferindo
+// quem se repete e ignorando marca/conectores/atributos. "PRODUTO" é só o último recurso.
+// codigo interno colado no comeco da palavra (ex.: 003MINI, 012PAPEL, 011EMB) -> mantem so as letras
+const deCod = x => { const m = /^\d{1,5}([A-Z]{2,})$/.exec(x); return m ? m[1] : x; };
+function nounOutra(T, bn) {
+  const bw = new Set((bn || '').split(' '));
+  const cnt = new Map(); const order = [];
+  T.forEach((t, i) => { for (let x of t.split(' ')) {
+    x = NOUN_MAP[deCod(x)] || deCod(x);
+    if (SKIPH.has(x) || NOISE.has(x) || bw.has(x) || ATTR.has(x) || FLAVORS.has(x) || /\d/.test(x) || x.length < 3) continue;
+    if (!cnt.has(x)) { cnt.set(x, 0); order.push(x); }
+    cnt.set(x, cnt.get(x) + Math.pow(0.8, i));
+  } });
+  if (cnt.size) { const pos = new Map(order.map((w, i) => [w, i])); const cand = [...order].sort((a, b) => cnt.get(b) - cnt.get(a) || pos.get(a) - pos.get(b)); return cand[0]; }
+  // último recurso 1: relaxa conectores/termos genéricos de alimento (SKIPH/NOISE), mantém marca/atributo/sabor fora
+  // (NOISE foi montado pensando em alimentos; em outros ramos como papelaria/bazar a própria palavra "genérica" pode ser o produto, ex.: ENVELOPE)
+  for (const t of T) for (let x of t.split(' ')) { x = NOUN_MAP[deCod(x)] || deCod(x); if (bw.has(x) || ATTR.has(x) || FLAVORS.has(x) || /\d/.test(x) || x.length < 3) continue; return x; }
+  // último recurso 2: aceita até atributo (cor/tamanho) se for a única coisa que sobrou
+  for (const t of T) for (let x of t.split(' ')) { x = NOUN_MAP[deCod(x)] || deCod(x); if (bw.has(x) || FLAVORS.has(x) || /\d/.test(x) || x.length < 3) continue; return x; }
+  return 'PRODUTO';
+}
+const cleanD = s => N(s).replace(/[^A-Z0-9. ]/g, ' ').replace(/(?<!\d)\.|\.(?!\d)/g, ' ').replace(/\s+/g, ' ').trim();
+
+/* run */
+async function runAll() {
+  const C = compile(); autoSegments(); const res = []; const items = data.items; const t0 = performance.now();
+  const byName = new Map(cfg.categorias.map(c => [c.nome, c]));
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    const a = aggregate(it.T, it.sugCat, C);
+    const cc = byName.get(a.cat); const seg = cc ? cc.segmento : [];
+    const bn = findBrand(it.T, seg, it.sugMarca, C.black);
+    const marca = bn ? data.dict.map.get(bn).canon : 'OUTRA MARCA';
+    const fab = bn ? fabricante(bn, seg) : 'OUTRO FABRICANTE';
+    let q = itemQty(it.T, it.sugQt);
+    if (q.tot === null) { const u = countQty(it.T); if (u) q = u; else { const d = defaultQty((cc && cc.qtdPadrao) || cfg.qtdPadrao); if (d) q = d; } }
+    const ini = (a.cat === OUT || (cc && cc.dinamico)) ? nounOutra(it.T, bn) : (cc.inicio || cc.nome);
+    const keepT = it.T.filter((t, j) => a.per[j] === a.cat); const T2 = keepT.length ? keepT : it.T;
+    const brandTxt = bn ? cleanD(marca) : '';
+    const comp = complement(T2, a.cat, ini, bn || '', groupOf(a.cat), cc);
+    const desc = cleanD([ini, brandTxt, comp, qtyText(q)].filter(Boolean).join(' '));
+    const alerts = [];
+    if (a.flag === 'SEM_EVIDENCIA') alerts.push('Nenhuma categoria reconhecida na descrição');
+    if (a.flag === 'SEM_EVIDENCIA_SUG') alerts.push('Sem evidência; usada a categoria sugerida');
+    if (a.flag === 'PADRAO') alerts.push('Nada indicou a categoria; usada a categoria padrão');
+    if (a.flag === 'DIVERGENTE') alerts.push('Descrições do código apontam categorias diferentes');
+    if (a.flag === 'TROCA_SUG') alerts.push('Tipo decidido pela categoria sugerida');
+    if (it.sugCat && C.names.has(it.sugCat) && it.sugCat !== a.cat) alerts.push('Categoria diferente da sugerida');
+    const sb = N(it.sugMarca);
+    if (marca === 'OUTRA MARCA' && sb && sb !== 'OUTRA MARCA' && !C.black.has(sb)) alerts.push('Marca sugerida não confirmada');
+    if (q.flag === 'SEM_QTD') alerts.push('Sem quantidade na descrição');
+    else if (q.flag === 'QTD_PADRAO') alerts.push('Sem quantidade na descrição; usado o padrão ' + qtyText(q));
+    else if (q.flag === 'QTD_DIV') alerts.push('Quantidades diferentes entre descrições');
+    const pri = alerts.some(x => /^(Nenhuma|Descrições|Sem evidência)/.test(x)) ? 1 : alerts.length ? 2 : 0;
+    res.push({ it, cat: a.cat, marca, fab, qt: q.tot, desc, alerts, pri });
+    if (i % 250 === 0) { $('#prog').style.width = (100 * i / items.length).toFixed(1) + '%'; $('#runState').textContent = `Classificando ${i.toLocaleString('pt-BR')} de ${items.length.toLocaleString('pt-BR')}…`; await new Promise(r => setTimeout(r, 0)); }
+  }
+  $('#prog').style.width = '100%';
+  data.results = res;
+  const secs = ((performance.now() - t0) / 1000).toFixed(1);
+  $('#runState').textContent = `${res.length.toLocaleString('pt-BR')} itens classificados em ${secs}s.`;
+  renderResults();
+}
+
+/* ------------------------------------------------------------------ output */
+// Sinaliza possível código interno (não-EAN) no lugar do barcode, replicando a fórmula:
+// =SE(ESQUERDA(E3;7)="3910000";"Código Scanntech";SE(OU(E(NÚM.CARACT(E3)<=6;E3>0);ÉNÚM(LOCALIZAR("00000";E3)));"Possível Código Interno";"Sem indícios de CI"))
+function ciFlag(barcode) {
+  const s = String(barcode ?? '').trim();
+  if (s.slice(0, 7) === '3910000') return 'Código Scanntech';
+  const n = Number(s);
+  const curto = s.length <= 6 && !isNaN(n) && n > 0;
+  const zeros = s.includes('00000');
+  if (curto || zeros) return 'Possível Código Interno';
+  return 'Sem indícios de CI';
+}
+function buildWorkbook() {
+  const R = data.results; const wb = XLSX.utils.book_new();
+  const num = v => (v === null || v === undefined || isNaN(v)) ? null : (Math.abs(v - Math.round(v)) < 1e-9 ? Math.round(v) : v);
+  const bc = v => { const s = String(v).trim(); return /^\d{1,15}$/.test(s) ? Number(s) : s; };
+  const main = [['CODIGO BARRAS', 'DESCRITIVO PADRONIZADO', 'FABRICANTE', 'MARCA', 'CONTENIDO', 'CATEGORIA', 'CODIGO INTERNO']];
+  for (const r of R) main.push([bc(r.it.barcode), r.desc, r.fab, r.marca, num(r.qt), r.cat, ciFlag(r.it.barcode)]);
+  const ws = XLSX.utils.aoa_to_sheet(main); ws['!cols'] = [{ wch: 16 }, { wch: 60 }, { wch: 28 }, { wch: 24 }, { wch: 11 }, { wch: 26 }, { wch: 22 }];
+  for (let i = 2; i <= main.length; i++) { const c = ws['A' + i]; if (c && c.t === 'n') c.z = '0'; }
+  XLSX.utils.book_append_sheet(wb, ws, 'Planilha1');
+  const rv = [['CODIGO BARRAS', 'CODIGO INTERNO', 'CATEGORIA', 'CATEGORIA SUGERIDA', 'MARCA', 'MARCA SUGERIDA', 'FABRICANTE', 'CONTENIDO', 'CONTENIDO SUGERIDO', 'DESCRITIVO PADRONIZADO', 'ALERTAS', 'DESCRICOES ORIGINAIS', 'PRIORIDADE']];
+  for (const r of [...R].filter(r => r.pri).sort((a, b) => a.pri - b.pri || a.cat.localeCompare(b.cat)))
+    rv.push([bc(r.it.barcode), ciFlag(r.it.barcode), r.cat, r.it.sugCat, r.marca, r.it.sugMarca, r.fab, num(r.qt), r.it.sugQt, r.desc, r.alerts.join('; '), r.it.D.slice(0, 4).join(' | ').slice(0, 500), r.pri]);
+  const ws2 = XLSX.utils.aoa_to_sheet(rv); ws2['!cols'] = [{ wch: 16 }, { wch: 22 }, { wch: 24 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 50 }, { wch: 55 }, { wch: 80 }, { wch: 10 }];
+  ws2['!autofilter'] = { ref: 'A1:M' + rv.length };
+  XLSX.utils.book_append_sheet(wb, ws2, 'REVISAO');
+  const cnt = new Map(); for (const r of R) { const k = r.cat; if (!cnt.has(k)) cnt.set(k, [0, 0, 0]); const x = cnt.get(k); x[0]++; if (r.marca === 'OUTRA MARCA') x[1]++; if (r.qt === null) x[2]++; }
+  const sm = [['CATEGORIA', 'QTD ITENS', 'SEM MARCA', 'SEM CONTENIDO']]; for (const [k, v] of [...cnt].sort((a, b) => b[1][0] - a[1][0])) sm.push([k, ...v]);
+  const ciCnt = new Map(); for (const r of R) { const f = ciFlag(r.it.barcode); ciCnt.set(f, (ciCnt.get(f) || 0) + 1); }
+  sm.push([]); sm.push(['CODIGO INTERNO', 'QTD ITENS']); for (const [k, v] of ciCnt) sm.push([k, v]);
+  sm.push([]); sm.push(['Configuração: ' + cfg.nome]); sm.push(['Gerado em ' + new Date().toLocaleString('pt-BR')]);
+  const ws3 = XLSX.utils.aoa_to_sheet(sm); ws3['!cols'] = [{ wch: 36 }, { wch: 12 }, { wch: 12 }, { wch: 14 }];
+  XLSX.utils.book_append_sheet(wb, ws3, 'RESUMO');
+  return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+}
+
+/* ------------------------------------------------------------------ UI: categories */
+function listToText(a) { return (a || []).join(', '); }
+function renderCats() {
+  const box = $('#cats'); const openSet = new Set([...box.querySelectorAll('details[open]')].map(d => d.dataset.i));
+  box.innerHTML = '';
+  const nAct = actCats().length; const showOff = $('#showOff').checked || !nAct; let pr = 0;
+  const q = ($('#catSearch').value || '').trim().toUpperCase();
+  const cestas = new Set(); for (const c of cfg.categorias) if (c.cesta) cestas.add(c.cesta);
+  const cs = $('#cestaSel'); if (cs.dataset.n != cestas.size) { cs.dataset.n = cestas.size; const cur = cs.value; cs.replaceChildren(el('option', { value: '' }, 'Cesta…')); for (const cst of [...cestas].sort()) cs.append(el('option', { value: cst }, cst)); cs.value = cur; }
+  cfg.categorias.forEach((c, i) => {
+    const on = c.ativa !== false; if (on) pr++;
+    if (!on && !showOff) return;
+    if (q && !c.nome.includes(q) && !(c.cesta || '').includes(q)) return;
+    const d = el('details', { class: 'cat' + (on ? '' : ' off'), 'data-i': String(i) }); if (openSet.has(String(i))) d.open = true;
+    const cestaTag = c.cesta ? el('span', { class: 'pill' }, c.cesta) : '';
+    const nSug = data.sugCounts.get(c.nome) || 0;
+    const pills = el('div', { class: 'pills' },
+      el('span', { class: 'pill' }, `${(c.incluir || []).length} incluir · ${(c.excluir || []).length} excluir`),
+      c.pctMin !== null && c.pctMin !== undefined && c.pctMin !== '' ? el('span', { class: 'pill a' }, `> ${c.pctMin}%`) : '',
+      data.items ? el('span', { class: 'pill' + (nSug ? '' : ' w') }, nSug ? `${nSug.toLocaleString('pt-BR')} sugeridos` : 'nenhum sugerido') : '');
+    const cb = el('input', { type: 'checkbox', title: 'Usar neste trabalho', 'aria-label': 'Usar ' + c.nome + ' neste trabalho' }); cb.checked = on;
+    cb.addEventListener('change', () => { c.ativa = cb.checked; saveDraft(); renderCats(); });
+    d.append(el('summary', {}, el('label', { class: 'act', onclick: e => e.stopPropagation() }, cb, on ? String(pr) : '—'),
+      el('span', {}, cestaTag), el('span', { class: 'cname' }, el('b', {}, c.nome), el('i', {}, 'Início: ' + (c.inicio || '—'))), pills));
+    const body = el('div', { class: 'cbody' });
+    const fld = (label, key, hint, rows = 2, full = false) => {
+      const ta = el('textarea', { rows: String(rows), id: `c${i}_${key}` }); ta.value = listToText(c[key]);
+      ta.addEventListener('change', () => { c[key] = splitList(ta.value).map(x => x.toUpperCase()); saveDraft(); renderCats(); });
+      return el('label', { class: 'f' + (full ? ' full' : '') }, label, hint ? el('span', { class: 'h' }, hint) : '', ta);
+    };
+    const nm = el('input', { type: 'text', id: `c${i}_nome` }); nm.value = c.nome; nm.addEventListener('change', () => { const nv = nm.value.trim().toUpperCase(); if (!nv || nv === c.nome) return; if (cfg.categorias.some(x => x !== c && x.nome === nv)) { cfgMsg('Já existe uma categoria ' + nv + ' na biblioteca.', 'warn'); nm.value = c.nome; return; } cfg.removidas = [...new Set([...(cfg.removidas || []), c.nome])].filter(n => n !== nv); c.nome = nv; saveDraft(); renderCats(); });
+    const ini = el('input', { type: 'text', id: `c${i}_ini` }); ini.value = c.inicio || ''; ini.addEventListener('change', () => { c.inicio = cleanD(ini.value); saveDraft(); renderCats(); });
+    const pc = el('input', { type: 'number', id: `c${i}_pct`, min: '0', max: '100', placeholder: 'ex.: 75' }); pc.value = c.pctMin ?? ''; pc.addEventListener('change', () => { c.pctMin = pc.value === '' ? null : +pc.value; saveDraft(); renderCats(); });
+    body.append(
+      el('label', { class: 'f' }, 'Nome da categoria', nm),
+      el('label', { class: 'f' }, 'Início do descritivo', ini),
+      fld('Incluir', 'incluir', 'Qualquer um destes termos indica a categoria.', 3, true),
+      fld('Precisa ter também (pelo menos um)', 'tambem', 'Opcional. Ex.: CAFE para a regra de GRAO não pegar outro grão.', 2),
+      fld('Excluir', 'excluir', 'Se aparecer, não é esta categoria.', 2),
+      fld('Começa com (ignora exclusões)', 'forte', 'Se a descrição começar com esta palavra, as exclusões não valem.', 1),
+      el('label', { class: 'f' }, 'Percentual mínimo', el('span', { class: 'h' }, 'Ex.: 75 = acima de 75% de cacau entra aqui.'), pc),
+      fld('Palavras a tirar do descritivo', 'remover', 'Repetem o início e não precisam aparecer de novo.', 1),
+      (() => { const qi = el('input', { type: 'text', id: `c${i}_qp`, placeholder: 'ex.: 1UN' }); qi.value = c.qtdPadrao || ''; qi.addEventListener('change', () => { c.qtdPadrao = N(qi.value).replace(/\s+/g, ''); saveDraft(); }); return el('label', { class: 'f' }, 'Conteúdo quando não achar na descrição', el('span', { class: 'h' }, 'Ex.: 1UN. Entra no descritivo e no CONTENIDO. Contagens como C/30, 6UN ou DZ são lidas sozinhas.'), qi); })(),
+      fld('Na dúvida, preferir a sugerida se ela for', 'preferirSugerida', 'Categorias que se confundem com esta. Se o item cair aqui e o sugerido for uma delas, fica o sugerido.', 1),
+    );
+    const rg = el('textarea', { rows: '2', id: `c${i}_regra` }); rg.value = c.regra || ''; rg.addEventListener('change', () => { c.regra = rg.value; saveDraft(); });
+    body.append(el('label', { class: 'f full' }, 'Regra desta categoria (texto, usada pelo Claude)', rg));
+    const seg = el('input', { type: 'text', id: `c${i}_seg` }); seg.value = (c.segmento || []).join(', ');
+    seg.addEventListener('change', () => { c.segmento = splitList(seg.value); c.segmentoManual = c.segmento.length > 0; saveDraft(); });
+    body.append(el('label', { class: 'f full' }, 'Segmentos do dicionário usados para escolher a marca', el('span', { class: 'h' }, data.dict ? 'Calculado pelas marcas sugeridas. Edite para fixar.' : 'Preenchido depois de carregar o dicionário e o backlog.'), seg));
+    const sug = data.wordSug.get(c.nome);
+    if (sug && sug.length) {
+      const chips = el('div', { class: 'chips' });
+      for (const w of sug) if (!(c.incluir || []).includes(w)) chips.append(el('button', { class: 'chip', type: 'button', onclick: () => { c.incluir = [...(c.incluir || []), w]; saveDraft(); renderCats(); } }, '+ ' + w));
+      body.append(el('div', { class: 'full' }, el('div', { class: 'note' }, 'Palavras frequentes nos itens sugeridos para esta categoria:'), chips));
+    }
+    body.append(el('div', { class: 'bar full' },
+      el('button', { class: 'sm', type: 'button', onclick: () => { if (i > 0) { [cfg.categorias[i - 1], cfg.categorias[i]] = [cfg.categorias[i], cfg.categorias[i - 1]]; saveDraft(); renderCats(); } } }, 'Subir'),
+      el('button', { class: 'sm', type: 'button', onclick: () => { if (i < cfg.categorias.length - 1) { [cfg.categorias[i + 1], cfg.categorias[i]] = [cfg.categorias[i], cfg.categorias[i + 1]]; saveDraft(); renderCats(); } } }, 'Descer'),
+      el('button', { class: 'sm ghost', type: 'button', onclick: (e) => { const b = e.currentTarget; if (b.dataset.arm) { cfg.removidas = [...new Set([...(cfg.removidas || []), c.nome])]; cfg.categorias.splice(i, 1); saveDraft(); renderCats(); } else { b.dataset.arm = '1'; b.textContent = 'Clique de novo: apaga da biblioteca'; } } }, 'Remover da biblioteca')));
+    d.append(body); box.append(d);
+  });
+  $('#catsCount').textContent = `${nAct} ativas neste trabalho + ${OUT} · ${cfg.categorias.length} na biblioteca`;
+  $('#cfgName').value = cfg.nome || ''; $('#cfgNamePill').textContent = cfg.nome || 'Sem nome';
+  $('#blackText').value = cfg.falsasMarcas.join(', '); $('#outraText').value = sempreAtivos().join(', ');
+  const dc = $('#defCat'); dc.replaceChildren(el('option', { value: '' }, OUT)); for (const c of actCats()) dc.append(el('option', { value: c.nome }, c.nome)); dc.value = cfg.categoriaPadrao && actCats().some(c => c.nome === cfg.categoriaPadrao) ? cfg.categoriaPadrao : '';
+  $('#useSug').checked = !!cfg.usarSugerida; $('#rulesText').value = cfg.regrasTexto || '';
+}
+
+/* ------------------------------------------------------------------ UI: results */
+function renderResults() {
+  const R = data.results; $('#results').classList.remove('hidden');
+  const nOut = R.filter(r => r.cat === OUT).length, nOM = R.filter(r => r.marca === 'OUTRA MARCA').length, nQ = R.filter(r => r.qt === null).length, nA = R.filter(r => r.pri === 1).length;
+  const k = (v, t) => el('div', { class: 'kpi' }, el('b', {}, v.toLocaleString('pt-BR')), el('span', {}, t));
+  $('#kpis').replaceChildren(k(R.length, 'itens'), k(R.length - nOut, 'em categorias da lista'), k(nOut, OUT), k(nOM, 'OUTRA MARCA'), k(nQ, 'sem conteúdo'), k(nA, 'alertas prioridade 1'));
+  const cnt = new Map(); for (const r of R) { if (!cnt.has(r.cat)) cnt.set(r.cat, [0, 0, 0, 0]); const x = cnt.get(r.cat); x[0]++; if (r.marca === 'OUTRA MARCA') x[1]++; if (r.qt === null) x[2]++; if (r.pri) x[3]++; }
+  const tb = $('#catTbl tbody'); tb.replaceChildren();
+  for (const [c, v] of [...cnt].sort((a, b) => b[1][0] - a[1][0])) tb.append(el('tr', {}, el('td', {}, c), ...v.map(x => el('td', { class: 'num' }, x.toLocaleString('pt-BR')))));
+  const sel = $('#fltCat'); const cur = sel.value; sel.replaceChildren(el('option', { value: '' }, 'Todas'));
+  for (const [c] of [...cnt].sort()) sel.append(el('option', { value: c }, c)); sel.value = cur;
+  renderPreview(); $('#btnDownload').disabled = false;
+}
+function renderPreview() {
+  const R = data.results; if (!R) return; const fc = $('#fltCat').value, fm = $('#fltMode').value;
+  const rows = R.filter(r => (!fc || r.cat === fc) && (fm === 'all' || r.pri)); const show = rows.slice(0, 300);
+  const tb = $('#prev tbody'); tb.replaceChildren();
+  for (const r of show) tb.append(el('tr', {}, el('td', { class: 'mono' }, String(r.it.barcode)), el('td', {}, r.cat), el('td', {}, r.marca), el('td', {}, r.fab), el('td', { class: 'num' }, r.qt === null ? '' : fmtn(r.qt)), el('td', {}, r.desc), el('td', { class: 'alert' }, r.alerts.join('; ')), el('td', { class: 'note' }, (r.it.D[0] || '').slice(0, 90))));
+  $('#prevNote').textContent = `${rows.length.toLocaleString('pt-BR')} itens no filtro${rows.length > 300 ? ' (mostrando os 300 primeiros; a planilha tem todos)' : ''}.`;
+}
+
+/* ------------------------------------------------------------------ wiring */
+function setupDrop(zone, input, handler) {
+  const z = $(zone), f = $(input);
+  z.addEventListener('dragover', e => { e.preventDefault(); z.classList.add('drag'); });
+  z.addEventListener('dragleave', () => z.classList.remove('drag'));
+  z.addEventListener('drop', e => { e.preventDefault(); z.classList.remove('drag'); if (e.dataTransfer.files[0]) handler(e.dataTransfer.files[0]); });
+  f.addEventListener('change', () => { if (f.files[0]) handler(f.files[0]); f.value = ''; });
+}
+function status(id, html, ok) { const s = $(id); s.innerHTML = html; s.closest('.drop').classList.toggle('done', !!ok); }
+const escH = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+setupDrop('#dropBacklog', '#fBacklog', async file => {
+  status('#stBacklog', 'Lendo ' + escH(file.name) + '…');
+  try { const n = await loadBacklog(file); status('#stBacklog', `<b>${n.toLocaleString('pt-BR')}</b> itens · ${escH(file.name)}<br>${data.sugCounts.size} categorias sugeridas`, true); $('#btnRun').disabled = false; $('#runState').textContent = data.dict ? 'Pronto para classificar.' : 'Pronto. Sem o dicionário, a marca fica OUTRA MARCA.'; autoSegments(); renderCats(); }
+  catch (e) { status('#stBacklog', 'Não consegui ler: ' + escH(e.message)); }
+});
+setupDrop('#dropDict', '#fDict', async file => {
+  status('#stDict', 'Lendo ' + escH(file.name) + ' (arquivos grandes levam alguns segundos)…');
+  try { const n = await loadDict(file); status('#stDict', `<b>${n.toLocaleString('pt-BR')}</b> marcas · ${escH(file.name)}`, true); autoSegments(); renderCats(); if (data.items) $('#runState').textContent = 'Pronto para classificar.'; }
+  catch (e) { status('#stDict', 'Não consegui ler: ' + escH(e.message) + '. Se o .xlsx for muito grande, salve como .csv.'); }
+});
+setupDrop('#dropCats', '#fCats', async file => {
+  try {
+    const rows = await readTable(file); const hdr = rows[0] || [];
+    const ic = findCol(hdr, [h => h.startsWith('CATEGORIA')]), ii = findCol(hdr, [h => h.includes('INICIO')]);
+    if (ic < 0) throw new Error('sem coluna CATEGORIAS');
+    let add = 0, upd = 0;
+    for (const r of rows.slice(1)) { if (!r || !r[ic]) continue; const nome = String(r[ic]).trim().toUpperCase(); const ini = ii >= 0 && r[ii] ? cleanD(r[ii]) : cleanD(nome);
+      const c = cfg.categorias.find(x => x.nome === nome); if (c) { c.ativa = true; if (c.inicio !== ini) { c.inicio = ini; upd++; } } else { cfg.removidas = (cfg.removidas || []).filter(n => n !== nome); cfg.categorias.push({ nome, inicio: ini, incluir: [], tambem: [], excluir: [], forte: [], pctMin: null, remover: [], regra: '', ativa: true }); add++; } }
+    status('#stCats', `<b>${add}</b> categorias novas · ${upd} inícios atualizados`, true); saveDraft(); renderCats();
+  } catch (e) { status('#stCats', 'Não consegui ler: ' + escH(e.message)); }
+});
+$('#btnRun').addEventListener('click', async () => { const b = $('#btnRun'); b.disabled = true; $('#btnDownload').disabled = true; try { await runAll(); } catch (e) { $('#runState').textContent = 'Erro ao classificar: ' + e.message; } b.disabled = false; });
+$('#fltCat').addEventListener('change', renderPreview); $('#fltMode').addEventListener('change', renderPreview);
+$('#btnDownload').addEventListener('click', async () => {
+  const dl = await claude.use('downloads'); if (!dl) { $('#runState').textContent = 'O download não está disponível nesta visualização. Abra a página no Claude.'; return; }
+  try { const buf = buildWorkbook(); await dl.save({ filename: 'BACKLOG_CLASSIFICADO.xlsx', data: new Blob([buf]) }); $('#runState').textContent = 'Planilha salva.'; }
+  catch (e) { $('#runState').textContent = e.code === 'declined' ? 'Download cancelado.' : 'Não consegui salvar a planilha (' + (e.code || e.message) + ').'; }
+});
+$('#defCat').addEventListener('change', e => { cfg.categoriaPadrao = e.target.value; saveDraft(); });
+$('#btnAllOff').addEventListener('click', () => { for (const c of cfg.categorias) c.ativa = false; cfg.categoriaPadrao = ''; saveDraft(); $('#showOff').checked = true; renderCats(); cfgMsg('Todas desativadas (continuam salvas na biblioteca). Marque as que vai usar, ou escreva as regras e clique em "Aplicar regras com Claude".', 'ok'); });
+$('#btnAllOn').addEventListener('click', () => { for (const c of cfg.categorias) c.ativa = true; saveDraft(); renderCats(); });
+$('#showOff').addEventListener('change', renderCats);
+$('#catSearch').addEventListener('input', renderCats);
+$('#btnCestaOn').addEventListener('click', () => { const v = $('#cestaSel').value; if (!v) return; let n = 0; for (const c of cfg.categorias) if (c.cesta === v && c.ativa === false) { c.ativa = true; n++; } saveDraft(); $('#showOff').checked = false; renderCats(); cfgMsg(`${n} categorias da cesta ${v} ativadas.`, 'ok'); });
+$('#btnNewCat').addEventListener('click', () => { let nn = 'NOVA CATEGORIA', k = 2; while (cfg.categorias.some(x => x.nome === nn)) nn = 'NOVA CATEGORIA ' + k++; cfg.categorias.push({ ativa: true, nome: nn, inicio: nn, incluir: [], tambem: [], excluir: [], forte: [], pctMin: null, remover: [], regra: '' }); saveDraft(); renderCats(); const last = $('#cats').lastElementChild; last.open = true; last.scrollIntoView({ block: 'center' }); });
+$('#btnAddFromBacklog').addEventListener('click', () => {
+  if (!data.items) { cfgMsg('Envie o backlog primeiro.', 'warn'); return; }
+  let n = 0, na = 0; for (const [c] of [...data.sugCounts].sort((a, b) => b[1] - a[1])) { if (!c || c === OUT) continue; const ex = cfg.categorias.find(x => x.nome === c); if (ex) { if (ex.ativa === false) { ex.ativa = true; na++; } continue; } cfg.removidas = (cfg.removidas || []).filter(x => x !== c); cfg.categorias.push({ ativa: true, nome: c, inicio: cleanD(c), incluir: (data.wordSug.get(c) || []).slice(0, 5), tambem: [], excluir: [], forte: [], pctMin: null, remover: [], regra: '' }); n++; }
+  cfgMsg(n || na ? `${n} categorias novas (já com as palavras mais frequentes em "Incluir"; revise cada uma)${na ? ` e ${na} reativadas da biblioteca` : ''}.` : 'Todas as categorias sugeridas já estão ativas.', n || na ? 'ok' : ''); saveDraft(); renderCats();
+});
+$('#cfgName').addEventListener('change', e => { cfg.nome = e.target.value.trim(); saveDraft(); renderCats(); });
+$('#blackText').addEventListener('change', e => { cfg.falsasMarcas = splitList(e.target.value).map(x => x.toUpperCase()); saveDraft(); });
+$('#outraText').addEventListener('change', e => { setSempreAtivos(splitList(e.target.value).map(x => x.toUpperCase())); saveDraft(); });
+$('#btnClearOutra').addEventListener('click', () => { setSempreAtivos([]); saveDraft(); renderCats(); });
+$('#useSug').addEventListener('change', e => { cfg.usarSugerida = e.target.checked; saveDraft(); });
+$('#rulesText').addEventListener('change', e => { cfg.regrasTexto = e.target.value; saveDraft(); });
+function cfgMsg(t, kind) { const m = $('#cfgMsg'); m.textContent = t; m.className = 'msg ' + (kind || ''); m.classList.toggle('hidden', !t); }
+
+/* config export/import */
+$('#btnExport').addEventListener('click', async () => {
+  const dl = await claude.use('downloads'); if (!dl) { cfgMsg('Exportar não está disponível nesta visualização.', 'warn'); return; }
+  try { await dl.save({ filename: (N(cfg.nome || 'configuracao').replace(/ /g, '_') || 'configuracao') + '.json', data: JSON.stringify(cfg, null, 1) }); cfgMsg('Configuração exportada.', 'ok'); } catch (e) { cfgMsg(e.code === 'declined' ? 'Exportação cancelada.' : 'Não consegui exportar.', 'warn'); }
+});
+$('#fImport').addEventListener('change', async e => { const f = e.target.files[0]; if (!f) return; try { const c = JSON.parse(await f.text()); if (!c.categorias) throw new Error(); applyJob(c); cfgMsg('Configuração "' + (c.nome || '') + '" importada para a biblioteca e ativada. As outras categorias continuam guardadas.', 'ok'); } catch (_) { cfgMsg('Esse arquivo não é uma configuração exportada por esta página.', 'bad'); } e.target.value = ''; });
+
+function applyJob(c) {
+  normCfg(c); const names = new Set(c.categorias.map(x => x.nome));
+  cfg.removidas = (cfg.removidas || []).filter(n => !names.has(n));
+  mergeInto(cfg, c, 'replace');
+  const order = c.categorias.filter(x => x.ativa !== false).map(x => x.nome); const act = new Set(order);
+  for (const x of cfg.categorias) x.ativa = act.has(x.nome);
+  cfg.categorias.sort((a, b) => (act.has(a.nome) ? order.indexOf(a.nome) : 1e6) - (act.has(b.nome) ? order.indexOf(b.nome) : 1e6));
+  if (c.nome) cfg.nome = c.nome; if (c.regrasTexto !== undefined) cfg.regrasTexto = c.regrasTexto; cfg.categoriaPadrao = c.categoriaPadrao || ''; cfg.usarSugerida = !!c.usarSugerida;
+  saveDraft(); autoSegments(); renderCats();
+}
+async function syncLibrary() {
+  let changed = false;
+  try {
+    const s = await DB.doc('biblioteca/principal').get();
+    if (s.exists) { const v = s.data(); const lib = normCfg(JSON.parse(v.cfg)); const newer = !cfg.atualizado || String(v.atualizado) > String(cfg.atualizado);
+      if (mergeInto(cfg, lib, newer ? 'replace' : 'add')) changed = true;
+      if (newer) { changed = true; if (!hadDraft) { const act = new Set(lib.categorias.filter(x => x.ativa !== false).map(x => x.nome)); for (const x of cfg.categorias) x.ativa = act.has(x.nome); for (const k of ['nome', 'regrasTexto', 'categoriaPadrao', 'usarSugerida']) if (lib[k] !== undefined) cfg[k] = lib[k]; } } }
+  } catch (e) {}
+  try {
+    const snap = await DB.collection('configs').get(); cfg.configsMescladas = cfg.configsMescladas || [];
+    for (const d of snap.docs) { const v = d.data(); const key = d.id + '@' + v.atualizado; if (cfg.configsMescladas.includes(key)) continue;
+      try { if (mergeInto(cfg, normCfg(JSON.parse(v.cfg)), 'union')) changed = true; } catch (_) {}
+      cfg.configsMescladas.push(key); changed = true; }
+  } catch (e) {}
+  libReady = true;
+  if (changed) { autoSegments(); renderCats(); }
+  saveDraft();
+}
+
+/* db save/load */
+var DB = null;
+(async () => {
+  DB = await claude.use('db');
+  if (!DB) { $('#btnSave').classList.add('hidden'); $('#selLoad').classList.add('hidden'); libState('A biblioteca está salva neste navegador.'); return; }
+  refreshSaved(); await syncLibrary();
+})();
+async function refreshSaved() {
+  try { const snap = await DB.collection('configs').get(); const sel = $('#selLoad'); sel.replaceChildren(el('option', { value: '' }, snap.size ? 'Carregar salva…' : 'Nenhuma salva ainda'));
+    for (const d of snap.docs) { const v = d.data(); sel.append(el('option', { value: d.id }, `${v.nome} · ${new Date(v.atualizado).toLocaleDateString('pt-BR')}`)); } }
+  catch (e) { /* reading may be restricted; keep controls */ }
+}
+$('#btnSave').addEventListener('click', async () => {
+  if (!DB) return; const id = (N(cfg.nome || 'configuracao').replace(/ /g, '-').toLowerCase().slice(0, 80)) || 'configuracao';
+  try { await DB.doc('configs/' + id).set({ nome: cfg.nome || id, atualizado: new Date().toISOString(), cfg: JSON.stringify(cfg) }); cfgMsg('Salva como "' + (cfg.nome || id) + '". Ela aparece em "Carregar salva…" para quem abrir esta página.', 'ok'); refreshSaved(); }
+  catch (e) { cfgMsg('Só quem tem permissão de edição na página pode salvar aqui. Use "Exportar .json" para guardar a sua configuração e "Importar .json" para usá-la depois.', 'warn'); }
+});
+$('#selLoad').addEventListener('change', async e => {
+  const id = e.target.value; if (!id || !DB) return;
+  try { const s = await DB.doc('configs/' + id).get(); if (s.exists) { const c = JSON.parse(s.data().cfg); applyJob(c); cfgMsg('Configuração "' + (c.nome || id) + '" ativada. As outras categorias continuam guardadas na biblioteca.', 'ok'); } }
+  catch (err) { cfgMsg('Não consegui carregar essa configuração.', 'bad'); }
+  e.target.value = '';
+});
+
+/* Claude: rules text -> config */
+function parseLoose(text) {
+  let t = String(text || '').replace(/```(?:json)?/gi, '').trim();
+  const a = t.indexOf('{'), b = t.lastIndexOf('}'); if (a < 0 || b <= a) throw { code: 'invalid_json' };
+  t = t.slice(a, b + 1);
+  try { return JSON.parse(t); } catch (_) {}
+  try { return JSON.parse(t.replace(/,\s*([}\]])/g, '$1')); } catch (_) { throw { code: 'invalid_json' }; }
+}
+async function askJSON(sample, prompt, signal) {
+  const r = await sample(prompt, { signal, modelTier: 'default', cache: false });
+  try { return parseLoose(r.text); }
+  catch (e) {
+    const r2 = await sample([{ role: 'user', content: prompt }, { role: 'assistant', content: String(r.text).slice(0, 20000) }, { role: 'user', content: 'Sua resposta não é um JSON válido. Responda de novo somente com o JSON completo e válido, sem comentários e sem texto fora dele.' }], { signal, modelTier: 'default', cache: false });
+    return parseLoose(r2.text);
+  }
+}
+let ctl = null;
+$('#btnStop').addEventListener('click', () => ctl?.abort());
+(async () => { const s = await claude.use('sample'); if (!s) { $('#btnRules').disabled = true; $('#rulesState').textContent = 'Para usar este botão, abra a página logada na sua conta Claude. Sem conta, você ainda pode editar as listas direto nas categorias e classificar normalmente.'; } })();
+$('#btnRules').addEventListener('click', async () => {
+  const sample = await claude.use('sample'); if (!sample) return;
+  cfg.regrasTexto = $('#rulesText').value; saveDraft();
+  const MAXB = 58000, enc = new TextEncoder(), bytes = t => enc.encode(t).length;
+  let rules = cfg.regrasTexto || '';
+  let rulesCut = false;
+  while (bytes(rules) > 30000) { rules = rules.slice(0, Math.floor(rules.length * 0.9)); rulesCut = true; }
+  const cap = (a, n) => (a || []).slice(0, n);
+  const compactOf = (c, n) => ({ prioridade: actCats().indexOf(c) + 1, nome: c.nome, inicio: c.inicio, incluir: cap(c.incluir, n), tambem: cap(c.tambem, n), excluir: cap(c.excluir, n), pctMin: c.pctMin, quantidadePadrao: c.qtdPadrao || undefined, regra: c.regra ? String(c.regra).slice(0, 300) : undefined });
+  let allNames = actCats().map(c => c.nome);
+  const promptFor = (batch, n) => `Você configura um classificador de produtos de supermercado baseado em palavras-chave. Cada descrição de produto (texto em MAIÚSCULAS, sem acentos, com abreviações como CHOC, CAF, FAR, S/ = SEM) é testada contra as categorias em ordem de prioridade e fica na primeira que servir:
+- "incluir": se a descrição contém QUALQUER um destes termos, a categoria é candidata;
+- "tambem": se não estiver vazio, a descrição precisa ter também pelo menos um destes termos;
+- "excluir": se contém qualquer um destes termos, NÃO é esta categoria;
+- "pctMin": se a descrição tiver um percentual (ex.: 80% CACAU) acima deste número, entra nesta categoria;
+- "forte": se a primeira palavra da descrição for uma destas, as exclusões são ignoradas.
+Termos: MAIÚSCULAS, sem acento, sem pontuação; "*" no fim é curinga (CHOC* = CHOC, CHOCOLATE...). Inclua abreviações comuns de varejo.
+
+Todas as categorias ativas neste trabalho, em ordem de prioridade: ${allNames.join(' | ')}
+
+Categorias que você deve ajustar AGORA (JSON; as listas podem estar resumidas):
+${JSON.stringify(batch.map(c => compactOf(c, n)))}
+
+Regras escritas pelo usuário${rulesCut ? ' (trecho inicial)' : ''}:
+<<<
+${rules}
+>>>
+
+Transforme as regras em AJUSTES só para as categorias do JSON acima: acrescente termos que ajudem a separar bem uma categoria da outra. Responda somente com um JSON, sem texto antes ou depois, neste formato:
+{"categorias": {"<NOME EXATO DA CATEGORIA>": {"incluir": [], "tambem": [], "excluir": [], "forte": [], "pctMin": null, "quantidadePadrao": "", "regra": "resumo curto da regra"}}, "falsasMarcas": [], "sempreOutra": [], "notas": "o que você mudou, em até 3 frases, em português"}
+Liste só termos NOVOS a acrescentar. Use apenas nomes de categoria do JSON acima. "falsasMarcas" são palavras que o usuário disse que não são marca. "sempreOutra" são termos que devem ir sempre para OUTRA CATEGORIA. "quantidadePadrao" é o conteúdo a usar quando a descrição não tiver quantidade, se as regras pedirem (ex.: "1UN"). Omita categorias sem mudança.`;
+  // ---- step A: structure (new categories, keep-only list, default category)
+  const structPrompt = `Você configura um classificador de produtos de supermercado baseado em palavras-chave (descrições em MAIÚSCULAS, sem acentos, com abreviações de varejo como AMEND, CHOC, S/ = SEM, C/ = COM, CROC = CROCANTE).
+Categorias ATIVAS neste trabalho, em ordem de prioridade: ${actCats().map(c => c.nome).join(' | ') || '(nenhuma)'}
+Outras categorias guardadas na biblioteca (desativadas; podem ser reativadas): ${cfg.categorias.filter(c => c.ativa === false).map(c => c.nome).join(' | ') || '(nenhuma)'}
+
+Regras escritas pelo usuário${rulesCut ? ' (trecho inicial)' : ''}:
+<<<
+${rules}
+>>>
+
+Decida a ESTRUTURA pedida pelas regras e responda somente com JSON, sem texto antes ou depois, neste formato:
+{"novasCategorias": [{"nome": "NOME", "inicio": "INICIO DO DESCRITIVO", "incluir": ["TERMO"], "tambem": [], "excluir": [], "pctMin": null, "regra": "resumo curto"}], "categoriasDoTrabalho": ["NOME"], "categoriaPadrao": "NOME ou vazio", "quantidadePadrao": "", "falsasMarcas": [], "notas": "até 3 frases em português"}
+- "novasCategorias": categorias citadas nas regras que ainda não existem (nem ativas nem na biblioteca). Preencha "incluir" e "excluir" com termos úteis (MAIÚSCULAS, sem acento; "*" no fim é curinga), incluindo abreviações e sinônimos de varejo. Ordene da mais específica para a mais genérica. "inicio" é o começo do descritivo padronizado; se as regras disserem que o descritivo começa pela categoria, use o próprio nome.
+- "categoriasDoTrabalho": as categorias que devem ficar ATIVAS para estas regras (novas, ativas ou da biblioteca). Se as regras disserem que os itens só podem ir para certas categorias, liste exatamente essas. Se as regras tratarem de outro tipo de produto que as ativas (ex.: shampoo x alimentos), liste só as do novo assunto. Se as regras só ajustam ou refinam as categorias ativas, deixe vazio. Nada é apagado: as que ficarem fora só são desativadas.
+- "categoriaPadrao": a categoria a usar quando nada na descrição indicar a certa, se as regras disserem; senão "".
+- "quantidadePadrao": o conteúdo/quantidade a usar quando a descrição não tiver quantidade, se as regras disserem (ex.: "1UN", "500G"); senão "".`;
+  ctl = new AbortController(); $('#btnRules').disabled = true; $('#btnStop').classList.remove('hidden');
+  const m0 = $('#rulesMsg'); m0.classList.add('hidden');
+  const upA = x => splitList(Array.isArray(x) ? x.join(',') : x).map(t => N(String(t).replace(/\*/g, '__S__')).replace(/__S__/g, '*')).filter(Boolean);
+  let structNote = '';
+  try {
+    $('#rulesState').textContent = 'Lendo as regras… (pode levar até um minuto)';
+    const sA = await askJSON(sample, structPrompt, ctl.signal);
+    let nNew = 0, nRe = 0; const touched = [];
+    for (const nc of sA.novasCategorias || []) {
+      const nome = N(nc.nome || ''); if (!nome) continue; touched.push(nome);
+      const ex = cfg.categorias.find(c => c.nome === nome);
+      const obj = { nome, inicio: cleanD(nc.inicio || nome), incluir: upA(nc.incluir || []), tambem: upA(nc.tambem || []), excluir: upA(nc.excluir || []), forte: [], pctMin: nc.pctMin ?? null, remover: [], regra: nc.regra || '', preferirSugerida: [] };
+      if (ex) { unionCat(ex, obj); if (ex.ativa === false) nRe++; ex.ativa = true; continue; }
+      cfg.removidas = (cfg.removidas || []).filter(n => n !== nome);
+      obj.ativa = true; cfg.categorias.push(obj); nNew++;
+    }
+    let nOff = 0;
+    const keep = [...(sA.categoriasDoTrabalho || sA.somenteEstas || [])].map(N).filter(Boolean);
+    if (keep.length && keep.some(k => cfg.categorias.some(c => c.nome === k))) {
+      const K2 = new Set([...keep, ...touched]);
+      for (const c of cfg.categorias) { const was = c.ativa !== false; c.ativa = K2.has(c.nome); if (was && !c.ativa) nOff++; if (!was && c.ativa) nRe++; }
+      // keep the job's categories in the order Claude listed them, above the inactive ones
+      const ord = [...K2]; cfg.categorias.sort((a, b) => (a.ativa ? (ord.indexOf(a.nome) + 1 || 5e5) : 1e6) - (b.ativa ? (ord.indexOf(b.nome) + 1 || 5e5) : 1e6));
+    }
+    const qp = N(sA.quantidadePadrao || '').replace(/\s+/g, '');
+    if (qp && defaultQty(qp)) for (const c of actCats()) c.qtdPadrao = qp;
+    const pad = N(sA.categoriaPadrao || '');
+    if (pad && actCats().some(c => c.nome === pad)) cfg.categoriaPadrao = pad; else if (cfg.categoriaPadrao && !actCats().some(c => c.nome === cfg.categoriaPadrao)) cfg.categoriaPadrao = '';
+    const fbA = upA(sA.falsasMarcas || []).filter(t => !cfg.falsasMarcas.includes(t)); cfg.falsasMarcas.push(...fbA);
+    structNote = `${nNew} categorias criadas${nRe ? `, ${nRe} reativadas da biblioteca` : ''}${nOff ? `, ${nOff} desativadas (continuam salvas na biblioteca)` : ''}. Ativas agora: ${actCats().map(c => c.nome).join(', ')}${cfg.categoriaPadrao ? `; padrão: ${cfg.categoriaPadrao}` : ''}${qp && defaultQty(qp) ? `; sem quantidade na descrição usa ${qp}` : ''}. ${sA.notas || ''} `;
+    autoSegments(); saveDraft(); renderCats();
+  } catch (e) {
+    $('#rulesState').textContent = ''; m0.className = 'msg warn';
+    m0.textContent = e.code === 'cancelled' ? 'Parado.' : e.code === 'not_granted' ? 'O uso do Claude não foi autorizado. Recarregue a página e clique em Permitir quando o Claude pedir (o uso sai da sua própria conta). Você também pode editar as listas à mão.' : e.code === 'rate_limited' ? 'Muitas chamadas seguidas; tente de novo em um minuto.' : 'Não consegui ler as regras (' + (e.code || e.message) + ').';
+    $('#btnRules').disabled = false; $('#btnStop').classList.add('hidden'); return;
+  }
+  allNames = actCats().map(c => c.nome);
+  const batches = []; let cur = [];
+  for (const c of actCats()) {
+    const trial = [...cur, c];
+    if (cur.length && bytes(promptFor(trial, 25)) > MAXB) { batches.push(cur); cur = [c]; } else cur = trial;
+  }
+  if (cur.length) batches.push(cur);
+  const m = $('#rulesMsg');
+  try {
+    let nCat = 0, nTerm = 0, nFb = 0, nSo = 0; const notas = [];
+    const up = x => splitList(Array.isArray(x) ? x.join(',') : x).map(t => N(String(t).replace(/\*/g, '__S__')).replace(/__S__/g, '*')).filter(Boolean);
+    for (let bi = 0; bi < batches.length; bi++) {
+      $('#rulesState').textContent = batches.length > 1 ? `Parte ${bi + 1} de ${batches.length}: pensando… (até um minuto cada)` : 'Pensando… (pode levar até um minuto)';
+      let n = 25, p = promptFor(batches[bi], n);
+      while (bytes(p) > MAXB && n > 3) { n = Math.floor(n / 2); p = promptFor(batches[bi], n); }
+      const r = await askJSON(sample, p, ctl.signal);
+      for (const [nome, ch] of Object.entries(r.categorias || {})) {
+        const c = cfg.categorias.find(x => x.nome === N(nome) || x.nome === nome); if (!c) continue; nCat++;
+        for (const k of ['incluir', 'tambem', 'excluir', 'forte']) if (ch[k]) { const add = up(ch[k]).filter(t => !(c[k] || []).includes(t)); nTerm += add.length; c[k] = [...(c[k] || []), ...add]; }
+        if (ch.pctMin !== null && ch.pctMin !== undefined && ch.pctMin !== '') c.pctMin = +ch.pctMin;
+        if (ch.regra && !c.regra) c.regra = ch.regra;
+        if (ch.quantidadePadrao) { const qv = N(ch.quantidadePadrao).replace(/\s+/g, ''); if (defaultQty(qv)) c.qtdPadrao = qv; }
+      }
+      const fb = up(r.falsasMarcas || []).filter(t => !cfg.falsasMarcas.includes(t)); cfg.falsasMarcas.push(...fb); nFb += fb.length;
+      const curSo = sempreAtivos(); const so = up(r.sempreOutra || []).filter(t => !curSo.includes(t)); setSempreAtivos([...curSo, ...so]); nSo += so.length;
+      if (r.notas) notas.push(r.notas);
+      saveDraft(); renderCats();
+    }
+    m.textContent = structNote + `${nCat} categorias ajustadas, ${nTerm} termos novos, ${nFb} falsas marcas, ${nSo} termos para OUTRA CATEGORIA.${rulesCut ? ' Seu texto de regras era muito longo e só o começo foi usado; divida em partes e aplique de novo.' : ''} ${notas.join(' ')}`;
+    m.className = 'msg ok'; $('#rulesState').textContent = '';
+  } catch (e) {
+    $('#rulesState').textContent = ''; m.className = 'msg warn';
+    m.textContent = e.code === 'cancelled' ? 'Parado. As partes já concluídas foram aplicadas.' : e.code === 'prompt_too_large' ? 'Ainda ficou grande demais para enviar. Encurte o texto das regras ou aplique por partes.' : e.code === 'not_granted' ? 'O uso do Claude não foi autorizado. Recarregue a página e clique em Permitir quando o Claude pedir (o uso sai da sua própria conta). Você também pode editar as listas à mão.' : e.code === 'rate_limited' ? 'Muitas chamadas seguidas; tente de novo em um minuto.' : 'Não consegui converter as regras (' + (e.code || e.message) + ').';
+  } finally { $('#btnRules').disabled = false; $('#btnStop').classList.add('hidden'); }
+});
+
+loadDraft(); normCfg(cfg); mergeInto(cfg, normCfg(JSON.parse(JSON.stringify(K.cfg))), 'add');
+if (K.libSeed && K.libSeed.categorias) mergeInto(cfg, normCfg({ categorias: K.libSeed.categorias }), 'add');
+// Migração: categorias já salvas (localStorage/biblioteca) antes da correção do início "PRODUTO"/"MARCA" travado
+// nunca são atualizadas pelo merge 'add' (que só adiciona categorias novas, nunca sobrescreve as existentes).
+// Corrige aqui, uma vez, direto nas categorias já salvas do usuário, preservando tudo o mais (incluir/excluir/etc).
+(function migrarInicioPlaceholder() {
+  let n1 = 0, n2 = 0;
+  for (const c of cfg.categorias || []) {
+    const ini = (c.inicio || '').trim();
+    if (ini === 'PRODUTO') { c.inicio = ''; c.dinamico = true; n1++; }
+    else if (ini === 'MARCA') { c.inicio = ''; n2++; }
+  }
+  if (n1 || n2) { saveDraft(); }
+})();
+renderCats();
+</script>
