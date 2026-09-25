@@ -197,3 +197,11 @@ Pontos pra checar, em ordem:
   versão da branch `claude/modest-maxwell-y0utos`).
 - DIMA com código do laboratório na marca (`DORFLEX (OPE)`): `dima.py` cria o nome sem código (categorias ATC, sem
   princípio ativo); `nomeComercial` busca o fabricante na DIMA e depois no dicionário (DORFLEX → OPELLA).
+
+## Farmácia: categoria pela DIMA (todos os capítulos ATC)
+
+- `farma_dima.py` → `farmaDima` (+ categorias novas para EST MER 6 sem categoria). Ordem dos scripts: `dima.py`,
+  `farma_pa.py`, `nomes_oficiais.py`, `farma_marcas.py`, `farma_dima.py`, `build.py`.
+- `classifyDesc`: Hoja (`matchFM`) > princípio ativo (`matchPA`) > regras do manual > DIMA (`matchFD`, com `sinalFarma`
+  para termos de uma palavra). Código de laboratório no fim reavalia sem ele.
+- Testes: `rodar.js`, `rodar_hoja.js`, `rodar_dima.js` (carregam a página por `setContent`: ela não declara charset).

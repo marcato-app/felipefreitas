@@ -140,6 +140,21 @@ anti-inflamatórios "Por Defecto" (ibuprofeno, diclofenaco…) → ANTI REUMATIC
   `testes_farma/hoja_erros.txt` — boa parte é a DIMA dando outra grafia (CLAZI x CLAZI XR), marca com nome de laboratório
   (SANDOZ, JANSSEN) e 3 EST MER 7 que não existem no app (A03E OUTRAS ASSOCIACOES, A11A1/A11B1 PRENATAL).
 
+### 3.5c Categoria pela DIMA (ATC EphMRA, todos os capítulos)
+- `python3 farma_dima.py`: cada marca/substância de Farmácia da DIMA (nome sem o código do laboratório) → EST MER 6 mais
+  votada → categoria do app (EST MER 7 com esse código; várias: associação x pura, marcada para revisão; sem código no
+  app: tabela `MAPA6`). EST MER 6 sem nenhuma categoria no app vira categoria nova (13: H02A CORTICOSTEROIDES PUROS,
+  D07B ASSOCIACOES DE CORTICOIDES, C05A ANTIHEMORROIDARIOS TOPICOS…). ~4.800 termos em `consts.json → farmaDima`.
+- Ordem da categoria: base de marcas do cliente (Hoja) > dicionário de princípios ativos > regras do manual (palavras-
+  chave) > DIMA. Termo de uma palavra só da DIMA vale no começo da descrição ou com sinal de remédio (MG, COMP, GOTAS,
+  código de laboratório no fim). Palavra comum/de outra cesta não vira termo. Código de laboratório no fim
+  (`ANLODIPINO … BIS`) não deixa a marca de alimento (BIS) ganhar.
+- Alerta "Categoria pela DIMA: X em EST MER 6"; vai para revisão quando a subcategoria foi escolhida ou a marca está
+  dividida entre EST MER 6.
+- Teste `node testes_farma/rodar_dima.js` (2.000 marcas de Farmácia da DIMA como descrições): OUTRA CATEGORIA
+  1.167 → 124; em Farmácia 794 → 1.847; EST MER 6 certa 581 → 1.476; fabricante certo 1.770 → 1.886. 3.000 descrições
+  reais de papelaria/material: nenhuma mudou. Os "erros" restantes incluem erros da própria DIMA (METOPROLOL em C09C).
+
 ### 3.6 Marca
 - Regra (decidida): **nome comercial**; genérico → **princípio ativo** como marca (como escrito na descrição: LOSARTANA,
   DIPIRONA), fabricante = laboratório.

@@ -10,7 +10,7 @@ const casos = process.argv.slice(2).length ? process.argv.slice(2)
   for (const f of casos) {
     const p = await b.newPage();
     p.on('pageerror', e => console.error('ERRO', e.message));
-    await p.goto('file://' + path.join(dir, 'classificador.html'));
+    await p.setContent(require('fs').readFileSync(path.join(dir, 'classificador.html'), 'utf8'), { waitUntil: 'load', timeout: 120000 }); // a página não declara charset (o artifact recebe do serviço)
     await p.waitForFunction(() => typeof data !== 'undefined' && data.dima, null, { timeout: 60000 });
     await p.evaluate(() => { for (const c of cfg.categorias) c.ativa = true; renderCats(); }); // todas as categorias ativas
     await p.setInputFiles('#fBacklog', f);
