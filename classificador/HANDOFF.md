@@ -189,3 +189,9 @@ Pontos pra checar, em ordem:
   depois `farmaMarcas`, depois dicionário, depois `nomeComercial`, depois princípio ativo. `palavrasPA` impede que parte
   do princípio ativo (HIDROXIDO de HIDROXIDO DE ALUMINIO) vire marca.
 - Teste: `node testes_farma/rodar_hoja.js`.
+
+## Links
+
+- Agente de Farmácia (esta branch): https://claude.ai/artifact/FBP4i6ZktAFc1ymeYWmyP7 — publicar sempre o `farmacia.html`.
+- Classificador geral: https://claude.ai/artifact/UFuhJCnyT5Lwi3wYZVMVu1 — não publicar esta branch nele (voltou à
+  versão da branch `claude/modest-maxwell-y0utos`).

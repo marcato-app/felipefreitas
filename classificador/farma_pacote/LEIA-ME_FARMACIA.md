@@ -1,8 +1,9 @@
 # Farmácia — tudo o que foi definido até aqui (Classificador de Backlog)
 
-Pacote para continuar o trabalho de **Farmácia** em outro chat/agente. O app é o `classificador.html`
-(link publicado: https://claude.ai/artifact/UFuhJCnyT5Lwi3wYZVMVu1; código-fonte no repositório
-`marcato-app/felipefreitas`, pasta `classificador/`, branch `claude/modest-maxwell-y0utos`).
+Agente de **Farmácia** do Classificador de Backlog, com **link próprio** (separado do classificador geral):
+**https://claude.ai/artifact/FBP4i6ZktAFc1ymeYWmyP7** (arquivo `classificador/farmacia.html`, gerado pelo `build.py`).
+O classificador geral continua em https://claude.ai/artifact/UFuhJCnyT5Lwi3wYZVMVu1 (sem as mudanças de Farmácia).
+Código-fonte: repositório `marcato-app/felipefreitas`, pasta `classificador/`, branch `claude/wonderful-babbage-6qodc6`.
 
 ---
 
