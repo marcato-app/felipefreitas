@@ -120,12 +120,12 @@ Pontos pra checar, em ordem:
 
 ## Prioridade do arquivo (backlog manda)
 
-- Opção "Priorizar os dados do arquivo" (`cfg.priorizarArquivo`, ligada por padrão). Categoria, marca, fabricante, conteúdo e descritivo (coluna DESCRITIVO PADRONIZADO/DESCRITIVO, se houver) do backlog valem; o app só troca o que estiver bem fora do comum, sempre com alerta "Arquivo: …":
+- Opção "Priorizar os dados do arquivo" (`cfg.priorizarArquivo`, ligada por padrão). Categoria, marca, fabricante e conteúdo do backlog valem; o app só troca o que estiver bem fora do comum, sempre com alerta "Arquivo: …":
   - categoria: nenhuma descrição bate com ela E a descrição aponta para outra cesta (`categoriaArquivo`);
   - marca: não aparece em nenhuma descrição E a descrição traz outra marca que existe na EST MER 6 do item;
   - fabricante: a base conhece a marca e o fabricante do arquivo não é nenhum dos dela (Farmácia: fica o do arquivo);
   - conteúdo: a descrição tem outro valor na mesma unidade com mais de 2× de diferença;
-  - descritivo: vazio/lixo, ou algum campo acima trocado (aí é refeito).
+  - descritivo: NÃO vem do arquivo; é sempre padronizado pelo app, já com os valores mantidos acima (a coluna de descritivo do arquivo, se houver, só entra como descrição de referência).
 - Campo vazio no arquivo: o app completa como antes. Aba REVISAO ganhou FABRICANTE SUGERIDO.
 
 ## Nome oficial das categorias (código EST MER 7/6)

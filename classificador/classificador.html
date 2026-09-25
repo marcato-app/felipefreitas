@@ -167,7 +167,7 @@ td.alert{color:var(--warn); font-size:12px}
     </div>
     <label class="f" style="max-width:420px">Categoria padrão (quando nada na descrição indicar a categoria)<select id="defCat"></select></label>
     <label class="switch"><input type="checkbox" id="useSug"> Quando nenhuma descrição indicar categoria, usar a CATEGORIA SUGERIDA em vez de OUTRA CATEGORIA</label>
-    <label class="switch"><input type="checkbox" id="prioArq"> Priorizar os dados do arquivo (categoria, marca, fabricante, conteúdo e descritivo): só trocar o que estiver bem fora do comum, com alerta</label>
+    <label class="switch"><input type="checkbox" id="prioArq"> Priorizar os dados do arquivo (categoria, marca, fabricante e conteúdo): só trocar o que estiver bem fora do comum, com alerta. O descritivo é sempre padronizado</label>
   </section>
 
   <!-- 4 -->
@@ -347,8 +347,6 @@ async function loadBacklog(file) {
   // descrição principal (a do cadastro do produto), se o arquivo tiver: vira a referência do tipo do item
   ci.main = findCol(hdr, [h => ['DESCRIPCION', 'DESCRICAO', 'DESCRITIVO', 'DESCRIPTION', 'DESCRICAOPRODUTO', 'DESCRITIVOATUAL', 'DESCRICAOPRINCIPAL'].includes(h)]);
   if (ci.main === ci.ds) ci.main = -1;
-  ci.dp = findCol(hdr, [h => h === 'DESCRITIVOPADRONIZADO', h => h.includes('DESCRITIVOPADRONIZADO'), h => h === 'DESCRITIVO']);
-  if (ci.dp === ci.ds) ci.dp = -1;
   if (ci.bc < 0 || ci.ds < 0) throw new Error('Não encontrei as colunas de código (barcode) e descrições (descriptions) no backlog.');
   const items = [];
   for (let r = 1; r < rows.length; r++) {
@@ -357,8 +355,7 @@ async function loadBacklog(file) {
     const mainD = ci.main >= 0 && row[ci.main] ? String(row[ci.main]).trim() : '';
     if (mainD) { const k = D.findIndex(x => N(x) === N(mainD)); if (k >= 0) D.splice(k, 1); D.unshift(mainD); }
     items.push({ barcode: row[ci.bc], D, T: D.map(N), main: !!mainD, sugCatRaw: ci.cat >= 0 ? String(row[ci.cat] ?? '').trim() : '', sugCat: ci.cat >= 0 ? catInterna(row[ci.cat]) : '', sugMarca: ci.mar >= 0 ? String(row[ci.mar] ?? '').trim() : '',
-      sugFab: ci.fab >= 0 ? String(row[ci.fab] ?? '').trim() : '', sugQt: ci.qt >= 0 ? row[ci.qt] : null,
-      sugDesc: ci.dp >= 0 ? String(row[ci.dp] ?? '').trim() : '' });
+      sugFab: ci.fab >= 0 ? String(row[ci.fab] ?? '').trim() : '', sugQt: ci.qt >= 0 ? row[ci.qt] : null });
   }
   data.items = items; data.sugCounts = new Map();
   for (const it of items) data.sugCounts.set(it.sugCat, (data.sugCounts.get(it.sugCat) || 0) + 1);
@@ -910,7 +907,6 @@ function labDaDescricao(T) {
 /* ---- prioridade do arquivo: o que veio no backlog vale; só troca o que estiver bem fora do comum ---- */
 const prioArq = () => cfg.priorizarArquivo !== false;
 const valido = v => { const n = N(v); return !!n && !/^(OUTRA MARCA|OUTRO FABRICANTE|OUTRA CATEGORIA|SEM MARCA|SEM FABRICANTE|NAO INFORMADO|N A|NA|0|NULL|NONE|-)$/.test(n); };
-const DESC_LIXO = /(PRODUTO A SER AJUSTADO|PRODUTO NAO CAD|PRODUTO SEM DESCRICAO|SEM DESCRICAO|^PRODUTO$|^TESTE)/;
 const rxCat = new Map();
 function bateCategoria(c, T) {
   if (!rxCat.has(c.nome)) rxCat.set(c.nome, [termRx(c.incluir), termRx(c.tipo)]);
@@ -1004,13 +1000,8 @@ async function runAll() {
     const keepT = T.filter((t, j) => a.per[j] === a.cat); const T2 = keepT.length ? keepT : T;
     const brandTxt = bn ? cleanD(marca) : '';
     const comp = complement(T2, a.cat, ini, bn || '', groupOf(a.cat), cc);
-    let desc = cleanD([ini, brandTxt, comp, qtyText(q)].filter(Boolean).join(' '));
-    if (prioArq() && it.sugDesc) {
-      const dn = cleanD(it.sugDesc);
-      if (DESC_LIXO.test(dn) || dn.length < 3) arqAl.push('Arquivo: descritivo vazio ou inválido; gerado um novo');
-      else if (a.arqTrocada || arqAl.length) arqAl.push('Arquivo: descritivo refeito porque categoria/marca/fabricante/conteúdo foi trocado');
-      else desc = dn;
-    }
+    // o descritivo é sempre padronizado pelo app (já com a categoria, marca e conteúdo mantidos do arquivo)
+    const desc = cleanD([ini, brandTxt, comp, qtyText(q)].filter(Boolean).join(' '));
     const alerts = [];
     { const C0 = C.pa && T.map(t => matchPA(t, C.pa)).find(p => p && p.cat === a.cat);
       if (C0) alerts.push('Categoria pelo princípio ativo ' + C0.pa + (C0.corrigido ? ' (destino corrigido em relação à base)' : C0.validar ? ' (base pede validação)' : '')); }
