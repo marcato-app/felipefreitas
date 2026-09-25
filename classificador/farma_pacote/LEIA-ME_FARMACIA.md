@@ -171,6 +171,15 @@ anti-inflamatórios "Por Defecto" (ibuprofeno, diclofenaco…) → ANTI REUMATIC
   colírio → S01B; dexametasona creme → D07A; "VITA E" = vitamina E; vitaminas de marca da DIMA (EPHYNAL, EMAMA) →
   VITAMINA OUTRO; marca com nome da empresa (SANDOZ, GEOLAB) não decide categoria; EURO = Eurofarma; DIA não é marca.
 
+### 3.5e Quantidade (menos 1UN)
+- A limpeza de grafia colada vale também para o backlog: `MILD10ML`, `SOLUSPAN1ML`, `MD10ML`, `N40GR` (letra colada em
+  número com unidade), `CONTIC/8` (marca colada no C/), `ZZ` de descontinuado.
+- Contam como unidade: COMPS, CPRS, FLACONETE(S), AMPOLA(S), SACHE(S), ENV/ENVELOPE(S), SERINGA(S), GOMA(S), ADES/
+  ADESIVO(S), OVULO(S), SUPOSITORIO(S), PASTILHA(S), TABLETE(S), BISNAGA(S), FRASCO(S). Cartela: `3X21 CPR` = 63.
+- Genérico gravado na DIMA com o laboratório (`ACECLOFENACO EMS`): marca = a substância.
+- Teste `testes_farma/formatos_farmacia.csv` (147 descrições reais e formatos comuns): 1UN 20 → 4 (3 são 1 unidade
+  mesmo: ZOLADEX, 1 AMPOLA, 1 SERINGA; 1 é descrição cortada "ACECLOFENACO 10").
+
 ### 3.6 Marca
 - Regra (decidida): **nome comercial**; genérico → **princípio ativo** como marca (como escrito na descrição: LOSARTANA,
   DIPIRONA), fabricante = laboratório.

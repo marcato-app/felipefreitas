@@ -352,8 +352,8 @@ async function loadBacklog(file) {
   const items = [];
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r]; if (!row || row[ci.bc] === null || row[ci.bc] === undefined || row[ci.bc] === '') continue;
-    const D = parseDescs(row[ci.ds]);
-    const mainD = ci.main >= 0 && row[ci.main] ? String(row[ci.main]).trim() : '';
+    const D = parseDescs(row[ci.ds]).map(desgruda);
+    const mainD = ci.main >= 0 && row[ci.main] ? desgruda(String(row[ci.main]).trim()) : '';
     if (mainD) { const k = D.findIndex(x => N(x) === N(mainD)); if (k >= 0) D.splice(k, 1); D.unshift(mainD); }
     items.push({ barcode: row[ci.bc], D, T: D.map(N), main: !!mainD, sugCatRaw: ci.cat >= 0 ? String(row[ci.cat] ?? '').trim() : '', sugCat: ci.cat >= 0 ? catInterna(row[ci.cat]) : '', sugMarca: ci.mar >= 0 ? String(row[ci.mar] ?? '').trim() : '',
       sugFab: ci.fab >= 0 ? String(row[ci.fab] ?? '').trim() : '', sugQt: ci.qt >= 0 ? row[ci.qt] : null });
@@ -367,7 +367,8 @@ async function loadBacklog(file) {
 /* ---- descrições das lojas (SKU x loja x descrição): escolhe a mais completa de cada SKU ---- */
 const skuKey = v => String(v ?? '').replace(/\D/g, '').replace(/^0+/, '');
 // a loja cola a marca no "C/" e letras no número: FLUIMUCILC/16 CPR -> FLUIMUCIL C/16 CPR; PRED MILD10ML -> PRED MILD 10ML
-const desgruda = s => String(s || '').replace(/^\s*ZZ(?=[A-Za-z]{3})/, '').replace(/([A-Za-z]{3,})[Cc]\/(?=\s*\d)/g, '$1 C/').replace(/([A-Za-z]{3,})(\d)/g, '$1 $2').replace(/\s+/g, ' ').trim();
+const desgruda = s => String(s || '').replace(/^\s*ZZ(?=[A-Za-z]{3})/, '').replace(/([A-Za-z]{3,})[Cc]\/(?=\s*\d)/g, '$1 C/')
+  .replace(/([A-Za-z]+)(\d+(?:[.,]\d+)?\s*(?:ML|MG|MCG|G|GR|KG|L|LT|UI|CPR|COMP|CAPS|CP|DRG|UN|%)(?![A-Za-z]))/gi, '$1 $2').replace(/\s+/g, ' ').trim();
 const RX_QTD_LOJA = /(?<![A-Z0-9])(C\s*\d{1,4}|\d{1,4}\s*(UN|UND|COMP|COMPR|COMPRIMIDOS?|CP|CPR|CPS|CAP|CAPS|CAPSULAS?|DRG|DRAGEAS?|SACHES?|ENV|AMP|AMPOLAS?|FLAC|ML|G|GR|KG|L|LT))(?![A-Z])/;
 // nota de completude: quantidade, dosagem, forma, laboratório/marca, quantas lojas usam, tamanho
 function notaDesc(t, n) {
@@ -815,11 +816,18 @@ function parseQ(t) {
   return out;
 }
 const rnd = x => x >= 50 ? Math.round(x) : Math.round(x * 10) / 10;
-const RX_UN = /(?<![0-9.A-Z])(\d{1,3})\s*(?:UN|UND|UNID|UNIDADE|UNIDADES|UNI|UNDS|UNS|UNDS|COMP|COMPR|COMPRIMIDO|COMPRIMIDOS|CP|CPR|CPS|CAP|CAPS|CAPSULA|CAPSULAS|DRG|DRAGEA|DRAGEAS|FOLHASCONT)(?![A-Z])/g;
+// unidades que contam (inclui formas de Farmácia: flaconete, ampola, sachê, seringa, goma, adesivo, óvulo…)
+const UN_CONTA = 'UN|UND|UNID|UNIDADE|UNIDADES|UNI|UNDS|UNS|COMP|COMPS|COMPR|COMPRIMIDO|COMPRIMIDOS|CP|CPR|CPRS|CPS|CAP|CAPS|CAPSULA|CAPSULAS|DRG|DRAGEA|DRAGEAS|FOLHASCONT|' +
+  'FLACONETE|FLACONETES|FLAC|AMPOLA|AMPOLAS|SACHE|SACHES|SACHET|SACHETS|ENV|ENVELOPE|ENVELOPES|SERINGA|SERINGAS|GOMA|GOMAS|ADES|ADESIVO|ADESIVOS|' +
+  'OVULO|OVULOS|SUPOSITORIO|SUPOSITORIOS|PASTILHA|PASTILHAS|TABLETE|TABLETES|BISNAGA|BISNAGAS|FRASCO|FRASCOS';
+const RX_UN = new RegExp('(?<![0-9.A-Z])(\\d{1,3})\\s*(?:' + UN_CONTA + ')(?![A-Z])', 'g');
+// cartelas: 3X21 CPR = 63
+const RX_UN_PACK = new RegExp('(?<![0-9.A-Z])(\\d{1,2})\\s*X\\s*(\\d{1,3})\\s*(?:' + UN_CONTA + ')(?![A-Z])');
 const RX_CN = /(?<![A-Z0-9])(?:C|COM|CX|CX C|CX COM|BANDEJA|BDJ|EMB|CARTELA|PENTE)\s*(\d{1,3})(?![0-9.])(?!\s*(?:G|GR|GRS|KG|ML|L|LT|MG|CM|MM|M|X|%)(?![A-Z]))/g;
 const RX_DZ = /(?<![A-Z0-9.])(?:(\d{1,2})\s*)?(MEIA\s+)?(?:DZ|DUZ|DUZIA|DUZIAS)(?![A-Z])/;
 function parseU(t) {
-  let m; RX_UN.lastIndex = 0; if ((m = RX_UN.exec(t)) && +m[1] > 0) return +m[1];
+  let m; if ((m = RX_UN_PACK.exec(t)) && +m[1] > 1 && +m[2] > 0) return +m[1] * +m[2];
+  RX_UN.lastIndex = 0; if ((m = RX_UN.exec(t)) && +m[1] > 0) return +m[1];
   RX_CN.lastIndex = 0; if ((m = RX_CN.exec(t)) && +m[1] > 1) return +m[1];
   if ((m = RX_DZ.exec(t))) return m[2] ? 6 : 12 * (m[1] ? +m[1] : 1);
   return null;
@@ -1013,6 +1021,8 @@ function farmaNaoMarca(m, C, paW) {
   if (paW && n.split(' ').every(w => paW.has(w) || CONNECT.has(w))) return true;
   const L = labIndex(); const P = C.pa;
   if (L.chave.has(n) || L.codigo.has(n) || LAB_ALIAS[n] || FARMA_NAO_MARCA.has(n)) return true; // laboratório (EMS, CIM, MEDLEY...) não é marca
+  { const w = n.split(' '), l = w[w.length - 1]; // "ACECLOFENACO EMS": genérico gravado com o laboratório na DIMA
+    if (w.length > 1 && (L.codigo.has(l) || L.chave.has(l) || LAB_ALIAS[l] || (K.farmaCodLab || {})[l])) return true; }
   if (GROUP_TOK.FARMA[n]) return true;
   if (P) { P.rx.lastIndex = 0; if (P.rx.test(n)) return true; } // tem princípio ativo no nome (DIPIRONA, LOSARTANA POTASSICA)
   return false;
@@ -1166,7 +1176,14 @@ async function runAll() {
         const tenta = DD => { const b2 = DD && findBrand(T, [], '', C.black, DD, vocab); return b2 && !farmaNaoMarca(b2, C, paW) ? b2 : null; };
         const fabArq = prioArq() && valido(it.sugFab) ? it.sugFab.trim() : '';
         bn = null; BD = null; fmHit = null;
-        if ((bn = tenta(data.dima))) BD = data.dima;
+        if ((bn = tenta(data.dima))) {
+          BD = data.dima;
+          // a 1ª palavra também é marca da DIMA (SYSTEN em "SYSTEN CONTI C/8"): ela ganha de marca achada no meio
+          const ws = (T[0] || '').split(' ');
+          if (ws[0] && !(T[0] || '').startsWith(bn + ' ') && (T[0] || '') !== bn)
+            for (let k = Math.min(4, ws.length); k >= 1; k--) { const w0 = ws.slice(0, k).join(' '); // nome mais longo no começo (NIMEGON MET)
+              if (data.dima.map.has(w0) && !farmaNaoMarca(w0, C, paW)) { bn = w0; break; } }
+        }
         else if ((fmHit = matchFM(T, C.fm)) && !farmaNaoMarca(fmHit.nome, C, paW)) bn = fmHit.nome;
         else if ((fmHit = null, bn = tenta(data.dict))) BD = data.dict;
         if (BD) { marca = BD.map.get(bn).canon; fab = fabArq || fabricante(bn, seg, BD); }
