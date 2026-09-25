@@ -133,3 +133,10 @@ Pontos pra checar, em ordem:
 - Uma limpeza antiga tirou o código ATC do nome de ~380 categorias de Farmácia. O nome interno ficou (regras/ligações/navegador dependem dele); `nomes_oficiais.py` gera `consts.json → nomesOficiais` (interno → oficial, ex.: "ANTAGONISTAS H2" → "A02B1 ANTAGONISTAS H2") a partir do dicionário de princípios ativos e da DIMA, e conserta nomes corrompidos (hífen sobrando, acento quebrado). 238/400 de Farmácia recuperados; lista em `dados/farma_nomes_oficiais.xlsx`. Com a árvore oficial em `dados/arvore_est_mer.xlsx`, rodar de novo.
 - `nomeOf()` é o que sai na planilha (Planilha1, REVISAO, RESUMO) e na tela; `catInterna()` reconhece a CATEGORIA do arquivo pelo nome oficial (com ou sem código) ou interno. Categoria pode ter `nomeOficial` próprio (sobrepõe).
 - Conteúdo do arquivo só com número: unidade pela contagem da descrição ou pela `unidadeSugerida` da categoria.
+
+## Farmácia: fabricante = laboratório da descrição
+
+- `labIndex()` (refeito ao carregar DIMA/dicionário): fabricantes de categorias ATC (dicionário primeiro, depois DIMA) → nome completo sem LTDA/FARMA/PHARMA… como termo; códigos de 3 letras aprendidos do fim das marcas de Farmácia ("DOMPERIDONA RAN" → RANBAXY; ≥3 ocorrências e ≥80% do mesmo fabricante); `LAB_ALIAS` para nomes de laboratório que as bases registram pelo grupo (GERMED/LEGRAND → EMS PHARMA via GER/LEG; NEO QUIMICA → HYPERA via NEO; PRATI → PRD…).
+- `labDaDescricao()`: 1ª descrição primeiro; nome em qualquer lugar, código só como última palavra. Nunca usa só a 1ª palavra do nome do fabricante (PONTO DAS ERVAS pegava "LV PONTO").
+- Em item de Farmácia, o laboratório achado vira o fabricante (grafia do dicionário quando anexado); se o arquivo trouxer outro fabricante, alerta "Arquivo: fabricante X difere do laboratório na descrição". Sem laboratório: fabricante do arquivo ou da marca.
+- Geral: item sem marca agora mantém o fabricante do arquivo (antes virava OUTRO FABRICANTE).

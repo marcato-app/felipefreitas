@@ -384,7 +384,7 @@ async function loadDict(file) {
     const v = ci.v >= 0 ? num(row[ci.v]) : 1;
     dictAdd(dict, mn, raw, fab, em, v);
   }
-  data.dict = dictFinish(dict);
+  data.dict = dictFinish(dict); LABS = null;
   return dict.size;
 }
 function dictAdd(dict, mn, raw, fab, em, v) {
@@ -425,7 +425,7 @@ function loadDima() {
       for (const a of ab) alias.push([N(a), mn]); }
     const D = dictFinish(dict, true);
     for (const [k, mn] of alias) if (k && !D.map.has(k)) D.map.set(k, D.map.get(mn)); // abreviação -> mesma marca
-    data.dima = D; return D;
+    data.dima = D; LABS = null; return D;
   })().catch(e => { console.warn('DIMA', e); return null; });
   return dimaP;
 }
@@ -871,6 +871,41 @@ function segmentosEstMer6(AGG, items, byName, C) {
     const x = fixo(cat); return x.length ? x : (aprendido.get(cat) || []); };
   return f;
 }
+/* ---- Farmácia: fabricante é sempre o laboratório escrito na descrição, conferido com o dicionário / DIMA ---- */
+const ATC_RX = /^[A-Z]\d\d[A-Z]?\d? /;
+const LAB_LIXO = new Set('LABORATORIO LABORATORIOS LAB LABS FARMACEUTICA FARMACEUTICOS FARMACEUTICO FARMA PHARMA PHARMACEUTICA IND INDUSTRIA COM COMERCIO SA S A LTDA ME EIRELI DO DA DE E BRASIL BR'.split(' '));
+const LAB_COD_NAO = new Set('MARCA OUTRA OUTRO COM SEM CPR COMP CAP CAPS DRG GTS SOL SUS XPE AMP INJ CRE POM GEL ADT INF PED UN UND CX FR'.split(' '));
+// nome do laboratório como aparece na descrição -> código de 3 letras da base (o fabricante vem do código)
+const LAB_ALIAS = { GERMED: 'GER', LEGRAND: 'LEG', 'NEO QUIMICA': 'NEO', NEOQUIMICA: 'NEO', 'NOVA QUIMICA': 'NVQ', NOVAQUIMICA: 'NVQ',
+  PRATI: 'PRD', 'PRATI DONADUZZI': 'PRD', SANOFI: 'SNF', MULTILAB: 'MUL', MANTECORP: 'MAN', KLEY: 'KLE', 'KLEY HERTZ': 'KLE' };
+let LABS = null;
+function labIndex() {
+  if (LABS) return LABS;
+  const nomes = new Map(), cod = new Map();
+  for (const DD of [data.dict, data.dima].filter(Boolean)) for (const [mn, b] of DD.map) {
+    for (const [em, fm] of b.fabEm) { if (!ATC_RX.test(em + ' ')) continue;
+      let f = null, v = -1; for (const [ff, vv] of fm) if (ff !== 'OUTRO FABRICANTE' && vv > v) { v = vv; f = ff; } if (!f) continue;
+      const k = N(f); if (!nomes.has(k)) nomes.set(k, f); // o dicionário vem primeiro: grafia dele ganha
+      const w = mn.split(' '); const last = w[w.length - 1];
+      if (w.length >= 2 && /^[A-Z0-9]{2,4}$/.test(last) && !LAB_COD_NAO.has(last)) { if (!cod.has(last)) cod.set(last, new Map()); cod.get(last).set(f, (cod.get(last).get(f) || 0) + 1); } }
+  }
+  const codigo = new Map(); for (const [c, m] of cod) { let tot = 0, f = null, v = 0; for (const [ff, vv] of m) { tot += vv; if (vv > v) { v = vv; f = ff; } } if (tot >= 3 && v / tot >= 0.8) codigo.set(c, f); }
+  const chave = new Map(); // termo que pode aparecer em qualquer lugar da descrição -> fabricante
+  for (const [k, f] of nomes) { const w = k.split(' ').filter(x => !LAB_LIXO.has(x)); if (!w.length) continue;
+    const full = w.join(' '); if (full.length >= 3 && !GENERIC.has(full)) chave.set(full, f); } // nome completo (sem LTDA, FARMA...), nunca só a 1ª palavra
+  for (const [a, c] of Object.entries(LAB_ALIAS)) if (codigo.has(c)) chave.set(a, codigo.get(c));
+  const termos = [...chave.keys()].sort((a, b) => b.length - a.length);
+  LABS = { chave, codigo, rx: termos.length ? new RegExp('(?<![A-Z0-9])(?:' + termos.map(escRx).join('|') + ')(?![A-Z0-9])') : null };
+  return LABS;
+}
+function labDaDescricao(T) {
+  const L = labIndex();
+  for (const t of T) { // 1ª descrição primeiro
+    const m = L.rx && t.match(L.rx); if (m) return L.chave.get(m[0]);
+    const w = t.split(' '); const last = w[w.length - 1]; if (L.codigo.has(last)) return L.codigo.get(last);
+  }
+  return null;
+}
 /* ---- prioridade do arquivo: o que veio no backlog vale; só troca o que estiver bem fora do comum ---- */
 const prioArq = () => cfg.priorizarArquivo !== false;
 const valido = v => { const n = N(v); return !!n && !/^(OUTRA MARCA|OUTRO FABRICANTE|OUTRA CATEGORIA|SEM MARCA|SEM FABRICANTE|NAO INFORMADO|N A|NA|0|NULL|NONE|-)$/.test(n); };
@@ -928,17 +963,24 @@ async function runAll() {
       const fs = valido(it.sugFab) ? it.sugFab.trim() : '';
       const b = BD && BD.map.get(sm);
       const conhecidos = b ? new Set([...b.fabAll.keys()].filter(f => f !== 'OUTRO FABRICANTE').map(N)) : new Set();
-      if (fs && (!conhecidos.size || conhecidos.has(N(fs)) || (cc && cc.cesta === 'FARMACIA'))) fab = fs; // Farmácia: regra própria de fabricante (a definir)
+      if (fs && (!conhecidos.size || conhecidos.has(N(fs)) || (cc && cc.cesta === 'FARMACIA'))) fab = fs; // Farmácia: fabricante pelo laboratório, logo abaixo
       else if (fs) { fab = fabricante(sm, seg, BD); arqAl.push(`Arquivo: fabricante ${fs} não é de ${marca} na base; usado ${fab}`); }
       else fab = b ? fabricante(sm, seg, BD) : 'OUTRO FABRICANTE';
     } else {
       if (!marcaArq) for (const DD of brandDicts()) { bn = findBrand(T, seg, it.sugMarca, C.black, DD, vocab); if (bn) { BD = DD; break; } }
       marca = bn ? BD.map.get(bn).canon : 'OUTRA MARCA';
-      fab = bn ? fabricante(bn, seg, BD) : 'OUTRO FABRICANTE';
+      fab = bn ? fabricante(bn, seg, BD) : (prioArq() && valido(it.sugFab) ? it.sugFab.trim() : 'OUTRO FABRICANTE'); // sem marca: fica o fabricante do arquivo
       if (marcaArq && bn) arqAl.push(`Arquivo: marca ${it.sugMarca.trim()} não aparece na descrição; usada ${marca}`);
       if (!marcaArq && bn && prioArq() && valido(it.sugFab) && N(it.sugFab) !== N(fab)) {
         const b = BD.map.get(bn); const conhecidos = new Set([...b.fabAll.keys()].map(N));
         if (conhecidos.has(N(it.sugFab))) fab = it.sugFab.trim(); }
+    }
+    if (cc && cc.cesta === 'FARMACIA') { // fabricante = laboratório da descrição
+      const lab = labDaDescricao(T);
+      if (lab) {
+        if (prioArq() && valido(it.sugFab) && N(it.sugFab) !== N(lab)) arqAl.push(`Arquivo: fabricante ${it.sugFab.trim()} difere do laboratório na descrição (${lab}); usado ${lab}`);
+        fab = lab;
+      }
     }
     let q = itemQty(T, it.sugQt);
     const qf = prioArq() ? qtdArquivo(it.sugQt) : null;
