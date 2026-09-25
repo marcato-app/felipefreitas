@@ -25,17 +25,22 @@ Pacote para continuar o trabalho de **Farmácia** em outro chat/agente. O app é
 >    base registra pelo grupo (GERMED/LEGRAND → EMS PHARMA; NEO QUIMICA → HYPERA PHARMA). Tabela em
 >    `dados/farma_laboratorios.xlsx`. Nunca usar só a 1ª palavra do nome do fabricante. Sem laboratório na descrição:
 >    fica o fabricante do arquivo; sem ele, o da marca.
-> 3. **Descritivo** — começa pela **marca**; sem marca, pelo **princípio ativo**; só as categorias com abreviação fixa
->    no manual (ex.: `SUPL ALIM`, `SUPL ALIM POLIV`, `CURATIVO`) começam pela abreviação. Nunca pelo nome da
->    categoria. Forma farmacêutica por extenso: COMP/CP/CPR = COMPRIMIDO, CAPS = CAPSULA, DRG = DRAGEA, SUSP =
->    SUSPENSAO, XPE = XAROPE, GTS = GOTAS, POM = POMADA… (nunca "COMPOSTO").
-> 4. **Conteúdo** — sempre com unidade. Formas farmacêuticas contam como unidade (`30 COMP` → 30UN, `C/10 CPR` →
->    10UN, `30 DRG` → 30UN); líquidos/cremes em ML/G (`COLIRIO 5ML`, `CREME 30G`). Sem nada: 1UN.
-> 5. **Prioridade do arquivo** — categoria, marca, fabricante e conteúdo que vierem no arquivo valem; só trocar o que
+> 3. **Marca** — remédio de marca: o **nome comercial** (DORFLEX, NEOSALDINA). Genérico: o **princípio ativo** é a
+>    marca (`LOSARTANA POTASSICA 50MG 30 COMP GERMED` → marca LOSARTANA, fabricante = laboratório). Laboratório (EMS,
+>    CIM, MEDLEY…) e GENERICO nunca são marca.
+> 4. **Descritivo** — marca + complemento + **dosagem** + quantidade na forma farmacêutica:
+>    `DIPIRONA SODICA 500MG 10CPRS`, `OMEPRAZOL 20MG 28CAPS`, `NEOSALDINA 30DRGS`, `TIMOLOL COLIRIO 0.5% 5ML`.
+>    Comprimidos = CPRS, cápsulas = CAPS, drágeas = DRGS (a palavra COMPRIMIDO/CAPSULA/DRAGEA sai). O laboratório não
+>    entra no descritivo. Categorias com abreviação fixa no manual (ex.: `SUPL ALIM`, `CURATIVO`) começam por ela.
+>    Outras formas por extenso: SUSP = SUSPENSAO, XPE = XAROPE, GTS = GOTAS, POM = POMADA… (nunca "COMPOSTO").
+> 5. **Conteúdo** (coluna) — sempre com unidade. Formas farmacêuticas contam como unidade (`30 COMP` → 30UN, `C/10 CPR`
+>    → 10UN); líquidos/cremes em ML/G (`COLIRIO 5ML`, `CREME 30G`). Sem nada: 1UN.
+> 6. **Prioridade do arquivo** — categoria, marca, fabricante e conteúdo que vierem no arquivo valem; só trocar o que
 >    estiver bem fora do comum, **sempre com alerta** (ex.: fabricante do arquivo diferente do laboratório escrito na
 >    descrição → vale o laboratório). O descritivo é sempre padronizado.
-> 6. A regra "marca só vale se existir na EST MER 6 do item" (usada nas outras cestas) **não** se aplica à Farmácia.
-> 7. Pendências a resolver com a pessoa: regra de **marca** na Farmácia; nomes oficiais que faltam; CORTICOIDES.
+> 7. A regra "marca só vale se existir na EST MER 6 do item" (usada nas outras cestas) **não** se aplica à Farmácia.
+> 8. Laboratórios do grupo saem pelo grupo (GERMED/LEGRAND → EMS PHARMA; NEO QUIMICA → HYPERA PHARMA).
+>    CORTICOIDES = `S01B CORTICOIDES`. Pendente: nomes oficiais que faltam.
 
 ---
 
@@ -86,7 +91,7 @@ anti-inflamatórios "Por Defecto" (ibuprofeno, diclofenaco…) → ANTI REUMATIC
 - Uma limpeza antiga tirou o código ATC do nome de ~380 categorias. O nome interno ficou; o **oficial** (com código)
   é o que sai na planilha e é reconhecido na coluna CATEGORIA do arquivo (com ou sem código).
 - Recuperados **238 de 400**. Faltam 162 (umas 20 não têm código mesmo: CURATIVO, SORO FISIOLOGICO…).
-- **CORTICOIDES** é ambíguo: R03D (respiratório) ou S01B (oftalmológico) — perguntar.
+- **CORTICOIDES** = `S01B CORTICOIDES` (oftalmológico), decidido com o cliente (`FIXOS` em `nomes_oficiais.py`).
 
 ### 3.3 Descritivo
 - Categoria sem início fixo no manual (379 de 400): **marca** na frente; sem marca, **princípio ativo** (como está
@@ -96,7 +101,9 @@ anti-inflamatórios "Por Defecto" (ibuprofeno, diclofenaco…) → ANTI REUMATIC
 - Abreviações de forma: COMP/COMPR/CP/CPR/CPS = COMPRIMIDO; CAP/CAPS = CAPSULA; DRG = DRAGEA; SOL = SOLUCAO; SUSP =
   SUSPENSAO; XPE/XAR = XAROPE; GTS = GOTAS; POM = POMADA; AMP = AMPOLA; INJ = INJETAVEL; EFERV = EFERVESCENTE;
   REV = REVESTIDO.
-- Ainda **não** sai a dosagem (500MG) no descritivo — confirmar se o padrão exige.
+- Dosagem entra no descritivo, depois do complemento (500MG, 0.5%, 2000UI, 250MG/5ML, 875MG+125MG).
+- Quantidade na forma: 10CPRS / 28CAPS / 30DRGS (a palavra da forma sai). Laboratório (nome ou código) sai do
+  descritivo. Forma colada no número (20CP, 14CPR) é reconhecida.
 
 ### 3.4 Conteúdo
 - COMP, COMPR, COMPRIMIDO(S), CP, CPR, CPS, CAP, CAPS, CAPSULA(S), DRG, DRAGEA(S) contam como UN.
@@ -111,30 +118,33 @@ anti-inflamatórios "Por Defecto" (ibuprofeno, diclofenaco…) → ANTI REUMATIC
 - Procura na 1ª descrição primeiro; nome em qualquer lugar, código só como **última palavra**.
 - Achou → é o fabricante. Se o arquivo trouxe outro → alerta "Arquivo: fabricante X difere do laboratório na
   descrição (Y); usado Y". Não achou → fabricante do arquivo; sem ele, o da marca.
-- Observação: as bases registram marcas do grupo pelo grupo (Germed e Legrand saem EMS PHARMA; Neo Química sai
-  HYPERA PHARMA). Se o cliente quiser o laboratório "de rótulo", mudar os apelidos.
+- Laboratórios do grupo saem pelo grupo (Germed e Legrand → EMS PHARMA; Neo Química → HYPERA PHARMA) — confirmado.
 
 ### 3.6 Marca
-- Hoje: DIMA primeiro, depois dicionário; na Farmácia **sem** exigir que a marca exista na EST MER 6 do item.
-- **Pendente**: a DIMA registra "marcas" como `CIM`, `EMS`, `LOSARTANA POTASSICA` (genérico + laboratório). Falta a
-  regra: genérico sai com o laboratório como marca? medicamento de marca (DORFLEX, NEOSALDINA) com o nome comercial?
+- Regra (decidida): **nome comercial**; genérico → **princípio ativo** como marca (como escrito na descrição: LOSARTANA,
+  DIPIRONA), fabricante = laboratório.
+- Ordem: marca comercial da DIMA/dicionário (descartando laboratório, GENERICO e nome com princípio ativo — a DIMA tem
+  `EMS`, `CIM`, `LOSARTANA POTASSICA`, `DIPIRONA`/BIOVET); senão a 1ª palavra da descrição, se não for princípio ativo,
+  sal, forma, número ou laboratório (só em categorias sem início fixo); senão o princípio ativo; senão OUTRA MARCA.
+- Marca do arquivo que é laboratório/genérico é trocada, com alerta. Marca comercial fora das bases (DORFLEX,
+  NEOSALDINA) sai com fabricante do arquivo ou OUTRO FABRICANTE (a menos que o laboratório esteja na descrição).
 
 ---
 
 ## 4. Pendências para o agente de Farmácia
-1. Regra de **marca** na Farmácia (item 3.6).
-2. **Nomes oficiais** das 162 categorias sem código (pedir a árvore EST MER 7/6 com códigos).
-3. **CORTICOIDES**: R03D ou S01B?
-4. Validar com o cliente as **correções** da base (3.1) e as 455 linhas marcadas VALIDAR.
-5. Dosagem (MG) no descritivo: sim ou não?
-6. Apelidos de laboratório: grupo (EMS/HYPERA) ou laboratório de rótulo (GERMED/NEO QUIMICA)?
+1. **Nomes oficiais** das 161 categorias sem código (pedir a árvore EST MER 7/6 com códigos). A base traz
+   `C10A1 ESTATINASINIB DA HMG COA REDUTASE` (parece "ESTATINAS/INIB…" sem a barra) — confirmar.
+2. Validar com o cliente as **correções** da base (3.1) e as 455 linhas marcadas VALIDAR.
+3. Confirmar abreviações das formas na quantidade (CPRS, CAPS, DRGS) e se GENERICO deve sair do descritivo.
+Resolvidas: marca (3.6), dosagem no descritivo (3.3), laboratórios pelo grupo (3.5), CORTICOIDES = S01B.
 
 ## 5. Resultados de referência (testes)
-Ver `testes/resultados_esperados.txt`. Exemplos:
-- `DIPIRONA SODICA 500MG C/10 CPR EMS` → NAO NARCOTICOS ANTIPIRETICOS (oficial N02B …) · EMS / EMS PHARMA ·
-  "EMS DIPIRONA SODICA COMPRIMIDO 10UN"
-- `LOSARTANA POTASSICA 50MG 30 COMP GERMED` → C09C ANTAGONISTAS DE LA ANGIOTENSINA II PUROS · fabricante EMS PHARMA ·
-  "LOSARTANA POTASSICA COMPRIMIDO 30UN"
+Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exemplos:
+- `DIPIRONA SODICA 500MG C/10 CPR EMS` → N02B NAO NARCOTICOS ANTIPIRETICOS · marca DIPIRONA · EMS PHARMA ·
+  "DIPIRONA SODICA 500MG 10CPRS"
+- `LOSARTANA POTASSICA 50MG 30 COMP GERMED` → C09C ANTAGONISTAS DE LA ANGIOTENSINA II PUROS · marca LOSARTANA ·
+  fabricante EMS PHARMA · "LOSARTANA POTASSICA 50MG 30CPRS"
+- `DORFLEX DIPIRONA 300MG 10 COMP` → marca DORFLEX · "DORFLEX DIPIRONA 300MG 10CPRS"
 - `OMEPRAZOL 20MG 28 CAPS NEO QUIMICA` → fabricante HYPERA PHARMA
 - `CETOCONAZOL CREME 30G` → ANTIFUNGICOS DERMATOLOGICOS TOPICOS; `CETOCONAZOL 200MG 10 COMP` → antimicóticos sistêmicos
 - `AMOXICILINA 250MG P/ CAES E GATOS` → não vai para Farmácia humana

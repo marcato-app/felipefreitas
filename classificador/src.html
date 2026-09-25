@@ -901,14 +901,59 @@ function labIndex() {
   LABS = { chave, codigo, rx: termos.length ? new RegExp('(?<![A-Z0-9])(?:' + termos.map(escRx).join('|') + ')(?![A-Z0-9])') : null };
   return LABS;
 }
-function labDaDescricao(T) {
+function labAchado(T) {
   const L = labIndex();
   for (const t of T) { // 1ª descrição primeiro
-    const m = L.rx && t.match(L.rx); if (m) return L.chave.get(m[0]);
-    const w = t.split(' '); const last = w[w.length - 1]; if (L.codigo.has(last)) return L.codigo.get(last);
+    const m = L.rx && t.match(L.rx); if (m) return { fab: L.chave.get(m[0]), termo: m[0] };
+    const w = t.split(' '); const last = w[w.length - 1]; if (L.codigo.has(last)) return { fab: L.codigo.get(last), termo: last };
   }
   return null;
 }
+function labDaDescricao(T) { const l = labAchado(T); return l ? l.fab : null; }
+/* ---- Farmácia: marca = nome comercial; genérico: marca = princípio ativo (fabricante = laboratório) ---- */
+const FARMA_NAO_MARCA = new Set(('GENERICO GENERICA GENERICOS SIMILAR MEDICAMENTO REFERENCIA INFANTIL ADULTO PEDIATRICO ' +
+  'CLORIDRATO DICLORIDRATO BROMIDRATO MALEATO SUCCINATO TARTARATO SULFATO ACETATO BESILATO MESILATO CITRATO FOSFATO FUMARATO HEMIFUMARATO ' +
+  'LACTATO NITRATO VALERATO PROPIONATO DIPROPIONATO ESTOLATO CLORETO ACIDO SODIO SODICO SODICA POTASSIO POTASSICO POTASSICA CALCIO CALCICO MAGNESIO ' +
+  'MONOIDRATADO MONOIDRATADA DI TRI HIDRATADO HIDRATADA ASSOCIACAO COMPOSTO COMPOSTA ' +
+  'COMPRIMIDO COMPRIMIDOS CAPSULA CAPSULAS DRAGEA DRAGEAS SOLUCAO SUSPENSAO XAROPE GOTAS POMADA CREME GEL LOCAO SPRAY COLIRIO AMPOLA INJETAVEL ' +
+  'EFERVESCENTE REVESTIDO ORAL NASAL TOPICO TOPICA OFTALMICO OFTALMICA SACHE SACHES PO FRASCO BISNAGA CAIXA CX FR').split(' '));
+function farmaNaoMarca(m, C) {
+  const n = N(m); if (!n) return true;
+  const L = labIndex(); const P = C.pa;
+  if (L.chave.has(n) || L.codigo.has(n) || LAB_ALIAS[n] || FARMA_NAO_MARCA.has(n)) return true; // laboratório (EMS, CIM, MEDLEY...) não é marca
+  if (GROUP_TOK.FARMA[n]) return true;
+  if (P) { P.rx.lastIndex = 0; if (P.rx.test(n)) return true; } // tem princípio ativo no nome (DIPIRONA, LOSARTANA POTASSICA)
+  return false;
+}
+// nome comercial escrito no começo da 1ª descrição (DORFLEX, NEOSALDINA), antes de princípio ativo, número ou forma
+function nomeComercial(T, C, vocab) {
+  const t = T[0] || ''; const L = labIndex();
+  for (const w of t.split(' ')) {
+    if (SKIPTIPO.has(w)) continue;
+    if (/\d/.test(w) || w.length < 3 || farmaNaoMarca(w, C) || L.rx && L.rx.test(w)) return null;
+    if (GENERIC.has(w) || NOISE.has(w) || ATTR.has(w) || (vocab && vocab.nome.has(w))) return null; // termos de "incluir" da Farmácia costumam ser as próprias marcas (NEOSALDINA)
+    return w;
+  }
+  return null;
+}
+// dosagem (500MG, 0.5%, 2000UI, 250MG/5ML, 875MG+125MG): da 1ª descrição que tiver
+const RX_DOSE = /(?<![0-9.A-Z])(\d+(?:\.\d+)?)\s*(MG|MCG|UG|UI|MEQ|%)(?:\s*(\d+(?:\.\d+)?)?\s*(ML|G|GOTA|GTS)(?![A-Z]))?/g;
+function dosagem(T) {
+  for (const t of T) {
+    const out = []; let m; RX_DOSE.lastIndex = 0;
+    while ((m = RX_DOSE.exec(t))) {
+      if (m[4] && m[3] && +m[3] > 10) { RX_DOSE.lastIndex = m.index + m[1].length + 1; out.push(m[1] + m[2]); continue; } // 500MG 100ML: 100ML é conteúdo
+      const d = m[1] + m[2] + (m[4] ? '/' + (m[3] && +m[3] !== 1 ? m[3] : '') + (m[4] === 'GTS' ? 'GOTA' : m[4]) : '');
+      if (!out.includes(d)) out.push(d);
+    }
+    if (out.length) return out.join('+');
+  }
+  return '';
+}
+// forma que conta unidade: 10 comprimidos -> 10CPRS, 28 cápsulas -> 28CAPS, 30 drágeas -> 30DRGS
+const FORMA_UN = [[/(?<![A-Z])(COMPRIMIDOS?|COMPR|COMP|CPRS?|CPS|CP)(?![A-Z])/, 'CPRS', /^COMPRIMIDOS?$/],
+  [/(?<![A-Z])(CAPSULAS?|CAPS|CAP)(?![A-Z])/, 'CAPS', /^CAPSULAS?$/], [/(?<![A-Z])(DRAGEAS?|DRG)(?![A-Z])/, 'DRGS', /^DRAGEAS?$/]];
+function formaUn(T) { for (const t of T) { const x = prepQ(t).replace(RX_FORMA_COLADA, '$1 $2'); for (const f of FORMA_UN) if (f[0].test(x)) return f; } return null; }
 /* ---- prioridade do arquivo: o que veio no backlog vale; só troca o que estiver bem fora do comum ---- */
 const prioArq = () => cfg.priorizarArquivo !== false;
 const valido = v => { const n = N(v); return !!n && !/^(OUTRA MARCA|OUTRO FABRICANTE|OUTRA CATEGORIA|SEM MARCA|SEM FABRICANTE|NAO INFORMADO|N A|NA|0|NULL|NONE|-)$/.test(n); };
@@ -1005,7 +1050,26 @@ async function runAll() {
         const b = BD.map.get(bn); const conhecidos = new Set([...b.fabAll.keys()].map(N));
         if (conhecidos.has(N(it.sugFab))) fab = it.sugFab.trim(); }
     }
-    if (cc && cc.cesta === 'FARMACIA') { // fabricante = laboratório da descrição
+    const farma = !!cc && cc.cesta === 'FARMACIA';
+    if (farma) { // marca = nome comercial; genérico: o princípio ativo (o fabricante vem do laboratório, logo abaixo)
+      const pa = C.pa ? T.map(t => matchPA(t, C.pa)).find(Boolean) : null;
+      if (marcaArq && farmaNaoMarca(marca, C) && !(pa && N(paIni(pa, T)) === N(marca))) { // marca do arquivo é laboratório/genérico: não é marca
+        const velha = marca; bn = null; BD = null;
+        for (const DD of brandDicts()) { const b2 = findBrand(T, [], '', C.black, DD, vocab); if (b2 && !farmaNaoMarca(b2, C)) { bn = b2; BD = DD; break; } }
+        marca = null; arqAl.push(`Arquivo: marca ${velha} é laboratório ou genérico; usada a marca comercial ou o princípio ativo`);
+      } else if (!marcaArq && bn && farmaNaoMarca(bn, C)) { bn = null; BD = null; fab = prioArq() && valido(it.sugFab) ? it.sugFab.trim() : 'OUTRO FABRICANTE'; }
+      if (!marcaArq || marca === null) {
+        if (bn) { const trocada = marca === null; marca = BD.map.get(bn).canon; if (trocada) fab = valido(it.sugFab) ? it.sugFab.trim() : fabricante(bn, seg, BD); }
+        else {
+          const nc = !cc.inicio ? nomeComercial(T, C, vocab) : null;
+          if (nc) { bn = nc; marca = nc; }
+          else if (pa) { bn = paIni(pa, T); marca = bn; }
+          else marca = 'OUTRA MARCA';
+          fab = prioArq() && valido(it.sugFab) ? it.sugFab.trim() : 'OUTRO FABRICANTE';
+        }
+      }
+    }
+    if (farma) { // fabricante = laboratório da descrição
       const lab = labDaDescricao(T);
       if (lab) {
         if (prioArq() && valido(it.sugFab) && N(it.sugFab) !== N(lab)) arqAl.push(`Arquivo: fabricante ${it.sugFab.trim()} difere do laboratório na descrição (${lab}); usado ${lab}`);
@@ -1039,14 +1103,20 @@ async function runAll() {
     if (!q.base) q = Object.assign({}, q, { base: 'UN' });
     // Farmácia sem início fixo no manual: começa pela marca; sem marca, pelo princípio ativo (ou pelo nome do produto)
     const farmaLivre = cc && cc.cesta === 'FARMACIA' && !cc.inicio;
-    const paHit = farmaLivre && !bn && C.pa ? T.map(t => matchPA(t, C.pa)).find(Boolean) : null;
-    const ini = farmaLivre ? (bn ? '' : paHit ? paIni(paHit, T) : nounOutra(T, bn))
+    const ini = farmaLivre ? (bn ? '' : nounOutra(T, bn))
       : (cc && cc.dinamico) ? (tipoIni(T, a.per, a.cat, C) || nounOutra(T, bn)) : a.cat === OUT ? nounOutra(T, bn) : (cc.inicio || cc.nome);
     const keepT = T.filter((t, j) => a.per[j] === a.cat); const T2 = keepT.length ? keepT : T;
     const brandTxt = bn ? cleanD(marca) : '';
-    const comp = complement(T2, a.cat, ini, bn || '', groupOf(a.cat), cc);
+    let comp = complement(T2, a.cat, ini, bn || '', groupOf(a.cat), cc);
+    let qTxt = qtyText(q), dose = '';
+    if (farma) { // Farmácia: sem laboratório no descritivo; dosagem (500MG) e a forma como unidade (10CPRS)
+      const lab = labAchado(T2), fu = q.base === 'UN' && q.n === 1 ? formaUn(T2) : null;
+      comp = comp.split(' ').filter(w => !(lab && lab.termo.split(' ').includes(w)) && !(fu && fu[2].test(w))).join(' ');
+      if (fu) qTxt = fmtn(q.tot) + fu[1];
+      dose = dosagem(T2);
+    }
     // o descritivo é sempre padronizado pelo app (já com a categoria, marca e conteúdo mantidos do arquivo)
-    const desc = cleanD([ini, brandTxt, comp, qtyText(q)].filter(Boolean).join(' '));
+    const desc = cleanD([ini, brandTxt, comp].filter(Boolean).join(' ')) + (dose ? ' ' + dose : '') + (qTxt ? ' ' + qTxt : '');
     const alerts = [];
     { const C0 = C.pa && T.map(t => matchPA(t, C.pa)).find(p => p && p.cat === a.cat);
       if (C0) alerts.push('Categoria pelo princípio ativo ' + C0.pa + (C0.corrigido ? ' (destino corrigido em relação à base)' : C0.validar ? ' (base pede validação)' : '')); }

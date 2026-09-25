@@ -19,6 +19,10 @@ COD = re.compile(r'^[A-Z]\d{2}[A-Z]?\d?\s+')
 tira = lambda s: COD.sub('', s.strip())
 
 
+# decididos com o cliente quando a fonte tem mais de um código para o mesmo nome
+FIXOS = {'CORTICOIDES': 'S01B CORTICOIDES'}  # R03D ou S01B: cliente escolheu o oftalmológico
+
+
 def conserta(nome):
     """mojibake (ANÃ\\x81LOGOS -> ANALOGOS) e hífen que sobrou no lugar do código"""
     try: t = nome.encode('latin-1').decode('utf-8')
@@ -52,6 +56,8 @@ def main():
         if len(f) == 1: out[x['nome']] = next(iter(f))
         elif len(f) > 1: amb.append((x['nome'], sorted(f)))
         elif conserta(x['nome']) != x['nome']: out[x['nome']] = conserta(x['nome'])
+    out.update({k: v for k, v in FIXOS.items() if any(x['nome'] == k for x in cats)})
+    amb = [a for a in amb if a[0] not in FIXOS]
     c['nomesOficiais'] = out
     (here / 'consts.json').write_text(json.dumps(c, ensure_ascii=False), encoding='utf-8')
     far = [x['nome'] for x in cats if x.get('cesta') == 'FARMACIA']

@@ -170,3 +170,13 @@ Pontos pra checar, em ordem:
   alertas. Saída atual em `testes_farma/resultados.txt` (comparar com `diff` depois de mexer no código).
 - Forma farmacêutica colada no número (`20CP`, `14CP`, `30CAPS`) agora entra no descritivo
   (`PARACETAMOL 750MG 20CP` → `PARACETAMOL COMPRIMIDO 20UN`; antes saía `PARACETAMOL 20UN`).
+
+## Farmácia: marca, dosagem e forma no descritivo (decidido com o cliente)
+
+- Marca = nome comercial; genérico = princípio ativo (LOSARTANA), fabricante = laboratório. `farmaNaoMarca()` descarta
+  laboratório, GENERICO, sal/forma e nome com princípio ativo; `nomeComercial()` pega a 1ª palavra da descrição
+  (DORFLEX, NEOSALDINA) quando não há marca comercial nas bases.
+- Descritivo: marca + complemento + dosagem (`dosagem()`: 500MG, 0.5%, 250MG/5ML, 875MG+125MG) + quantidade na forma
+  (`formaUn()`: 10CPRS / 28CAPS / 30DRGS). Laboratório sai do descritivo. A coluna de conteúdo continua em UN.
+- CORTICOIDES = `S01B CORTICOIDES` (`FIXOS` em `nomes_oficiais.py`). Laboratórios do grupo continuam pelo grupo.
+- Detalhes e pendências em `farma_pacote/LEIA-ME_FARMACIA.md`.
