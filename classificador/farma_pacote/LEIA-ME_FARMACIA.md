@@ -146,8 +146,11 @@ anti-inflamatórios "Por Defecto" (ibuprofeno, diclofenaco…) → ANTI REUMATIC
 - Ordem: marca comercial da DIMA/dicionário (descartando laboratório, GENERICO e nome com princípio ativo — a DIMA tem
   `EMS`, `CIM`, `LOSARTANA POTASSICA`, `DIPIRONA`/BIOVET); senão a 1ª palavra da descrição, se não for princípio ativo,
   sal, forma, número ou laboratório (só em categorias sem início fixo); senão o princípio ativo; senão OUTRA MARCA.
-- Marca do arquivo que é laboratório/genérico é trocada, com alerta. Marca comercial fora das bases (DORFLEX,
-  NEOSALDINA) sai com fabricante do arquivo ou OUTRO FABRICANTE (a menos que o laboratório esteja na descrição).
+- Marca do arquivo que é laboratório/genérico é trocada, com alerta.
+- A DIMA grava a marca com o código do laboratório (`DORFLEX (OPE)`, `NEOSALDINA HYP`). O `dima.py` cria também o
+  nome sem o código nas categorias ATC (só marca comercial, nunca nome com princípio ativo), e o nome comercial achado na
+  descrição busca o fabricante na DIMA e depois no dicionário: DORFLEX → OPELLA, NEOSALDINA → HYPERA PHARMA,
+  TYLENOL → KENVUE.
 
 ---
 
@@ -164,7 +167,7 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   "DIPIRONA SODICA 500MG 10CPRS"
 - `LOSARTANA POTASSICA 50MG 30 COMP GERMED` → C09C ANTAGONISTAS DE LA ANGIOTENSINA II PUROS · marca LOSARTANA ·
   fabricante EMS PHARMA · "LOSARTANA POTASSICA 50MG 30CPRS"
-- `DORFLEX DIPIRONA 300MG 10 COMP` → marca DORFLEX · "DORFLEX DIPIRONA 300MG 10CPRS"
+- `DORFLEX DIPIRONA 300MG 10 COMP` → marca DORFLEX · fabricante OPELLA · "DORFLEX DIPIRONA 300MG 10CPRS"
 - `OMEPRAZOL 20MG 28 CAPS NEO QUIMICA` → fabricante HYPERA PHARMA
 - `CETOCONAZOL CREME 30G` → ANTIFUNGICOS DERMATOLOGICOS TOPICOS; `CETOCONAZOL 200MG 10 COMP` → antimicóticos sistêmicos
 - `AMOXICILINA 250MG P/ CAES E GATOS` → não vai para Farmácia humana

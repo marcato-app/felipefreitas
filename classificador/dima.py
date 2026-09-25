@@ -27,6 +27,26 @@ def main():
         seg, mar, fab = s(r[0]), s(r[1]), s(r[2])
         if not mar: continue
         rows += [idx(marcas, mar), idx(segs, seg), idx(fabs, fab or 'OUTRO FABRICANTE')]
+    # Farmácia: a DIMA grava a marca com o código do laboratório ("DORFLEX (OPE)", "NEOSALDINA HYP"), mas a descrição
+    # traz só "DORFLEX". Nas categorias ATC, o nome sem o código também vira marca, com as mesmas linhas.
+    import re
+    atc = re.compile(r'^[A-Z]\d\d[A-Z]?\d?\s')
+    inv_m = {v: k for k, v in marcas.items()}; inv_s = {v: k for k, v in segs.items()}
+    # só marca comercial: nome com princípio ativo (genérico: "BICARBONATO DE SODIO XXX", "OMEPRAZOL TEU") fica de fora
+    import unicodedata
+    Nn = lambda t: ' '.join(re.sub(r'[^A-Z0-9 ]', ' ', unicodedata.normalize('NFKD', str(t)).encode('ascii', 'ignore').decode().upper()).split())
+    pa = sorted({Nn(a) for r in json.loads((here / 'consts.json').read_text(encoding='utf-8')).get('farmaPA', [])
+                 for p in r['partes'] for a in p.split('|') if Nn(a)}, key=len, reverse=True)
+    rx_pa = re.compile(r'(?<![A-Z0-9])(?:' + '|'.join(map(re.escape, pa)) + r')(?![A-Z0-9])') if pa else None
+    extra = []
+    for k in range(0, len(rows), 3):
+        mar, seg = inv_m[rows[k]], inv_s[rows[k + 1]]
+        if not atc.match(seg + ' '): continue
+        m = re.match(r'^(.*?)\s*\(([A-Z0-9]{2,4})\)$', mar) or re.match(r'^(.*\S)\s+([A-Z0-9]{3})$', mar)
+        if not m: continue
+        base = m.group(1).strip()
+        if len(base) >= 3 and not base.isdigit() and not (rx_pa and rx_pa.search(Nn(base))): extra += [idx(marcas, base), rows[k + 1], rows[k + 2]]
+    rows += extra
     abr = []
     for r in ws[1].iter_rows(min_row=2, values_only=True):
         mar = s(r[0])

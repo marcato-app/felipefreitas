@@ -1088,10 +1088,12 @@ async function runAll() {
         else if (fmHit) { marca = fmHit.nome; fab = fabArq || fmHit.fab || 'OUTRO FABRICANTE'; }
         else {
           const nc = !cc.inicio ? nomeComercial(T, C, vocab, paW) : null;
-          if (nc) { bn = nc; marca = nc; }
+          // nome comercial pode ser palavra da própria categoria (DORFLEX em ASSOCIADOS): fabricante pela DIMA, depois pelo dicionário
+          const ND = nc && [data.dima, data.dict].find(D => D && D.map.has(nc));
+          if (nc) { bn = nc; marca = ND ? ND.map.get(nc).canon : nc; }
           else if (pa) { bn = paIni(pa, T); marca = bn; }
           else marca = 'OUTRA MARCA';
-          fab = fabArq || 'OUTRO FABRICANTE';
+          fab = fabArq || (ND ? fabricante(nc, seg, ND) : 'OUTRO FABRICANTE');
         }
       }
     }

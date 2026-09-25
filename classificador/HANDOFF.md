@@ -195,3 +195,5 @@ Pontos pra checar, em ordem:
 - Agente de Farmácia (esta branch): https://claude.ai/artifact/FBP4i6ZktAFc1ymeYWmyP7 — publicar sempre o `farmacia.html`.
 - Classificador geral: https://claude.ai/artifact/UFuhJCnyT5Lwi3wYZVMVu1 — não publicar esta branch nele (voltou à
   versão da branch `claude/modest-maxwell-y0utos`).
+- DIMA com código do laboratório na marca (`DORFLEX (OPE)`): `dima.py` cria o nome sem código (categorias ATC, sem
+  princípio ativo); `nomeComercial` busca o fabricante na DIMA e depois no dicionário (DORFLEX → OPELLA).

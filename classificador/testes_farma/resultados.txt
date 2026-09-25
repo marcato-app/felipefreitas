@@ -45,10 +45,10 @@
                                                    AMOXICILINA CAES E GATOS COMPOSTO 10UN | OUTRA MARCA | OUTRO FABRICANTE
                                                    [] pri=0
                                                  => N02B NAO NARCOTICOS ANTIPIRETICOS
-                                                   DORFLEX DIPIRONA 300MG 10CPRS | DORFLEX | OUTRO FABRICANTE
+                                                   DORFLEX DIPIRONA 300MG 10CPRS | DORFLEX | OPELLA
                                                    ["Categoria pelo princípio ativo Dipirona"] pri=0
                                                  => N02C9 TODAS AS OUTRAS PREPARACOES ANTI ENXAQUECA
-                                                   NEOSALDINA 30DRGS | NEOSALDINA | OUTRO FABRICANTE
+                                                   NEOSALDINA 30DRGS | NEOSALDINA | HYPERA PHARMA
                                                    [] pri=0
 == farma_laboratorio.csv
                                                  => N02B NAO NARCOTICOS ANTIPIRETICOS
@@ -70,7 +70,7 @@
                                                    IBUPROFENO 600MG 20CPRS | IBUPROFENO | PRATI DONADUZZI
                                                    ["Categoria pelo princípio ativo Ibuprofeno (base pede validação)"] pri=2
                                                  => ASSOCIADOS
-                                                   DORFLEX 10CPRS | DORFLEX | OUTRO FABRICANTE
+                                                   DORFLEX 10CPRS | DORFLEX | OPELLA
                                                    [] pri=0
                                                  => N02B NAO NARCOTICOS ANTIPIRETICOS
                                                    PARACETAMOL 750MG 20CPRS | PARACETAMOL | TEUTO
