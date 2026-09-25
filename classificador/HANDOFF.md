@@ -127,3 +127,9 @@ Pontos pra checar, em ordem:
   - conteúdo: a descrição tem outro valor na mesma unidade com mais de 2× de diferença;
   - descritivo: vazio/lixo, ou algum campo acima trocado (aí é refeito).
 - Campo vazio no arquivo: o app completa como antes. Aba REVISAO ganhou FABRICANTE SUGERIDO.
+
+## Nome oficial das categorias (código EST MER 7/6)
+
+- Uma limpeza antiga tirou o código ATC do nome de ~380 categorias de Farmácia. O nome interno ficou (regras/ligações/navegador dependem dele); `nomes_oficiais.py` gera `consts.json → nomesOficiais` (interno → oficial, ex.: "ANTAGONISTAS H2" → "A02B1 ANTAGONISTAS H2") a partir do dicionário de princípios ativos e da DIMA, e conserta nomes corrompidos (hífen sobrando, acento quebrado). 238/400 de Farmácia recuperados; lista em `dados/farma_nomes_oficiais.xlsx`. Com a árvore oficial em `dados/arvore_est_mer.xlsx`, rodar de novo.
+- `nomeOf()` é o que sai na planilha (Planilha1, REVISAO, RESUMO) e na tela; `catInterna()` reconhece a CATEGORIA do arquivo pelo nome oficial (com ou sem código) ou interno. Categoria pode ter `nomeOficial` próprio (sobrepõe).
+- Conteúdo do arquivo só com número: unidade pela contagem da descrição ou pela `unidadeSugerida` da categoria.

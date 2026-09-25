@@ -335,6 +335,7 @@ const normH = h => N(h).replace(/ /g, '');
 function findCol(hdr, tests) { const H = hdr.map(normH); for (const t of tests) { const i = H.findIndex(h => t(h)); if (i >= 0) return i; } return -1; }
 
 async function loadBacklog(file) {
+  data.catAlias = null;
   const rows = await readTable(file); const hdr = rows[0] || [];
   const ci = {
     bc: findCol(hdr, [h => h === 'BARCODE', h => h.includes('CODIGOBARRAS'), h => h.includes('EAN'), h => h.includes('BARCODE')]),
@@ -354,7 +355,7 @@ async function loadBacklog(file) {
     const D = parseDescs(row[ci.ds]);
     const mainD = ci.main >= 0 && row[ci.main] ? String(row[ci.main]).trim() : '';
     if (mainD) { const k = D.findIndex(x => N(x) === N(mainD)); if (k >= 0) D.splice(k, 1); D.unshift(mainD); }
-    items.push({ barcode: row[ci.bc], D, T: D.map(N), main: !!mainD, sugCat: ci.cat >= 0 ? String(row[ci.cat] ?? '').trim() : '', sugMarca: ci.mar >= 0 ? String(row[ci.mar] ?? '').trim() : '',
+    items.push({ barcode: row[ci.bc], D, T: D.map(N), main: !!mainD, sugCatRaw: ci.cat >= 0 ? String(row[ci.cat] ?? '').trim() : '', sugCat: ci.cat >= 0 ? catInterna(row[ci.cat]) : '', sugMarca: ci.mar >= 0 ? String(row[ci.mar] ?? '').trim() : '',
       sugFab: ci.fab >= 0 ? String(row[ci.fab] ?? '').trim() : '', sugQt: ci.qt >= 0 ? row[ci.qt] : null,
       sugDesc: ci.dp >= 0 ? String(row[ci.dp] ?? '').trim() : '' });
   }
@@ -947,6 +948,9 @@ async function runAll() {
       if (mesmo && (r > 2 || r < 0.5)) arqAl.push(`Arquivo: conteúdo ${qf.base ? qtyText(qf) : fmtn(qf.tot)} muito diferente da descrição (${qtyText(q)}); usado o da descrição`);
       else if (qf.base) q = qf;
       else q = q.tot !== null ? Object.assign({}, q, { tot: qf.tot, n: 1, uv: qf.tot, flag: '' }) : qf;
+      if (q === qf && !qf.base) { // número sem unidade no arquivo: unidade pela contagem da descrição ou pela unidade sugerida da categoria
+        const u = countQty(T); const us = cc && cc.unidadeSugerida;
+        q = Object.assign({}, qf, { base: u ? u.base : us ? String(us).toUpperCase() : '' }); }
     }
     if (q.tot === null) { const u = countQty(T); if (u) q = u; else { const d = defaultQty((cc && cc.qtdPadrao) || cfg.qtdPadrao); if (d) q = d; } }
     // Farmácia sem início fixo no manual: começa pela marca; sem marca, pelo princípio ativo (ou pelo nome do produto)
@@ -1004,22 +1008,31 @@ function ciFlag(barcode) {
   if (curto || zeros) return 'Possível Código Interno';
   return 'Sem indícios de CI';
 }
+// nome oficial da categoria (EST MER 7/6 com o código, ex.: "A02B1 ANTAGONISTAS H2"); o interno perdeu o código
+const nomeOf = cat => { const c = cfg.categorias.find(x => x.nome === cat); return (c && c.nomeOficial) || (K.nomesOficiais || {})[cat] || cat; };
+// coluna CATEGORIA do arquivo: aceita o nome oficial (com ou sem código) ou o interno
+function catInterna(v) {
+  const raw = String(v || '').trim(); if (!raw) return raw;
+  if (!data.catAlias) { data.catAlias = new Map(); const tira = x => x.replace(/^[A-Z]\d{2}[A-Z]?\d?\s+/, '').replace(/^[-\s]+/, '');
+    for (const c of cfg.categorias) for (const x of [c.nome, nomeOf(c.nome)]) { data.catAlias.set(N(x), c.nome); data.catAlias.set(N(tira(N(x))), c.nome); } }
+  const n = N(raw); return data.catAlias.get(n) || data.catAlias.get(n.replace(/^[A-Z]\d{2}[A-Z]?\d?\s+/, '')) || raw;
+}
 function buildWorkbook() {
   const R = data.results; const wb = XLSX.utils.book_new();
   const num = v => (v === null || v === undefined || isNaN(v)) ? null : (Math.abs(v - Math.round(v)) < 1e-9 ? Math.round(v) : v);
   const bc = v => { const s = String(v).trim(); return /^\d{1,15}$/.test(s) ? Number(s) : s; };
   const main = [['CODIGO BARRAS', 'DESCRITIVO PADRONIZADO', 'FABRICANTE', 'MARCA', 'CONTENIDO', 'CATEGORIA', 'CODIGO INTERNO']];
-  for (const r of R) main.push([bc(r.it.barcode), r.desc, r.fab, r.marca, num(r.qt), r.cat, ciFlag(r.it.barcode)]);
+  for (const r of R) main.push([bc(r.it.barcode), r.desc, r.fab, r.marca, num(r.qt), nomeOf(r.cat), ciFlag(r.it.barcode)]);
   const ws = XLSX.utils.aoa_to_sheet(main); ws['!cols'] = [{ wch: 16 }, { wch: 60 }, { wch: 28 }, { wch: 24 }, { wch: 11 }, { wch: 26 }, { wch: 22 }];
   for (let i = 2; i <= main.length; i++) { const c = ws['A' + i]; if (c && c.t === 'n') c.z = '0'; }
   XLSX.utils.book_append_sheet(wb, ws, 'Planilha1');
   const rv = [['CODIGO BARRAS', 'CODIGO INTERNO', 'CATEGORIA', 'CATEGORIA SUGERIDA', 'MARCA', 'MARCA SUGERIDA', 'FABRICANTE', 'FABRICANTE SUGERIDO', 'CONTENIDO', 'CONTENIDO SUGERIDO', 'DESCRITIVO PADRONIZADO', 'ALERTAS', 'DESCRICOES ORIGINAIS', 'PRIORIDADE']];
   for (const r of [...R].filter(r => r.pri).sort((a, b) => a.pri - b.pri || a.cat.localeCompare(b.cat)))
-    rv.push([bc(r.it.barcode), ciFlag(r.it.barcode), r.cat, r.it.sugCat, r.marca, r.it.sugMarca, r.fab, r.it.sugFab, num(r.qt), r.it.sugQt, r.desc, r.alerts.join('; '), r.it.D.slice(0, 4).join(' | ').slice(0, 500), r.pri]);
+    rv.push([bc(r.it.barcode), ciFlag(r.it.barcode), nomeOf(r.cat), r.it.sugCatRaw || r.it.sugCat, r.marca, r.it.sugMarca, r.fab, r.it.sugFab, num(r.qt), r.it.sugQt, r.desc, r.alerts.join('; '), r.it.D.slice(0, 4).join(' | ').slice(0, 500), r.pri]);
   const ws2 = XLSX.utils.aoa_to_sheet(rv); ws2['!cols'] = [{ wch: 16 }, { wch: 22 }, { wch: 24 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 50 }, { wch: 55 }, { wch: 80 }, { wch: 10 }];
   ws2['!autofilter'] = { ref: 'A1:M' + rv.length };
   XLSX.utils.book_append_sheet(wb, ws2, 'REVISAO');
-  const cnt = new Map(); for (const r of R) { const k = r.cat; if (!cnt.has(k)) cnt.set(k, [0, 0, 0]); const x = cnt.get(k); x[0]++; if (r.marca === 'OUTRA MARCA') x[1]++; if (r.qt === null) x[2]++; }
+  const cnt = new Map(); for (const r of R) { const k = nomeOf(r.cat); if (!cnt.has(k)) cnt.set(k, [0, 0, 0]); const x = cnt.get(k); x[0]++; if (r.marca === 'OUTRA MARCA') x[1]++; if (r.qt === null) x[2]++; }
   const sm = [['CATEGORIA', 'QTD ITENS', 'SEM MARCA', 'SEM CONTENIDO']]; for (const [k, v] of [...cnt].sort((a, b) => b[1][0] - a[1][0])) sm.push([k, ...v]);
   const ciCnt = new Map(); for (const r of R) { const f = ciFlag(r.it.barcode); ciCnt.set(f, (ciCnt.get(f) || 0) + 1); }
   sm.push([]); sm.push(['CODIGO INTERNO', 'QTD ITENS']); for (const [k, v] of ciCnt) sm.push([k, v]);
@@ -1108,14 +1121,14 @@ function renderResults() {
   const tb = $('#catTbl tbody'); tb.replaceChildren();
   for (const [c, v] of [...cnt].sort((a, b) => b[1][0] - a[1][0])) tb.append(el('tr', {}, el('td', {}, c), ...v.map(x => el('td', { class: 'num' }, x.toLocaleString('pt-BR')))));
   const sel = $('#fltCat'); const cur = sel.value; sel.replaceChildren(el('option', { value: '' }, 'Todas'));
-  for (const [c] of [...cnt].sort()) sel.append(el('option', { value: c }, c)); sel.value = cur;
+  for (const [c] of [...cnt].sort()) sel.append(el('option', { value: c }, nomeOf(c))); sel.value = cur;
   renderPreview(); $('#btnDownload').disabled = false;
 }
 function renderPreview() {
   const R = data.results; if (!R) return; const fc = $('#fltCat').value, fm = $('#fltMode').value;
   const rows = R.filter(r => (!fc || r.cat === fc) && (fm === 'all' || r.pri)); const show = rows.slice(0, 300);
   const tb = $('#prev tbody'); tb.replaceChildren();
-  for (const r of show) tb.append(el('tr', {}, el('td', { class: 'mono' }, String(r.it.barcode)), el('td', {}, r.cat), el('td', {}, r.marca), el('td', {}, r.fab), el('td', { class: 'num' }, r.qt === null ? '' : fmtn(r.qt)), el('td', {}, r.desc), el('td', { class: 'alert' }, r.alerts.join('; ')), el('td', { class: 'note' }, (r.it.D[0] || '').slice(0, 90))));
+  for (const r of show) tb.append(el('tr', {}, el('td', { class: 'mono' }, String(r.it.barcode)), el('td', {}, nomeOf(r.cat)), el('td', {}, r.marca), el('td', {}, r.fab), el('td', { class: 'num' }, r.qt === null ? '' : fmtn(r.qt)), el('td', {}, r.desc), el('td', { class: 'alert' }, r.alerts.join('; ')), el('td', { class: 'note' }, (r.it.D[0] || '').slice(0, 90))));
   $('#prevNote').textContent = `${rows.length.toLocaleString('pt-BR')} itens no filtro${rows.length > 300 ? ' (mostrando os 300 primeiros; a planilha tem todos)' : ''}.`;
 }
 
