@@ -991,6 +991,10 @@ async function runAll() {
         q = Object.assign({}, qf, { base: u ? u.base : us ? String(us).toUpperCase() : '' }); }
     }
     if (q.tot === null) { const u = countQty(T); if (u) q = u; else { const d = defaultQty((cc && cc.qtdPadrao) || cfg.qtdPadrao); if (d) q = d; } }
+    // sempre sai uma unidade de medida: vendido a quilo (KG/GRANEL sem número) -> 1KG; nada -> 1UN; número sem unidade -> UN
+    if (q.tot === null) { const kg = T.some(t => /(?<![A-Z0-9])(KG|KILO|QUILO|GRANEL)(?![A-Z0-9])/.test(t));
+      q = { tot: kg ? 1000 : 1, base: kg ? 'G' : 'UN', n: 1, uv: kg ? 1000 : 1, flag: 'QTD_PADRAO' }; }
+    if (!q.base) q = Object.assign({}, q, { base: 'UN' });
     // Farmácia sem início fixo no manual: começa pela marca; sem marca, pelo princípio ativo (ou pelo nome do produto)
     const farmaLivre = cc && cc.cesta === 'FARMACIA' && !cc.inicio;
     const paHit = farmaLivre && !bn && C.pa ? T.map(t => matchPA(t, C.pa)).find(Boolean) : null;

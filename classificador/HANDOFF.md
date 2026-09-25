@@ -140,3 +140,7 @@ Pontos pra checar, em ordem:
 - `labDaDescricao()`: 1ª descrição primeiro; nome em qualquer lugar, código só como última palavra. Nunca usa só a 1ª palavra do nome do fabricante (PONTO DAS ERVAS pegava "LV PONTO").
 - Em item de Farmácia, o laboratório achado vira o fabricante (grafia do dicionário quando anexado); se o arquivo trouxer outro fabricante, alerta "Arquivo: fabricante X difere do laboratório na descrição". Sem laboratório: fabricante do arquivo ou da marca.
 - Geral: item sem marca agora mantém o fabricante do arquivo (antes virava OUTRO FABRICANTE).
+
+## Sempre uma unidade de medida
+
+- Depois de descrição, arquivo e padrão da categoria: sem quantidade nenhuma → 1KG se a descrição diz KG/KILO/GRANEL sem número (vendido a quilo), senão 1UN; número sem unidade → UN. Alerta "Sem quantidade na descrição; usado o padrão …".
