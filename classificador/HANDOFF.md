@@ -158,3 +158,7 @@ Pontos pra checar, em ordem:
 - `U` não tem mais "K" solto (7830K, 4K são modelo). "2K" só vira 2KG em texto com substância vendida a peso (`SUBST_RX`: barbante, grampo, prego, arame, tinta, cola…), número ≤ 50.
 - `vendidoPorUnidade()`: categoria de objeto (nome com ESCOVA, PENTE, TESOURA, ALICATE, ESPELHO, ACESSORIO…, `DURAVEL`, sem substância na descrição) ou tipo do produto (1ª palavra) em `OBJETO_TIPO` (regador, pulverizador, copo, régua, estojo, prumo, lona, sacola, bobina, lixa, borracha, caixa, filtro, tanque…) → peso/volume da descrição não é conteúdo; fica contagem ou 1UN. Conteúdo G/ML do arquivo também é ignorado com alerta; número do arquivo > 1000 UN é ignorado com alerta.
 - ESCOVA PARA CABELO ganhou os tipos de escova (raquete, redonda, térmica…) e PALETA BOVINA exclui ESCOVA/CABELO (libPatch escova-cabelo-2026-09b).
+
+## Farmácia: agente próprio
+
+- A partir de 2026-09-25 a Farmácia é tratada por um agente separado (pacote em `farma_pacote/` / `farma_pacote.zip`). Neste fluxo o app continua com a lógica de Farmácia como está, mas **não se mexe mais nela aqui**; mudanças de Farmácia vêm do outro agente.
