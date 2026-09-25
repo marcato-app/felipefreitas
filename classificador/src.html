@@ -167,6 +167,7 @@ td.alert{color:var(--warn); font-size:12px}
     </div>
     <label class="f" style="max-width:420px">Categoria padrão (quando nada na descrição indicar a categoria)<select id="defCat"></select></label>
     <label class="switch"><input type="checkbox" id="useSug"> Quando nenhuma descrição indicar categoria, usar a CATEGORIA SUGERIDA em vez de OUTRA CATEGORIA</label>
+    <label class="switch"><input type="checkbox" id="prioArq"> Priorizar os dados do arquivo (categoria, marca, fabricante, conteúdo e descritivo): só trocar o que estiver bem fora do comum, com alerta</label>
   </section>
 
   <!-- 4 -->
@@ -344,6 +345,8 @@ async function loadBacklog(file) {
   // descrição principal (a do cadastro do produto), se o arquivo tiver: vira a referência do tipo do item
   ci.main = findCol(hdr, [h => ['DESCRIPCION', 'DESCRICAO', 'DESCRITIVO', 'DESCRIPTION', 'DESCRICAOPRODUTO', 'DESCRITIVOATUAL', 'DESCRICAOPRINCIPAL'].includes(h)]);
   if (ci.main === ci.ds) ci.main = -1;
+  ci.dp = findCol(hdr, [h => h === 'DESCRITIVOPADRONIZADO', h => h.includes('DESCRITIVOPADRONIZADO'), h => h === 'DESCRITIVO']);
+  if (ci.dp === ci.ds) ci.dp = -1;
   if (ci.bc < 0 || ci.ds < 0) throw new Error('Não encontrei as colunas de código (barcode) e descrições (descriptions) no backlog.');
   const items = [];
   for (let r = 1; r < rows.length; r++) {
@@ -352,7 +355,8 @@ async function loadBacklog(file) {
     const mainD = ci.main >= 0 && row[ci.main] ? String(row[ci.main]).trim() : '';
     if (mainD) { const k = D.findIndex(x => N(x) === N(mainD)); if (k >= 0) D.splice(k, 1); D.unshift(mainD); }
     items.push({ barcode: row[ci.bc], D, T: D.map(N), main: !!mainD, sugCat: ci.cat >= 0 ? String(row[ci.cat] ?? '').trim() : '', sugMarca: ci.mar >= 0 ? String(row[ci.mar] ?? '').trim() : '',
-      sugFab: ci.fab >= 0 ? String(row[ci.fab] ?? '').trim() : '', sugQt: ci.qt >= 0 ? row[ci.qt] : null });
+      sugFab: ci.fab >= 0 ? String(row[ci.fab] ?? '').trim() : '', sugQt: ci.qt >= 0 ? row[ci.qt] : null,
+      sugDesc: ci.dp >= 0 ? String(row[ci.dp] ?? '').trim() : '' });
   }
   data.items = items; data.sugCounts = new Map();
   for (const it of items) data.sugCounts.set(it.sugCat, (data.sugCounts.get(it.sugCat) || 0) + 1);
@@ -866,12 +870,42 @@ function segmentosEstMer6(AGG, items, byName, C) {
     const x = fixo(cat); return x.length ? x : (aprendido.get(cat) || []); };
   return f;
 }
+/* ---- prioridade do arquivo: o que veio no backlog vale; só troca o que estiver bem fora do comum ---- */
+const prioArq = () => cfg.priorizarArquivo !== false;
+const valido = v => { const n = N(v); return !!n && !/^(OUTRA MARCA|OUTRO FABRICANTE|OUTRA CATEGORIA|SEM MARCA|SEM FABRICANTE|NAO INFORMADO|N A|NA|0|NULL|NONE|-)$/.test(n); };
+const DESC_LIXO = /(PRODUTO A SER AJUSTADO|PRODUTO NAO CAD|PRODUTO SEM DESCRICAO|SEM DESCRICAO|^PRODUTO$|^TESTE)/;
+const rxCat = new Map();
+function bateCategoria(c, T) {
+  if (!rxCat.has(c.nome)) rxCat.set(c.nome, [termRx(c.incluir), termRx(c.tipo)]);
+  const [inc, tip] = rxCat.get(c.nome);
+  return T.some(t => (inc && inc.test(t)) || (tip && tip.test(t)));
+}
+// categoria do arquivo: fica, a não ser que nenhuma descrição bata com ela E a descrição aponte para outra cesta
+function categoriaArquivo(it, a, byName) {
+  const s = it.sugCat; if (!prioArq() || !s || s === a.cat) return a;
+  const c1 = byName.get(s); if (!c1) return a; // categoria que não existe na biblioteca
+  const c0 = byName.get(a.cat);
+  if (!bateCategoria(c1, a.T) && c0 && c0.cesta && c1.cesta && c0.cesta !== c1.cesta)
+    return Object.assign({}, a, { arqTrocada: s });
+  return Object.assign({}, a, { cat: s, per: a.per.map(() => s), flag: 'ARQUIVO', arqCat: true });
+}
+function marcaNaDesc(mn, T) {
+  const key = mn.split(' ').filter(x => !GENERIC.has(x) && x.length > 2); const glued = mn.replace(/ /g, '');
+  if (!key.length) return T.some(t => new RegExp('(?<![A-Z0-9])' + escRx(mn) + '(?![A-Z0-9])').test(t));
+  return T.some(t => key.every(x => new RegExp('(?<![A-Z0-9])' + escRx(x) + '(?![A-Z0-9])').test(t)) || (glued.length >= 5 && t.replace(/ /g, '').includes(glued)));
+}
+function qtdArquivo(v) {
+  if (v === null || v === undefined || v === '') return null;
+  if (typeof v === 'number') return v > 0 ? { tot: v, base: '', n: 1, uv: v, flag: '' } : null;
+  const d = defaultQty(N(String(v)).replace(/\s+/g, '')); if (d) return Object.assign(d, { flag: '' });
+  const n = parseFloat(String(v).replace(',', '.')); return n > 0 ? { tot: n, base: '', n: 1, uv: n, flag: '' } : null;
+}
 async function runAll() {
   await loadDima();
   const C = compile(); autoSegments(); const res = []; const items = data.items; const t0 = performance.now();
   const byName = new Map(cfg.categorias.map(c => [c.nome, c]));
   $('#runState').textContent = 'Classificando categorias…'; await new Promise(r => setTimeout(r, 0));
-  const AGG = items.map(it => aggregate(it.T, it.sugCat, C, it.main));
+  const AGG = items.map(it => categoriaArquivo(it, aggregate(it.T, it.sugCat, C, it.main), byName));
   const segOf = segmentosEstMer6(AGG, items, byName, C);
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
@@ -879,10 +913,41 @@ async function runAll() {
     const cc = byName.get(a.cat); const seg = segOf(a.cat);
     let bn = null, BD = null;
     const vocab = catVocab(C, a.cat); vocab.heads = new Set(T.map(t => (headPos(t, C.headIdx) || {}).w).filter(Boolean));
-    for (const DD of brandDicts()) { bn = findBrand(T, seg, it.sugMarca, C.black, DD, vocab); if (bn) { BD = DD; break; } }
-    const marca = bn ? BD.map.get(bn).canon : 'OUTRA MARCA';
-    const fab = bn ? fabricante(bn, seg, BD) : 'OUTRO FABRICANTE';
+    const arqAl = [];
+    const sm = N(it.sugMarca), marcaArq = prioArq() && valido(it.sugMarca) && !C.black.has(sm);
+    let marca, fab;
+    if (marcaArq && !marcaNaDesc(sm, T)) { // marca do arquivo não aparece: troca só se a descrição trouxer outra marca da categoria
+      for (const DD of brandDicts()) { bn = findBrand(T, seg, '', C.black, DD, vocab); if (bn) { BD = DD; break; } }
+      if (bn && bn === sm) bn = null;
+      if (bn && !(seg && seg.length && !seg.livre)) bn = null; // sem EST MER 6 conhecida não dá para ter certeza: fica a do arquivo
+    }
+    if (marcaArq && !bn) {
+      bn = sm; BD = brandDicts().find(D => D.map.has(sm)) || null;
+      marca = it.sugMarca.trim();
+      const fs = valido(it.sugFab) ? it.sugFab.trim() : '';
+      const b = BD && BD.map.get(sm);
+      const conhecidos = b ? new Set([...b.fabAll.keys()].filter(f => f !== 'OUTRO FABRICANTE').map(N)) : new Set();
+      if (fs && (!conhecidos.size || conhecidos.has(N(fs)) || (cc && cc.cesta === 'FARMACIA'))) fab = fs; // Farmácia: regra própria de fabricante (a definir)
+      else if (fs) { fab = fabricante(sm, seg, BD); arqAl.push(`Arquivo: fabricante ${fs} não é de ${marca} na base; usado ${fab}`); }
+      else fab = b ? fabricante(sm, seg, BD) : 'OUTRO FABRICANTE';
+    } else {
+      if (!marcaArq) for (const DD of brandDicts()) { bn = findBrand(T, seg, it.sugMarca, C.black, DD, vocab); if (bn) { BD = DD; break; } }
+      marca = bn ? BD.map.get(bn).canon : 'OUTRA MARCA';
+      fab = bn ? fabricante(bn, seg, BD) : 'OUTRO FABRICANTE';
+      if (marcaArq && bn) arqAl.push(`Arquivo: marca ${it.sugMarca.trim()} não aparece na descrição; usada ${marca}`);
+      if (!marcaArq && bn && prioArq() && valido(it.sugFab) && N(it.sugFab) !== N(fab)) {
+        const b = BD.map.get(bn); const conhecidos = new Set([...b.fabAll.keys()].map(N));
+        if (conhecidos.has(N(it.sugFab))) fab = it.sugFab.trim(); }
+    }
     let q = itemQty(T, it.sugQt);
+    const qf = prioArq() ? qtdArquivo(it.sugQt) : null;
+    if (qf) {
+      const mesmo = q.tot !== null && (!qf.base || q.base === qf.base);
+      const r = mesmo && qf.tot ? q.tot / qf.tot : 1;
+      if (mesmo && (r > 2 || r < 0.5)) arqAl.push(`Arquivo: conteúdo ${qf.base ? qtyText(qf) : fmtn(qf.tot)} muito diferente da descrição (${qtyText(q)}); usado o da descrição`);
+      else if (qf.base) q = qf;
+      else q = q.tot !== null ? Object.assign({}, q, { tot: qf.tot, n: 1, uv: qf.tot, flag: '' }) : qf;
+    }
     if (q.tot === null) { const u = countQty(T); if (u) q = u; else { const d = defaultQty((cc && cc.qtdPadrao) || cfg.qtdPadrao); if (d) q = d; } }
     // Farmácia sem início fixo no manual: começa pela marca; sem marca, pelo princípio ativo (ou pelo nome do produto)
     const farmaLivre = cc && cc.cesta === 'FARMACIA' && !cc.inicio;
@@ -892,23 +957,31 @@ async function runAll() {
     const keepT = T.filter((t, j) => a.per[j] === a.cat); const T2 = keepT.length ? keepT : T;
     const brandTxt = bn ? cleanD(marca) : '';
     const comp = complement(T2, a.cat, ini, bn || '', groupOf(a.cat), cc);
-    const desc = cleanD([ini, brandTxt, comp, qtyText(q)].filter(Boolean).join(' '));
+    let desc = cleanD([ini, brandTxt, comp, qtyText(q)].filter(Boolean).join(' '));
+    if (prioArq() && it.sugDesc) {
+      const dn = cleanD(it.sugDesc);
+      if (DESC_LIXO.test(dn) || dn.length < 3) arqAl.push('Arquivo: descritivo vazio ou inválido; gerado um novo');
+      else if (a.arqTrocada || arqAl.length) arqAl.push('Arquivo: descritivo refeito porque categoria/marca/fabricante/conteúdo foi trocado');
+      else desc = dn;
+    }
     const alerts = [];
     { const C0 = C.pa && T.map(t => matchPA(t, C.pa)).find(p => p && p.cat === a.cat);
       if (C0) alerts.push('Categoria pelo princípio ativo ' + C0.pa + (C0.corrigido ? ' (destino corrigido em relação à base)' : C0.validar ? ' (base pede validação)' : '')); }
+    if (a.arqTrocada) alerts.push(`Arquivo: categoria ${a.arqTrocada} não bate com a descrição (outra cesta); usada ${a.cat}`);
+    alerts.push(...arqAl);
     if (a.misturadas) alerts.push(`Descrições de produtos diferentes no mesmo código (${a.misturadas} ignorada${a.misturadas > 1 ? 's' : ''})`);
     if (a.flag === 'SEM_EVIDENCIA') alerts.push('Nenhuma categoria reconhecida na descrição');
     if (a.flag === 'SEM_EVIDENCIA_SUG') alerts.push('Sem evidência; usada a categoria sugerida');
     if (a.flag === 'PADRAO') alerts.push('Nada indicou a categoria; usada a categoria padrão');
     if (a.flag === 'DIVERGENTE') alerts.push('Descrições do código apontam categorias diferentes');
     if (a.flag === 'TROCA_SUG') alerts.push('Tipo decidido pela categoria sugerida');
-    if (it.sugCat && C.names.has(it.sugCat) && it.sugCat !== a.cat) alerts.push('Categoria diferente da sugerida');
+    if (!a.arqTrocada && it.sugCat && C.names.has(it.sugCat) && it.sugCat !== a.cat) alerts.push('Categoria diferente da sugerida');
     const sb = N(it.sugMarca);
-    if (marca === 'OUTRA MARCA' && sb && sb !== 'OUTRA MARCA' && !C.black.has(sb)) alerts.push('Marca sugerida não confirmada');
+    if (!prioArq() && marca === 'OUTRA MARCA' && sb && sb !== 'OUTRA MARCA' && !C.black.has(sb)) alerts.push('Marca sugerida não confirmada');
     if (q.flag === 'SEM_QTD') alerts.push('Sem quantidade na descrição');
     else if (q.flag === 'QTD_PADRAO') alerts.push('Sem quantidade na descrição; usado o padrão ' + qtyText(q));
     else if (q.flag === 'QTD_DIV') alerts.push('Quantidades diferentes entre descrições');
-    const pri = alerts.some(x => /^(Nenhuma|Descrições|Sem evidência)/.test(x)) ? 1 : alerts.some(x => !x.startsWith('Categoria pelo princípio ativo') || /\((base pede validação|destino corrigido em relação à base)\)$/.test(x)) ? 2 : 0;
+    const pri = alerts.some(x => /^(Nenhuma|Descrições|Sem evidência|Arquivo: categoria)/.test(x)) ? 1 : alerts.some(x => !x.startsWith('Categoria pelo princípio ativo') || /\((base pede validação|destino corrigido em relação à base)\)$/.test(x)) ? 2 : 0;
     res.push({ it, cat: a.cat, marca, fab, qt: q.tot, desc, alerts, pri });
     if (i % 250 === 0) { $('#prog').style.width = (100 * i / items.length).toFixed(1) + '%'; $('#runState').textContent = `Classificando ${i.toLocaleString('pt-BR')} de ${items.length.toLocaleString('pt-BR')}…`; await new Promise(r => setTimeout(r, 0)); }
   }
@@ -940,9 +1013,9 @@ function buildWorkbook() {
   const ws = XLSX.utils.aoa_to_sheet(main); ws['!cols'] = [{ wch: 16 }, { wch: 60 }, { wch: 28 }, { wch: 24 }, { wch: 11 }, { wch: 26 }, { wch: 22 }];
   for (let i = 2; i <= main.length; i++) { const c = ws['A' + i]; if (c && c.t === 'n') c.z = '0'; }
   XLSX.utils.book_append_sheet(wb, ws, 'Planilha1');
-  const rv = [['CODIGO BARRAS', 'CODIGO INTERNO', 'CATEGORIA', 'CATEGORIA SUGERIDA', 'MARCA', 'MARCA SUGERIDA', 'FABRICANTE', 'CONTENIDO', 'CONTENIDO SUGERIDO', 'DESCRITIVO PADRONIZADO', 'ALERTAS', 'DESCRICOES ORIGINAIS', 'PRIORIDADE']];
+  const rv = [['CODIGO BARRAS', 'CODIGO INTERNO', 'CATEGORIA', 'CATEGORIA SUGERIDA', 'MARCA', 'MARCA SUGERIDA', 'FABRICANTE', 'FABRICANTE SUGERIDO', 'CONTENIDO', 'CONTENIDO SUGERIDO', 'DESCRITIVO PADRONIZADO', 'ALERTAS', 'DESCRICOES ORIGINAIS', 'PRIORIDADE']];
   for (const r of [...R].filter(r => r.pri).sort((a, b) => a.pri - b.pri || a.cat.localeCompare(b.cat)))
-    rv.push([bc(r.it.barcode), ciFlag(r.it.barcode), r.cat, r.it.sugCat, r.marca, r.it.sugMarca, r.fab, num(r.qt), r.it.sugQt, r.desc, r.alerts.join('; '), r.it.D.slice(0, 4).join(' | ').slice(0, 500), r.pri]);
+    rv.push([bc(r.it.barcode), ciFlag(r.it.barcode), r.cat, r.it.sugCat, r.marca, r.it.sugMarca, r.fab, r.it.sugFab, num(r.qt), r.it.sugQt, r.desc, r.alerts.join('; '), r.it.D.slice(0, 4).join(' | ').slice(0, 500), r.pri]);
   const ws2 = XLSX.utils.aoa_to_sheet(rv); ws2['!cols'] = [{ wch: 16 }, { wch: 22 }, { wch: 24 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 50 }, { wch: 55 }, { wch: 80 }, { wch: 10 }];
   ws2['!autofilter'] = { ref: 'A1:M' + rv.length };
   XLSX.utils.book_append_sheet(wb, ws2, 'REVISAO');
@@ -1022,7 +1095,7 @@ function renderCats() {
   $('#cfgName').value = cfg.nome || ''; $('#cfgNamePill').textContent = cfg.nome || 'Sem nome';
   $('#blackText').value = cfg.falsasMarcas.join(', '); $('#outraText').value = sempreAtivos().join(', ');
   const dc = $('#defCat'); dc.replaceChildren(el('option', { value: '' }, OUT)); for (const c of actCats()) dc.append(el('option', { value: c.nome }, c.nome)); dc.value = cfg.categoriaPadrao && actCats().some(c => c.nome === cfg.categoriaPadrao) ? cfg.categoriaPadrao : '';
-  $('#useSug').checked = !!cfg.usarSugerida; $('#rulesText').value = cfg.regrasTexto || '';
+  $('#useSug').checked = !!cfg.usarSugerida; $('#prioArq').checked = cfg.priorizarArquivo !== false; $('#rulesText').value = cfg.regrasTexto || '';
 }
 
 /* ------------------------------------------------------------------ UI: results */
@@ -1107,6 +1180,7 @@ $('#blackText').addEventListener('change', e => { cfg.falsasMarcas = splitList(e
 $('#outraText').addEventListener('change', e => { setSempreAtivos(splitList(e.target.value).map(x => x.toUpperCase())); saveDraft(); });
 $('#btnClearOutra').addEventListener('click', () => { setSempreAtivos([]); saveDraft(); renderCats(); });
 $('#useSug').addEventListener('change', e => { cfg.usarSugerida = e.target.checked; saveDraft(); });
+$('#prioArq').addEventListener('change', e => { cfg.priorizarArquivo = e.target.checked; saveDraft(); });
 $('#rulesText').addEventListener('change', e => { cfg.regrasTexto = e.target.value; saveDraft(); });
 function cfgMsg(t, kind) { const m = $('#cfgMsg'); m.textContent = t; m.className = 'msg ' + (kind || ''); m.classList.toggle('hidden', !t); }
 

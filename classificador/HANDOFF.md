@@ -117,3 +117,13 @@ Pontos pra checar, em ordem:
 - Com a EST MER 6 conhecida, a marca tem que existir nela: DIMA primeiro; se não achar, dicionário com a mesma regra. Fabricante = maior venda da marca dentro da EST MER 6 (DIMA: mais frequente). EST MER 6 normalizada (acento/maiúscula).
 - Farmácia fica de fora (`seg.livre`): regra própria de fabricante, a definir.
 - `dados/marcas_por_categoria_revisao.xlsx`: antes × agora nos três backlogs de teste.
+
+## Prioridade do arquivo (backlog manda)
+
+- Opção "Priorizar os dados do arquivo" (`cfg.priorizarArquivo`, ligada por padrão). Categoria, marca, fabricante, conteúdo e descritivo (coluna DESCRITIVO PADRONIZADO/DESCRITIVO, se houver) do backlog valem; o app só troca o que estiver bem fora do comum, sempre com alerta "Arquivo: …":
+  - categoria: nenhuma descrição bate com ela E a descrição aponta para outra cesta (`categoriaArquivo`);
+  - marca: não aparece em nenhuma descrição E a descrição traz outra marca que existe na EST MER 6 do item;
+  - fabricante: a base conhece a marca e o fabricante do arquivo não é nenhum dos dela (Farmácia: fica o do arquivo);
+  - conteúdo: a descrição tem outro valor na mesma unidade com mais de 2× de diferença;
+  - descritivo: vazio/lixo, ou algum campo acima trocado (aí é refeito).
+- Campo vazio no arquivo: o app completa como antes. Aba REVISAO ganhou FABRICANTE SUGERIDO.
