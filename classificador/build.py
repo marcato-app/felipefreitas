@@ -18,6 +18,11 @@ s = s.replace('/*DIMA*/null', '"' + base64.b64encode(dz.read_bytes()).decode() +
 (here / 'classificador.html').write_text(s, encoding='utf-8')
 print('ok:', here / 'classificador.html', f'{len(s):,} bytes')
 # agente de Farmácia: mesmo app, publicado em artifact próprio (link separado do classificador geral)
-f = s.replace('<title>Classificador de Backlog</title>', '<title>Classificador Farmácia</title>', 1)
+import json
+cf = json.loads((here / 'consts.json').read_text(encoding='utf-8'))
+for x in cf['libSeed']['categorias']:
+    if x.get('cesta') == 'FARMACIA': x['ativa'] = True  # no agente de Farmácia a cesta já abre ativa
+f = s.replace((here / 'consts.json').read_text(encoding='utf-8'), json.dumps(cf, ensure_ascii=False), 1)
+f = f.replace('<title>Classificador de Backlog</title>', '<title>Classificador Farmácia</title>', 1)
 (here / 'farmacia.html').write_text(f, encoding='utf-8')
 print('ok:', here / 'farmacia.html')
