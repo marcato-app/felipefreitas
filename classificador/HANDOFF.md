@@ -205,3 +205,9 @@ Pontos pra checar, em ordem:
 - `classifyDesc`: Hoja (`matchFM`) > princípio ativo (`matchPA`) > regras do manual > DIMA (`matchFD`, com `sinalFarma`
   para termos de uma palavra). Código de laboratório no fim reavalia sem ele.
 - Testes: `rodar.js`, `rodar_hoja.js`, `rodar_dima.js` (carregam a página por `setContent`: ela não declara charset).
+
+## Descrições das lojas (SKU x loja)
+
+- `#dropLojas` → `loadLojas` (colunas SKU e Descripcion Minorista) → `aplicaLojas` (também no começo do `runAll`):
+  a descrição de maior `notaDesc` vira `it.D[0]`; `desgruda` limpa a grafia das lojas. Exemplo em `dados/lojas/`.
+- Teste: `node testes_farma/rodar_lojas.js <lojas.csv> [backlog.csv]`.

@@ -43,7 +43,16 @@ CORRECOES = {
     'VITAMINA A': 'VITAMINA A PURA', 'VITAMINA D': 'VITAMINA D PURA', 'VITAMINA K': 'VITAMINA K', 'VITAMINA E': 'VITAMINA OUTRO',
     'CETOROLACO COLIRIO': 'ANTIINFLAMATORIOS OFTALMOLOGICOS NAO ESTEROIDES',
     'LOPINAVIR/RITONAVIR': 'OUTROS ANTIVIRAIS', 'ANFETAMINAS': 'PSICOESTIMULANTES', 'LIDOCAINA': 'ANESTESICOS LOCAIS TOPICOS',
+    # corticoide sozinho é H02A (a base mandava para associações H02B); colírio é S01B (a base mandava para tópico de pele)
+    'DEXAMETASONA': 'CORTICOSTEROIDES PUROS', 'METILPREDNISOLONA': 'CORTICOSTEROIDES PUROS', 'PREDNISOLONA': 'CORTICOSTEROIDES PUROS',
+    'PREDNISONA': 'CORTICOSTEROIDES PUROS', 'FLUDROCORTISONA': 'CORTICOSTEROIDES PUROS',
+    'DEXAMETASONA COLIRIO': 'CORTICOIDES', 'PREDNISOLONA COLIRIO': 'CORTICOIDES',
 }
+# Regras que a base não tem (forma tópica de corticoide sistêmico, abreviação de loja)
+EXTRAS = [
+    {'pa': 'Dexametasona tópico', 'partes': ['DEXAMETASONA', FORMAS['TOPICO']], 'cat': 'CORTICOIDES TOPICOS PUROS', 'validar': False},
+    {'pa': 'Vitamina E (VITA E)', 'partes': ['VITA E|VIT E'], 'cat': 'VITAMINA OUTRO', 'validar': False},
+]
 # Rótulo de nível 7 que não é igual ao nome da categoria na biblioteca.
 ALIAS_CAT = {'TOPICOS': 'TOPICOS OFTALMOLOGICOS ANTIGLAUCOMA', 'ANTIINFLAMATORIO': 'ANTI REUMATICOS NAO ESTEROIDAIS PUROS'}
 strip_atc = lambda s: re.sub(r'^[A-Z]\d{2}[A-Z]?\d?\s+', '', N(s))
@@ -87,6 +96,9 @@ def main():
             cat = cor
         out.append({'pa': r['pa'], 'partes': r['partes'], 'cat': cat, 'validar': r['validar'], **({'corrigido': True} if cor else {}),
                     **({'outras': [x for x in r['cats'] if x != cat]} if len(r['cats']) > 1 else {})})
+    for e in EXTRAS:
+        assert e['cat'] in names, e['cat']
+        out.append(e)
     c['farmaPA'] = out
     (here / 'consts.json').write_text(json.dumps(c, ensure_ascii=False), encoding='utf-8')
     print(f'{len(out)} princípios ativos -> {len({x["cat"] for x in out})} categorias; sem categoria: {faltou}')

@@ -112,6 +112,7 @@ td.alert{color:var(--warn); font-size:12px}
     <div class="grid3">
       <div class="drop" id="dropBacklog"><span class="req">Obrigatório</span><h3>Backlog</h3><div class="st" id="stBacklog">Arraste o .xlsx ou clique para escolher</div><input type="file" id="fBacklog" accept=".xlsx,.xls,.csv"></div>
       <div class="drop" id="dropDict"><span class="req">Obrigatório para marca</span><h3>Dicionário de marcas</h3><div class="st" id="stDict">Arraste o .csv ou .xlsx</div><input type="file" id="fDict" accept=".csv,.txt,.xlsx,.xls"></div>
+      <div class="drop" id="dropLojas"><span class="req">Opcional</span><h3>Descrições das lojas</h3><div class="st" id="stLojas">Arquivo com SKU e a descrição de cada loja (ex.: Desc. SKU Min.). Para cada SKU o app usa a descrição mais completa (quantidade, dosagem, forma, marca). Sem backlog, ele vira o backlog.</div><input type="file" id="fLojas" accept=".csv,.txt,.xlsx,.xls"></div>
       <div class="drop" id="dropCats"><span class="req">Opcional</span><h3>Planilha de categorias</h3><div class="st" id="stCats">Colunas CATEGORIAS e INICIO DO DESCRITIVO. Categorias novas entram no fim da lista.</div><input type="file" id="fCats" accept=".xlsx,.xls,.csv"></div>
     </div>
   </section>
@@ -252,7 +253,7 @@ const FLAVORS = new Set(K.const.FLAVORS), ATTR = new Set(K.const.ATTR), NOISE = 
 const TOK = K.const.TOK, GROUP_TOK = K.const.GROUP_TOK;
 // Farmácia: abreviações de forma farmacêutica (COMP é comprimido, não "composto")
 GROUP_TOK.FARMA = Object.assign({ COMP: 'COMPRIMIDO', COMPR: 'COMPRIMIDO', CP: 'COMPRIMIDO', CPR: 'COMPRIMIDO', CPS: 'COMPRIMIDO', CAP: 'CAPSULA', CAPS: 'CAPSULA',
-  DRG: 'DRAGEA', SOL: 'SOLUCAO', SUSP: 'SUSPENSAO', XPE: 'XAROPE', XAR: 'XAROPE', GTS: 'GOTAS', POM: 'POMADA', AMP: 'AMPOLA', INJ: 'INJETAVEL', EFERV: 'EFERVESCENTE', REV: 'REVESTIDO' }, GROUP_TOK.FARMA || {});
+  DRG: 'DRAGEA', COLI: 'COLIRIO', COL: 'COLIRIO', LIOF: 'LIOFILIZADO', SOL: 'SOLUCAO', SUSP: 'SUSPENSAO', XPE: 'XAROPE', XAR: 'XAROPE', GTS: 'GOTAS', POM: 'POMADA', AMP: 'AMPOLA', INJ: 'INJETAVEL', EFERV: 'EFERVESCENTE', REV: 'REVESTIDO' }, GROUP_TOK.FARMA || {});
 const PHRASE = K.const.PHRASE.map(([p, r]) => [new RegExp(p, 'g'), r]);
 const PROTECT = K.const.PROTECT.map(p => [new RegExp('(?<![A-Z_])' + p + '(?![A-Z_])', 'g'), p.replace(/ /g, '_')]);
 
@@ -362,6 +363,53 @@ async function loadBacklog(file) {
   return items.length;
 }
 
+/* ---- descrições das lojas (SKU x loja x descrição): escolhe a mais completa de cada SKU ---- */
+const skuKey = v => String(v ?? '').replace(/\D/g, '').replace(/^0+/, '');
+// a loja cola a marca no "C/" e letras no número: FLUIMUCILC/16 CPR -> FLUIMUCIL C/16 CPR; PRED MILD10ML -> PRED MILD 10ML
+const desgruda = s => String(s || '').replace(/^\s*ZZ(?=[A-Za-z]{3})/, '').replace(/([A-Za-z]{3,})[Cc]\/(?=\s*\d)/g, '$1 C/').replace(/([A-Za-z]{3,})(\d)/g, '$1 $2').replace(/\s+/g, ' ').trim();
+const RX_QTD_LOJA = /(?<![A-Z0-9])(C\s*\d{1,4}|\d{1,4}\s*(UN|UND|COMP|COMPR|COMPRIMIDOS?|CP|CPR|CPS|CAP|CAPS|CAPSULAS?|DRG|DRAGEAS?|SACHES?|ENV|AMP|AMPOLAS?|FLAC|ML|G|GR|KG|L|LT))(?![A-Z])/;
+// nota de completude: quantidade, dosagem, forma, laboratório/marca, quantas lojas usam, tamanho
+function notaDesc(t, n) {
+  let v = 0;
+  if (RX_QTD_LOJA.test(t)) v += 4;
+  RX_DOSE.lastIndex = 0; if (RX_DOSE.test(t)) v += 3;
+  if (RX_SINAL_FARMA.test(t)) v += 1;
+  const w = t.split(' '), l = w[w.length - 1];
+  if (w.length > 1 && ((K.farmaCodLab || {})[l] || (data.dima && labIndex().codigo.has(l)) || /^(GEN|GENERICO|SIMILAR)$/.test(l))) v += 1;
+  v += Math.min(2, Math.log2(1 + n) / 3) + Math.min(1, t.length / 60);
+  if (/(^| )[A-Z]$/.test(t)) v -= 1; // cortada no fim
+  return v;
+}
+async function loadLojas(file) {
+  const rows = await readTable(file); const hdr = rows[0] || [];
+  const ib = findCol(hdr, [h => h === 'SKU', h => h === 'BARCODE', h => h.includes('CODIGOBARRAS'), h => h.includes('EAN'), h => h.includes('SKU'), h => h.includes('BARCODE')]);
+  const id = findCol(hdr, [h => h.includes('DESCRIPCIONMINORISTA'), h => h.includes('MINORISTA'), h => h.includes('DESCRI')]);
+  if (ib < 0 || id < 0) throw new Error('não encontrei as colunas SKU e descrição');
+  const m = new Map(); let n = 0;
+  for (const r of rows.slice(1)) {
+    if (!r || !r[ib] || !r[id]) continue; const k = skuKey(r[ib]); if (!k) continue;
+    const d = desgruda(String(r[id]).trim()); if (!d) continue;
+    if (!m.has(k)) m.set(k, { bc: String(r[ib]).trim(), ds: new Map() }); const e = m.get(k).ds; e.set(d, (e.get(d) || 0) + 1); n++;
+  }
+  data.lojas = m; return { skus: m.size, linhas: n };
+}
+// junta as descrições das lojas no item: a mais completa vira a principal; as outras ajudam na votação
+function aplicaLojas() {
+  if (!data.lojas) return;
+  if (!data.items) { // sem backlog: o arquivo das lojas é o backlog
+    data.items = [...data.lojas.values()].map(e => ({ barcode: e.bc, D: [], T: [], main: false, sugCatRaw: '', sugCat: '', sugMarca: '', sugFab: '', sugQt: null }));
+    data.semBacklog = true;
+  }
+  for (const it of data.items) {
+    if (!it.D0) it.D0 = it.D.slice();
+    const e = data.lojas.get(skuKey(it.barcode));
+    if (!e) { it.D = it.D0.slice(); it.T = it.D.map(N); it.lojaUsada = ''; continue; }
+    const L = [...e.ds].map(([d, c]) => ({ d, c, t: N(d) })).map(x => ({ ...x, v: notaDesc(x.t, x.c) })).sort((a, b) => b.v - a.v || b.c - a.c);
+    const vistos = new Set(); const D = [];
+    for (const d of [L[0].d, ...it.D0, ...L.slice(1).map(x => x.d)]) { const k = N(d); if (!k || vistos.has(k)) continue; vistos.add(k); D.push(d); }
+    it.D = D.slice(0, 8); it.T = it.D.map(N); it.main = true; it.lojaUsada = L[0].d; it.nLojas = [...e.ds.values()].reduce((a, b) => a + b, 0);
+  }
+}
 async function loadDict(file) {
   const rows = await readTable(file); const hdr = rows[0] || [];
   const ci = {
@@ -523,7 +571,8 @@ function matchPA(t, P) {
 function paIni(r, T) { const a = r.alts[0]; for (const t of T) for (const x of a) if (new RegExp('(?<![A-Z0-9])' + escRx(x) + '(?![A-Z0-9])').test(t)) return x; return a[0]; }
 // Base de marcas de Farmácia do cliente (farma_marcas.py -> K.farmaMarcas: [nome, categoria, fabricante, nº de categorias])
 function compileFM(active) {
-  const L = (K.farmaMarcas || []).filter(m => !m[1] || active.has(m[1])); if (!L.length) return null;
+  const Lb = labIndex(); // marca que é o nome do laboratório (SANDOZ, GEOLAB) não decide categoria
+  const L = (K.farmaMarcas || []).filter(m => (!m[1] || active.has(m[1])) && !Lb.chave.has(N(m[0])) && !LAB_ALIAS[N(m[0])]); if (!L.length) return null;
   const map = new Map(L.map(m => [N(m[0]), { nome: m[0], cat: m[1], fab: m[2], ncat: m[3] }]));
   const terms = [...map.keys()].sort((a, b) => b.length - a.length);
   return { map, rx: new RegExp('(?<![A-Z0-9])(?:' + terms.map(escRx).join('|') + ')(?![A-Z0-9])') };
@@ -916,7 +965,7 @@ const LAB_LIXO = new Set('LABORATORIO LABORATORIOS LAB LABS FARMACEUTICA FARMACE
 const LAB_COD_NAO = new Set('MARCA OUTRA OUTRO COM SEM CPR COMP CAP CAPS DRG GTS SOL SUS XPE AMP INJ CRE POM GEL ADT INF PED UN UND CX FR'.split(' '));
 // nome do laboratório como aparece na descrição -> código de 3 letras da base (o fabricante vem do código)
 const LAB_ALIAS = { GERMED: 'GER', LEGRAND: 'LEG', 'NEO QUIMICA': 'NEO', NEOQUIMICA: 'NEO', 'NOVA QUIMICA': 'NVQ', NOVAQUIMICA: 'NVQ',
-  PRATI: 'PRD', 'PRATI DONADUZZI': 'PRD', SANOFI: 'SNF', MULTILAB: 'MUL', MANTECORP: 'MAN', KLEY: 'KLE', 'KLEY HERTZ': 'KLE' };
+  PRATI: 'PRD', 'PRATI DONADUZZI': 'PRD', EURO: 'EUR', SANOFI: 'SNF', MULTILAB: 'MUL', MANTECORP: 'MAN', KLEY: 'KLE', 'KLEY HERTZ': 'KLE' };
 let LABS = null;
 function labIndex() {
   if (LABS) return LABS;
@@ -954,6 +1003,7 @@ const FARMA_NAO_MARCA = new Set(('GENERICO GENERICA GENERICOS SIMILAR MEDICAMENT
   'LACTATO NITRATO VALERATO PROPIONATO DIPROPIONATO ESTOLATO CLORETO ACIDO SODIO SODICO SODICA POTASSIO POTASSICO POTASSICA CALCIO CALCICO MAGNESIO ' +
   'MONOIDRATADO MONOIDRATADA DI TRI HIDRATADO HIDRATADA ASSOCIACAO COMPOSTO COMPOSTA ' +
   'COMPRIMIDO COMPRIMIDOS CAPSULA CAPSULAS DRAGEA DRAGEAS SOLUCAO SUSPENSAO XAROPE GOTAS POMADA CREME GEL LOCAO SPRAY COLIRIO AMPOLA INJETAVEL ' +
+  'DIA MCG MG ML UI ' +
   'EFERVESCENTE REVESTIDO ORAL NASAL TOPICO TOPICA OFTALMICO OFTALMICA SACHE SACHES PO FRASCO BISNAGA CAIXA CX FR').split(' '));
 // palavras dos princípios ativos escritos na descrição (HIDROXIDO DE ALUMINIO, OLEO MINERAL)
 function palavrasPA(T, C) { const P = C.pa, out = new Set(); if (!P) return out; for (const t of T) { let m; P.rx.lastIndex = 0; while ((m = P.rx.exec(t))) m[0].split(' ').forEach(w => out.add(w)); } return out; }
@@ -978,6 +1028,16 @@ function nomeComercial(T, C, vocab, paW) {
   return null;
 }
 // dosagem (500MG, 0.5%, 2000UI, 250MG/5ML, 875MG+125MG): da 1ª descrição que tiver
+const RX_DOSE_RAW = /(?<![0-9.A-Z])(\d+(?:\.\d+)?(?:\s*\+\s*\d+(?:\.\d+)?)*)\s*(MG|MCG|UG|UI|MEQ|%)(?:\s*\/\s*(\d+(?:\.\d+)?)?\s*(ML|G|GOTA|GTS|DIA))?(?![A-Z])/g;
+function dosagemRaw(D) {
+  for (const d0 of D) {
+    const t = String(d0).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/(\d),(\d)/g, '$1.$2');
+    const out = []; let m; RX_DOSE_RAW.lastIndex = 0;
+    while ((m = RX_DOSE_RAW.exec(t))) { const d = m[1].replace(/\s+/g, '') + m[2] + (m[4] ? '/' + (m[3] && +m[3] !== 1 ? m[3] : '') + (m[4] === 'GTS' ? 'GOTA' : m[4]) : ''); if (!out.includes(d)) out.push(d); }
+    if (out.length) return out.join('+');
+  }
+  return '';
+}
 const RX_DOSE = /(?<![0-9.A-Z])(\d+(?:\.\d+)?)\s*(MG|MCG|UG|UI|MEQ|%)(?:\s*(\d+(?:\.\d+)?)?\s*(ML|G|GOTA|GTS)(?![A-Z]))?/g;
 function dosagem(T) {
   for (const t of T) {
@@ -1054,6 +1114,7 @@ function vendidoPorUnidade(cc, T, C) {
 }
 async function runAll() {
   await loadDima();
+  aplicaLojas();
   const C = compile(); autoSegments(); const res = []; const items = data.items; const t0 = performance.now();
   const byName = new Map(cfg.categorias.map(c => [c.nome, c]));
   $('#runState').textContent = 'Classificando categorias…'; await new Promise(r => setTimeout(r, 0));
@@ -1162,9 +1223,10 @@ async function runAll() {
     let qTxt = qtyText(q), dose = '';
     if (farma) { // Farmácia: sem laboratório no descritivo; dosagem (500MG) e a forma como unidade (10CPRS)
       const lab = labAchado(T2), fu = q.base === 'UN' && q.n === 1 ? formaUn(T2) : null;
-      comp = comp.split(' ').filter(w => !(lab && lab.termo.split(' ').includes(w)) && !(fu && fu[2].test(w))).join(' ');
+      comp = comp.split(' ').filter(w => !(lab && lab.termo.split(' ').includes(w)) && !(fu && fu[2].test(w)) && !/^\.*(MG|MCG|UG|UI|ML|G|DIA|GEN)$/.test(w)).join(' ');
       if (fu) qTxt = fmtn(q.tot) + fu[1];
-      dose = dosagem(T2);
+      const D2 = it.D.filter(d => T2.includes(N(d)));
+      dose = dosagemRaw(D2.length ? D2 : it.D) || dosagem(T2);
     }
     // o descritivo é sempre padronizado pelo app (já com a categoria, marca e conteúdo mantidos do arquivo)
     const desc = cleanD([ini, brandTxt, comp].filter(Boolean).join(' ')) + (dose ? ' ' + dose : '') + (qTxt ? ' ' + qTxt : '');
@@ -1233,9 +1295,9 @@ function buildWorkbook() {
   const ws = XLSX.utils.aoa_to_sheet(main); ws['!cols'] = [{ wch: 16 }, { wch: 60 }, { wch: 28 }, { wch: 24 }, { wch: 11 }, { wch: 26 }, { wch: 22 }];
   for (let i = 2; i <= main.length; i++) { const c = ws['A' + i]; if (c && c.t === 'n') c.z = '0'; }
   XLSX.utils.book_append_sheet(wb, ws, 'Planilha1');
-  const rv = [['CODIGO BARRAS', 'CODIGO INTERNO', 'CATEGORIA', 'CATEGORIA SUGERIDA', 'MARCA', 'MARCA SUGERIDA', 'FABRICANTE', 'FABRICANTE SUGERIDO', 'CONTENIDO', 'CONTENIDO SUGERIDO', 'DESCRITIVO PADRONIZADO', 'ALERTAS', 'DESCRICOES ORIGINAIS', 'PRIORIDADE']];
+  const rv = [['CODIGO BARRAS', 'CODIGO INTERNO', 'CATEGORIA', 'CATEGORIA SUGERIDA', 'MARCA', 'MARCA SUGERIDA', 'FABRICANTE', 'FABRICANTE SUGERIDO', 'CONTENIDO', 'CONTENIDO SUGERIDO', 'DESCRITIVO PADRONIZADO', 'ALERTAS', 'DESCRICOES ORIGINAIS', 'PRIORIDADE', 'DESCRICAO DA LOJA USADA', 'LOJAS']];
   for (const r of [...R].filter(r => r.pri).sort((a, b) => a.pri - b.pri || a.cat.localeCompare(b.cat)))
-    rv.push([bc(r.it.barcode), ciFlag(r.it.barcode), nomeOf(r.cat), r.it.sugCatRaw || r.it.sugCat, r.marca, r.it.sugMarca, r.fab, r.it.sugFab, num(r.qt), r.it.sugQt, r.desc, r.alerts.join('; '), r.it.D.slice(0, 4).join(' | ').slice(0, 500), r.pri]);
+    rv.push([bc(r.it.barcode), ciFlag(r.it.barcode), nomeOf(r.cat), r.it.sugCatRaw || r.it.sugCat, r.marca, r.it.sugMarca, r.fab, r.it.sugFab, num(r.qt), r.it.sugQt, r.desc, r.alerts.join('; '), r.it.D.slice(0, 4).join(' | ').slice(0, 500), r.pri, r.it.lojaUsada || '', r.it.nLojas || '']);
   const ws2 = XLSX.utils.aoa_to_sheet(rv); ws2['!cols'] = [{ wch: 16 }, { wch: 22 }, { wch: 24 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 50 }, { wch: 55 }, { wch: 80 }, { wch: 10 }];
   ws2['!autofilter'] = { ref: 'A1:M' + rv.length };
   XLSX.utils.book_append_sheet(wb, ws2, 'REVISAO');
@@ -1351,8 +1413,15 @@ function status(id, html, ok) { const s = $(id); s.innerHTML = html; s.closest('
 const escH = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 setupDrop('#dropBacklog', '#fBacklog', async file => {
   status('#stBacklog', 'Lendo ' + escH(file.name) + '…');
-  try { const n = await loadBacklog(file); status('#stBacklog', `<b>${n.toLocaleString('pt-BR')}</b> itens · ${escH(file.name)}<br>${data.sugCounts.size} categorias sugeridas`, true); $('#btnRun').disabled = false; $('#runState').textContent = data.dict ? 'Pronto para classificar.' : 'Pronto. Sem o dicionário, a marca vem só da base DIMA embutida.'; autoSegments(); renderCats(); }
+  try { const n = await loadBacklog(file); data.semBacklog = false; aplicaLojas(); status('#stBacklog', `<b>${n.toLocaleString('pt-BR')}</b> itens · ${escH(file.name)}<br>${data.sugCounts.size} categorias sugeridas`, true); $('#btnRun').disabled = false; $('#runState').textContent = data.dict ? 'Pronto para classificar.' : 'Pronto. Sem o dicionário, a marca vem só da base DIMA embutida.'; autoSegments(); renderCats(); }
   catch (e) { status('#stBacklog', 'Não consegui ler: ' + escH(e.message)); }
+});
+setupDrop('#dropLojas', '#fLojas', async file => {
+  status('#stLojas', 'Lendo ' + escH(file.name) + '…');
+  try { await loadDima(); const r = await loadLojas(file); const semB = !data.items; aplicaLojas();
+    status('#stLojas', `<b>${r.skus.toLocaleString('pt-BR')}</b> SKUs · ${r.linhas.toLocaleString('pt-BR')} descrições de loja · ${escH(file.name)}` + (semB ? '<br>Sem backlog: estes SKUs viram o backlog.' : ''), true);
+    $('#btnRun').disabled = false; $('#runState').textContent = 'Pronto para classificar.'; }
+  catch (e) { status('#stLojas', 'Não consegui ler: ' + escH(e.message)); }
 });
 setupDrop('#dropDict', '#fDict', async file => {
   status('#stDict', 'Lendo ' + escH(file.name) + ' (arquivos grandes levam alguns segundos)…');

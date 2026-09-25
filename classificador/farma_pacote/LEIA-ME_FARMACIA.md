@@ -155,6 +155,22 @@ anti-inflamatórios "Por Defecto" (ibuprofeno, diclofenaco…) → ANTI REUMATIC
   1.167 → 124; em Farmácia 794 → 1.847; EST MER 6 certa 581 → 1.476; fabricante certo 1.770 → 1.886. 3.000 descrições
   reais de papelaria/material: nenhuma mudou. Os "erros" restantes incluem erros da própria DIMA (METOPROLOL em C09C).
 
+### 3.5d Descrições das lojas (arquivo "Desc. SKU Min.")
+- Campo "Descrições das lojas" na tela: SKU x loja x "Descripcion Minorista". Para cada SKU o app escolhe a descrição
+  mais completa (`notaDesc`: quantidade C/30 · 30 CPR · 10ML, dosagem, forma, laboratório/GEN no fim, quantas lojas
+  usam, tamanho; cortada no fim perde ponto). Ela vira a descrição principal; as do backlog e as outras lojas ajudam na
+  votação. Sem backlog, o arquivo das lojas vira o backlog.
+- Limpeza das lojas (`desgruda`): marca colada no "C/" (`FLUIMUCILC/16` → `FLUIMUCIL C/16`), letra colada no número
+  (`MILD10ML` → `MILD 10ML`), prefixo ZZ de descontinuado (`ZZLECTRUM` → `LECTRUM`).
+- REVISAO ganhou DESCRICAO DA LOJA USADA e LOJAS (quantas linhas de loja o SKU tem).
+- Dosagem combinada pelo texto original: `2+1MG`, `3+3MG/ML`, `50+170MCG/DIA`, `400MCG+10MG`.
+- Teste `node testes_farma/rodar_lojas.js dados/lojas/Desc_SKU_Min_2592026_1.csv [backlog]`: backlog só com o nome
+  (`testes_farma/lojas_backlog_curto.csv`) dava 65/65 SKUs em 1UN; com o arquivo das lojas, 1 (ZOLADEX, injeção única)
+  e 3 em OUTRA CATEGORIA (SUPREMA, STER MD, ENVID: não estão em nenhuma base).
+- Correções vindas desse arquivo: corticoide sozinho (dexametasona, prednisona…) → H02A CORTICOSTEROIDES PUROS;
+  colírio → S01B; dexametasona creme → D07A; "VITA E" = vitamina E; vitaminas de marca da DIMA (EPHYNAL, EMAMA) →
+  VITAMINA OUTRO; marca com nome da empresa (SANDOZ, GEOLAB) não decide categoria; EURO = Eurofarma; DIA não é marca.
+
 ### 3.6 Marca
 - Regra (decidida): **nome comercial**; genérico → **princípio ativo** como marca (como escrito na descrição: LOSARTANA,
   DIPIRONA), fabricante = laboratório.

@@ -71,7 +71,7 @@ def main():
     termos = sorted({N(a) for r in c.get('farmaPA', []) for p in r['partes'] for a in p.split('|') if N(a)}, key=len, reverse=True)
     rx_pa = re.compile(r'(?<![A-Z0-9])(?:' + '|'.join(map(re.escape, termos)) + r')(?![A-Z0-9])') if termos else None
 
-    com = defaultdict(lambda: {'cat': defaultdict(float), 'fab': defaultdict(float)})
+    com = defaultdict(lambda: {'cat': defaultdict(float), 'fab': defaultdict(float), 'empresa': False})
     codfab = defaultdict(lambda: defaultdict(float))
     sem_cat, n = set(), 0
     for p in sorted((here / 'dados' / 'farma_marcas').glob('*')):
@@ -80,12 +80,14 @@ def main():
             n += 1; nome, cod = separa(marca, fab); v = v or 1
             if cod and fab not in SEM_FAB: codfab[cod][fab] += v
             if not nome or (rx_pa and rx_pa.search(nome)) or nome.split()[0] in SAIS: continue  # genérico: marca = princípio ativo
+            empresa = N(fab).startswith(nome) or nome.split()[0] == N(fab).split()[0]  # "SANDOZ SDZ", "GEOLAB": nome da empresa
             cat = interna.get(N(e7)) or interna.get(N(COD.sub('', e7)))
+            if empresa: com[nome]['empresa'] = True  # vale como marca, mas não decide categoria (a empresa vende de tudo)
             if cat: com[nome]['cat'][cat] += v
             elif N(e7) != 'POR DEFECTO': sem_cat.add(e7)
             if fab not in SEM_FAB: com[nome]['fab'][fab] += v
     top = lambda d: max(d.items(), key=lambda kv: kv[1])[0] if d else ''
-    marcas = [[nome, top(d['cat']), top(d['fab']), len(d['cat'])] for nome, d in sorted(com.items()) if len(nome) >= 3]
+    marcas = [[nome, '' if d.get('empresa') else top(d['cat']), top(d['fab']), len(d['cat'])] for nome, d in sorted(com.items()) if len(nome) >= 3]
     codlab = {}
     for cod, d in codfab.items():
         tot = sum(d.values()); f = top(d)

@@ -42,6 +42,10 @@ MAPA6 = {
 }
 
 
+# EST MER 6 da DIMA sem código ATC que é de Farmácia (vitaminas de marca: EPHYNAL, EMAMA)
+SEG_EXTRA = {'VITAMINA E MINERAL': ('VITAMINA OUTRO', 1)}
+
+
 def separa(m):
     x = re.match(r'^(.*?)\s*\(([A-Z0-9]{2,4})\)$', m.strip()) or re.match(r'^(.*\S)\s+([A-Z0-9]{3})$', m.strip())
     return N(x.group(1)) if x else N(m)
@@ -74,6 +78,7 @@ def main():
     labs = {N(f) for f in d['fabs']} | {w for f in d['fabs'] for w in [N(f).split(' ')[0]] if len(w) >= 4}
 
     def destino(seg, termo):
+        if seg in SEG_EXTRA: return SEG_EXTRA[seg]
         k = cod(seg); filhos = sorted({n for kk, v in porcod.items() if kk.startswith(k) for n in v},
                                       key=lambda n: cod(of.get(n, '') or n) or 'Z')
         if len(filhos) == 1: return filhos[0], 0
@@ -91,7 +96,7 @@ def main():
     r = d['rows']
     for k in range(0, len(r), 3):
         seg = d['segs'][r[k + 1]]; t = separa(d['marcas'][r[k]])
-        if cod(seg): atc[t][seg] += 1
+        if cod(seg) or seg in SEG_EXTRA: atc[t][seg] += 1
         else: fora[t] += 1
     # palavra comum (listas do app e termos das categorias de outras cestas: LENTE, PORTA...) não vira termo de Farmácia
     comum = {N(w) for k in ('GENERIC', 'NOISE', 'ATTR', 'FLAVORS') for w in c['const'].get(k, [])}
