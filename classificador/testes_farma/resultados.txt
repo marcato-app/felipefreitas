@@ -26,7 +26,7 @@
                                                  => J02A AGENTES ANTIMICOTICOS SISTEMICOS EXCLUINDO GRISEOF
                                                    CETOCONAZOL 200MG 10CPRS | CETOCONAZOL | OUTRO FABRICANTE
                                                    ["Categoria pelo princípio ativo Cetoconazol (base pede validação)"] pri=2
-                                                 => VITAMINA D PURA
+                                                 => A11C2 VITAMINA D PURA
                                                    SUPL ALIM VITAMINA D 2000UI 30CAPS | VITAMINA D | OUTRO FABRICANTE
                                                    ["Categoria pelo princípio ativo Vitamina D (Colecalciferol) (destino corrigido em relação à base)"] pri=2
                                                  => SHAMPOO LIQUIDO

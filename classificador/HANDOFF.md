@@ -180,3 +180,12 @@ Pontos pra checar, em ordem:
   (`formaUn()`: 10CPRS / 28CAPS / 30DRGS). Laboratório sai do descritivo. A coluna de conteúdo continua em UN.
 - CORTICOIDES = `S01B CORTICOIDES` (`FIXOS` em `nomes_oficiais.py`). Laboratórios do grupo continuam pelo grupo.
 - Detalhes e pendências em `farma_pacote/LEIA-ME_FARMACIA.md`.
+
+## Farmácia: base de marcas do cliente (Hoja) e ordem DIMA > base do cliente > dicionário
+
+- `dados/farma_marcas/*.tsv` → `python3 farma_marcas.py` → `farmaMarcas` / `farmaCodLab` (ver LEIA-ME 3.5b).
+  Ordem de scripts: `farma_pa.py`, `nomes_oficiais.py`, `farma_marcas.py`, `build.py`.
+- `compileFM`/`matchFM`: marca comercial → categoria (antes do princípio ativo). No `runAll` (Farmácia): marca na DIMA,
+  depois `farmaMarcas`, depois dicionário, depois `nomeComercial`, depois princípio ativo. `palavrasPA` impede que parte
+  do princípio ativo (HIDROXIDO de HIDROXIDO DE ALUMINIO) vire marca.
+- Teste: `node testes_farma/rodar_hoja.js`.

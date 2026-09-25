@@ -42,6 +42,13 @@ def main():
         for v in (r[4], r[5]):
             if v: junta(v)
     for s in json.loads(gzip.decompress((here / 'dima.json.gz').read_bytes()))['segs']: junta(s)
+    # base de marcas de Farmácia do cliente (farma_marcas.py): colunas Est Mer 6 / Est Mer 7 Descripcion
+    from farma_marcas import ler_linhas
+    for p in sorted((here / 'dados' / 'farma_marcas').glob('*')):
+        if p.suffix.lower() in ('.tsv', '.csv', '.txt'):
+            for r in ler_linhas(p):
+                for v in (r.get('EST MER 6 DESCRIPCION'), r.get('EST MER 7 DESCRIPCION')):
+                    if v: junta(re.sub(r'^([A-Z]\d\d[A-Z]?\d?)\s+-\s+', r'\1 ', conserta(v).strip()))
     arv = here / 'dados' / 'arvore_est_mer.xlsx'
     if arv.exists():
         for ws in openpyxl.load_workbook(arv, read_only=True).worksheets:

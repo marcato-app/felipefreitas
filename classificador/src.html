@@ -486,6 +486,7 @@ function compile0() {
     names: new Set(actCats().map(c => c.nome)),
     cesta: new Map(actCats().map(c => [c.nome, c.cesta || ''])),
     pa: compilePA(new Set(actCats().map(c => c.nome))),
+    fm: compileFM(new Set(actCats().map(c => c.nome))),
     black: new Set([...cfg.falsasMarcas.map(N), ...K.const.USER_BLACK]),
   };
 }
@@ -519,12 +520,24 @@ function matchPA(t, P) {
 }
 // termo do princípio ativo como aparece na descrição (ex.: "PARACETAMOL", e não "PARACETAMOL (ACETAMINOFENO)")
 function paIni(r, T) { const a = r.alts[0]; for (const t of T) for (const x of a) if (new RegExp('(?<![A-Z0-9])' + escRx(x) + '(?![A-Z0-9])').test(t)) return x; return a[0]; }
+// Base de marcas de Farmácia do cliente (farma_marcas.py -> K.farmaMarcas: [nome, categoria, fabricante, nº de categorias])
+function compileFM(active) {
+  const L = (K.farmaMarcas || []).filter(m => !m[1] || active.has(m[1])); if (!L.length) return null;
+  const map = new Map(L.map(m => [N(m[0]), { nome: m[0], cat: m[1], fab: m[2], ncat: m[3] }]));
+  const terms = [...map.keys()].sort((a, b) => b.length - a.length);
+  return { map, rx: new RegExp('(?<![A-Z0-9])(?:' + terms.map(escRx).join('|') + ')(?![A-Z0-9])') };
+}
+function matchFM(T, F) { if (!F) return null; for (const t of T) { const m = t.match(F.rx); if (m) return F.map.get(m[0]); } return null; }
 function classifyDesc(t, C) {
   const r = classifyRules(t, C);
   if (r === OUT && C.sempre && C.sempre.test(t)) return r;
   // princípio ativo decide dentro de Farmácia (e ganha da cesta PET quando a descrição não fala de animal);
   // categoria de outra cesta que bateu pelas regras (shampoo com cetoconazol, bicarbonato culinário) continua valendo
-  if (C.pa && (!r || C.cesta.get(r) === 'FARMACIA' || (C.cesta.get(r) === 'PET' && !RX_PET.test(t)))) { const p = matchPA(t, C.pa); if (p) return p.cat; }
+  // marca comercial da base de Farmácia do cliente (EST MER 7 da marca) vem antes do princípio ativo
+  if (!r || C.cesta.get(r) === 'FARMACIA' || (C.cesta.get(r) === 'PET' && !RX_PET.test(t))) {
+    const f = matchFM([t], C.fm); if (f && f.cat) return f.cat;
+    if (C.pa) { const p = matchPA(t, C.pa); if (p) return p.cat; } }
+  else { const f = matchFM([t], C.fm); if (f && f.cat && f.nome.includes(' ')) return f.cat; } // LEITE MAG PHILLIPS, NEOCOPAN COMPOSTO
   return r;
 }
 function classifyRules(t, C) {
@@ -893,6 +906,7 @@ function labIndex() {
       if (w.length >= 2 && /^[A-Z0-9]{2,4}$/.test(last) && !LAB_COD_NAO.has(last)) { if (!cod.has(last)) cod.set(last, new Map()); cod.get(last).set(f, (cod.get(last).get(f) || 0) + 1); } }
   }
   const codigo = new Map(); for (const [c, m] of cod) { let tot = 0, f = null, v = 0; for (const [ff, vv] of m) { tot += vv; if (vv > v) { v = vv; f = ff; } } if (tot >= 3 && v / tot >= 0.8) codigo.set(c, f); }
+  for (const [c, f] of Object.entries(K.farmaCodLab || {})) if (!codigo.has(c) && !LAB_COD_NAO.has(c)) codigo.set(c, f); // base de marcas do cliente depois da DIMA
   const chave = new Map(); // termo que pode aparecer em qualquer lugar da descrição -> fabricante
   for (const [k, f] of nomes) { const w = k.split(' ').filter(x => !LAB_LIXO.has(x)); if (!w.length) continue;
     const full = w.join(' '); if (full.length >= 3 && !GENERIC.has(full)) chave.set(full, f); } // nome completo (sem LTDA, FARMA...), nunca só a 1ª palavra
@@ -912,13 +926,17 @@ function labAchado(T) {
 function labDaDescricao(T) { const l = labAchado(T); return l ? l.fab : null; }
 /* ---- Farmácia: marca = nome comercial; genérico: marca = princípio ativo (fabricante = laboratório) ---- */
 const FARMA_NAO_MARCA = new Set(('GENERICO GENERICA GENERICOS SIMILAR MEDICAMENTO REFERENCIA INFANTIL ADULTO PEDIATRICO ' +
+  'CLOR CLORID CLORIDR HCL SOD POT MAL MAG SUCC ACET SULF FOSF BESIL MESIL TART BROM BROMETO BUT BUTILBROMETO ' +
   'CLORIDRATO DICLORIDRATO BROMIDRATO MALEATO SUCCINATO TARTARATO SULFATO ACETATO BESILATO MESILATO CITRATO FOSFATO FUMARATO HEMIFUMARATO ' +
   'LACTATO NITRATO VALERATO PROPIONATO DIPROPIONATO ESTOLATO CLORETO ACIDO SODIO SODICO SODICA POTASSIO POTASSICO POTASSICA CALCIO CALCICO MAGNESIO ' +
   'MONOIDRATADO MONOIDRATADA DI TRI HIDRATADO HIDRATADA ASSOCIACAO COMPOSTO COMPOSTA ' +
   'COMPRIMIDO COMPRIMIDOS CAPSULA CAPSULAS DRAGEA DRAGEAS SOLUCAO SUSPENSAO XAROPE GOTAS POMADA CREME GEL LOCAO SPRAY COLIRIO AMPOLA INJETAVEL ' +
   'EFERVESCENTE REVESTIDO ORAL NASAL TOPICO TOPICA OFTALMICO OFTALMICA SACHE SACHES PO FRASCO BISNAGA CAIXA CX FR').split(' '));
-function farmaNaoMarca(m, C) {
+// palavras dos princípios ativos escritos na descrição (HIDROXIDO DE ALUMINIO, OLEO MINERAL)
+function palavrasPA(T, C) { const P = C.pa, out = new Set(); if (!P) return out; for (const t of T) { let m; P.rx.lastIndex = 0; while ((m = P.rx.exec(t))) m[0].split(' ').forEach(w => out.add(w)); } return out; }
+function farmaNaoMarca(m, C, paW) {
   const n = N(m); if (!n) return true;
+  if (paW && n.split(' ').every(w => paW.has(w) || CONNECT.has(w))) return true;
   const L = labIndex(); const P = C.pa;
   if (L.chave.has(n) || L.codigo.has(n) || LAB_ALIAS[n] || FARMA_NAO_MARCA.has(n)) return true; // laboratório (EMS, CIM, MEDLEY...) não é marca
   if (GROUP_TOK.FARMA[n]) return true;
@@ -926,11 +944,11 @@ function farmaNaoMarca(m, C) {
   return false;
 }
 // nome comercial escrito no começo da 1ª descrição (DORFLEX, NEOSALDINA), antes de princípio ativo, número ou forma
-function nomeComercial(T, C, vocab) {
+function nomeComercial(T, C, vocab, paW) {
   const t = T[0] || ''; const L = labIndex();
   for (const w of t.split(' ')) {
     if (SKIPTIPO.has(w)) continue;
-    if (/\d/.test(w) || w.length < 3 || farmaNaoMarca(w, C) || L.rx && L.rx.test(w)) return null;
+    if (/\d/.test(w) || w.length < 3 || farmaNaoMarca(w, C, paW) || L.rx && L.rx.test(w)) return null;
     if (GENERIC.has(w) || NOISE.has(w) || ATTR.has(w) || (vocab && vocab.nome.has(w))) return null; // termos de "incluir" da Farmácia costumam ser as próprias marcas (NEOSALDINA)
     return w;
   }
@@ -1051,21 +1069,29 @@ async function runAll() {
         if (conhecidos.has(N(it.sugFab))) fab = it.sugFab.trim(); }
     }
     const farma = !!cc && cc.cesta === 'FARMACIA';
+    let fmHit = null; // marca achada na base de marcas de Farmácia do cliente
     if (farma) { // marca = nome comercial; genérico: o princípio ativo (o fabricante vem do laboratório, logo abaixo)
       const pa = C.pa ? T.map(t => matchPA(t, C.pa)).find(Boolean) : null;
+      let trocar = false;
       if (marcaArq && farmaNaoMarca(marca, C) && !(pa && N(paIni(pa, T)) === N(marca))) { // marca do arquivo é laboratório/genérico: não é marca
-        const velha = marca; bn = null; BD = null;
-        for (const DD of brandDicts()) { const b2 = findBrand(T, [], '', C.black, DD, vocab); if (b2 && !farmaNaoMarca(b2, C)) { bn = b2; BD = DD; break; } }
-        marca = null; arqAl.push(`Arquivo: marca ${velha} é laboratório ou genérico; usada a marca comercial ou o princípio ativo`);
-      } else if (!marcaArq && bn && farmaNaoMarca(bn, C)) { bn = null; BD = null; fab = prioArq() && valido(it.sugFab) ? it.sugFab.trim() : 'OUTRO FABRICANTE'; }
-      if (!marcaArq || marca === null) {
-        if (bn) { const trocada = marca === null; marca = BD.map.get(bn).canon; if (trocada) fab = valido(it.sugFab) ? it.sugFab.trim() : fabricante(bn, seg, BD); }
+        arqAl.push(`Arquivo: marca ${marca} é laboratório ou genérico; usada a marca comercial ou o princípio ativo`); trocar = true; }
+      if (!marcaArq || trocar) {
+        // ordem: DIMA > base de marcas de Farmácia do cliente > dicionário enviado > nome comercial da descrição > princípio ativo
+        const paW = palavrasPA(T, C);
+        const tenta = DD => { const b2 = DD && findBrand(T, [], '', C.black, DD, vocab); return b2 && !farmaNaoMarca(b2, C, paW) ? b2 : null; };
+        const fabArq = prioArq() && valido(it.sugFab) ? it.sugFab.trim() : '';
+        bn = null; BD = null; fmHit = null;
+        if ((bn = tenta(data.dima))) BD = data.dima;
+        else if ((fmHit = matchFM(T, C.fm)) && !farmaNaoMarca(fmHit.nome, C, paW)) bn = fmHit.nome;
+        else if ((fmHit = null, bn = tenta(data.dict))) BD = data.dict;
+        if (BD) { marca = BD.map.get(bn).canon; fab = fabArq || fabricante(bn, seg, BD); }
+        else if (fmHit) { marca = fmHit.nome; fab = fabArq || fmHit.fab || 'OUTRO FABRICANTE'; }
         else {
-          const nc = !cc.inicio ? nomeComercial(T, C, vocab) : null;
+          const nc = !cc.inicio ? nomeComercial(T, C, vocab, paW) : null;
           if (nc) { bn = nc; marca = nc; }
           else if (pa) { bn = paIni(pa, T); marca = bn; }
           else marca = 'OUTRA MARCA';
-          fab = prioArq() && valido(it.sugFab) ? it.sugFab.trim() : 'OUTRO FABRICANTE';
+          fab = fabArq || 'OUTRO FABRICANTE';
         }
       }
     }
@@ -1118,7 +1144,8 @@ async function runAll() {
     // o descritivo é sempre padronizado pelo app (já com a categoria, marca e conteúdo mantidos do arquivo)
     const desc = cleanD([ini, brandTxt, comp].filter(Boolean).join(' ')) + (dose ? ' ' + dose : '') + (qTxt ? ' ' + qTxt : '');
     const alerts = [];
-    { const C0 = C.pa && T.map(t => matchPA(t, C.pa)).find(p => p && p.cat === a.cat);
+    { const F0 = matchFM(T, C.fm); if (F0 && F0.cat === a.cat) alerts.push('Categoria pela marca ' + F0.nome + (F0.ncat > 1 ? ` (marca em ${F0.ncat} categorias; usada a de maior venda)` : ''));
+      const C0 = !(F0 && F0.cat === a.cat) && C.pa && T.map(t => matchPA(t, C.pa)).find(p => p && p.cat === a.cat);
       if (C0) alerts.push('Categoria pelo princípio ativo ' + C0.pa + (C0.corrigido ? ' (destino corrigido em relação à base)' : C0.validar ? ' (base pede validação)' : '')); }
     if (a.arqTrocada) alerts.push(`Arquivo: categoria ${a.arqTrocada} não bate com a descrição (outra cesta); usada ${a.cat}`);
     alerts.push(...arqAl);
@@ -1134,7 +1161,7 @@ async function runAll() {
     if (q.flag === 'SEM_QTD') alerts.push('Sem quantidade na descrição');
     else if (q.flag === 'QTD_PADRAO') alerts.push('Sem quantidade na descrição; usado o padrão ' + qtyText(q));
     else if (q.flag === 'QTD_DIV') alerts.push('Quantidades diferentes entre descrições');
-    const pri = alerts.some(x => /^(Nenhuma|Descrições|Sem evidência|Arquivo: categoria)/.test(x)) ? 1 : alerts.some(x => !x.startsWith('Categoria pelo princípio ativo') || /\((base pede validação|destino corrigido em relação à base)\)$/.test(x)) ? 2 : 0;
+    const pri = alerts.some(x => /^(Nenhuma|Descrições|Sem evidência|Arquivo: categoria)/.test(x)) ? 1 : alerts.some(x => !/^Categoria pel[oa] (princípio ativo|marca) /.test(x) || /\((base pede validação|destino corrigido em relação à base|marca em \d+ categorias; usada a de maior venda)\)$/.test(x)) ? 2 : 0;
     res.push({ it, cat: a.cat, marca, fab, qt: q.tot, qbase: q.base, desc, alerts, pri });
     if (i % 250 === 0) { $('#prog').style.width = (100 * i / items.length).toFixed(1) + '%'; $('#runState').textContent = `Classificando ${i.toLocaleString('pt-BR')} de ${items.length.toLocaleString('pt-BR')}…`; await new Promise(r => setTimeout(r, 0)); }
   }

@@ -25,9 +25,12 @@ Pacote para continuar o trabalho de **Farmácia** em outro chat/agente. O app é
 >    base registra pelo grupo (GERMED/LEGRAND → EMS PHARMA; NEO QUIMICA → HYPERA PHARMA). Tabela em
 >    `dados/farma_laboratorios.xlsx`. Nunca usar só a 1ª palavra do nome do fabricante. Sem laboratório na descrição:
 >    fica o fabricante do arquivo; sem ele, o da marca.
-> 3. **Marca** — remédio de marca: o **nome comercial** (DORFLEX, NEOSALDINA). Genérico: o **princípio ativo** é a
->    marca (`LOSARTANA POTASSICA 50MG 30 COMP GERMED` → marca LOSARTANA, fabricante = laboratório). Laboratório (EMS,
->    CIM, MEDLEY…) e GENERICO nunca são marca.
+> 3. **Marca** — remédio de marca: o **nome comercial** (DORFLEX, NEOSALDINA). Genérico (nome do princípio ativo /
+>    substância): a **marca é o próprio princípio ativo** e o **fabricante é o laboratório**
+>    (`LOSARTANA POTASSICA 50MG 30 COMP GERMED` → marca LOSARTANA, fabricante EMS PHARMA). Laboratório (EMS, CIM,
+>    MEDLEY…), GENERICO e sal (CLOR, MAG, BROMETO…) nunca são marca. **Ordem das bases: DIMA primeiro**, depois a base
+>    de marcas de Farmácia do cliente (`dados/farma_marcas/`), depois o dicionário enviado; só então o nome comercial
+>    escrito na descrição ou o princípio ativo.
 > 4. **Descritivo** — marca + complemento + **dosagem** + quantidade na forma farmacêutica:
 >    `DIPIRONA SODICA 500MG 10CPRS`, `OMEPRAZOL 20MG 28CAPS`, `NEOSALDINA 30DRGS`, `TIMOLOL COLIRIO 0.5% 5ML`.
 >    Comprimidos = CPRS, cápsulas = CAPS, drágeas = DRGS (a palavra COMPRIMIDO/CAPSULA/DRAGEA sai). O laboratório não
@@ -120,6 +123,22 @@ anti-inflamatórios "Por Defecto" (ibuprofeno, diclofenaco…) → ANTI REUMATIC
   descrição (Y); usado Y". Não achou → fabricante do arquivo; sem ele, o da marca.
 - Laboratórios do grupo saem pelo grupo (Germed e Legrand → EMS PHARMA; Neo Química → HYPERA PHARMA) — confirmado.
 
+### 3.5b Base de marcas de Farmácia do cliente (`dados/farma_marcas/`)
+- Exportação "Hoja" (fabricante, Marca, Est Mer 6/7, venda 24 meses). `python3 farma_marcas.py` → `consts.json`:
+  `farmaMarcas` (marca comercial sem o código do laboratório → EST MER 7 de maior venda → categoria do app, fabricante)
+  e `farmaCodLab` (código de 3 letras → laboratório, depois dos códigos aprendidos da DIMA). Linha de genérico
+  ("OMEPRAZOL TEU") só ensina o código do laboratório.
+- Categoria: marca comercial da base decide a categoria antes do princípio ativo (quando as regras deram Farmácia, nada
+  ou PET sem animal); marca de 2+ palavras ganha até de categoria de outra cesta (LEITE MAG PHILLIPS). Alerta
+  "Categoria pela marca X"; vai para revisão quando a marca aparece em mais de uma EST MER 7.
+- As colunas EST MER 6/7 também alimentam os nomes oficiais (268 de 400 com código agora).
+- Arquivo atual: Hoja 1 46 (capítulo A — digestivo/metabolismo, 1.881 linhas). Mais arquivos: pôr na mesma pasta e rodar
+  `python3 nomes_oficiais.py && python3 farma_marcas.py && python3 build.py`.
+- Teste `node testes_farma/rodar_hoja.js` (1.522 marcas do arquivo como descrições sintéticas): marca certa 1.329,
+  fabricante certo 1.428, em Farmácia 1.481 (antes: 870 / 802 / 412); genéricos 239 de 243. Erros em
+  `testes_farma/hoja_erros.txt` — boa parte é a DIMA dando outra grafia (CLAZI x CLAZI XR), marca com nome de laboratório
+  (SANDOZ, JANSSEN) e 3 EST MER 7 que não existem no app (A03E OUTRAS ASSOCIACOES, A11A1/A11B1 PRENATAL).
+
 ### 3.6 Marca
 - Regra (decidida): **nome comercial**; genérico → **princípio ativo** como marca (como escrito na descrição: LOSARTANA,
   DIPIRONA), fabricante = laboratório.
@@ -132,7 +151,7 @@ anti-inflamatórios "Por Defecto" (ibuprofeno, diclofenaco…) → ANTI REUMATIC
 ---
 
 ## 4. Pendências para o agente de Farmácia
-1. **Nomes oficiais** das 161 categorias sem código (pedir a árvore EST MER 7/6 com códigos). A base traz
+1. **Nomes oficiais** das 132 categorias sem código (pedir a árvore EST MER 7/6 com códigos). A base traz
    `C10A1 ESTATINASINIB DA HMG COA REDUTASE` (parece "ESTATINAS/INIB…" sem a barra) — confirmar.
 2. Validar com o cliente as **correções** da base (3.1) e as 455 linhas marcadas VALIDAR.
 3. Confirmar abreviações das formas na quantidade (CPRS, CAPS, DRGS) e se GENERICO deve sair do descritivo.
