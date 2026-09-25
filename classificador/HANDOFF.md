@@ -162,3 +162,11 @@ Pontos pra checar, em ordem:
 ## Farmácia: agente próprio
 
 - A partir de 2026-09-25 a Farmácia é tratada por um agente separado (pacote em `farma_pacote/` / `farma_pacote.zip`). Neste fluxo o app continua com a lógica de Farmácia como está, mas **não se mexe mais nela aqui**; mudanças de Farmácia vêm do outro agente.
+
+## Testes de Farmácia (automáticos)
+
+- `NODE_PATH=$(npm root -g) node testes_farma/rodar.js` abre o `classificador.html` com Playwright, ativa todas as
+  categorias, roda os CSVs de `farma_pacote/testes/` e imprime categoria (nome oficial), descritivo, marca, fabricante e
+  alertas. Saída atual em `testes_farma/resultados.txt` (comparar com `diff` depois de mexer no código).
+- Forma farmacêutica colada no número (`20CP`, `14CP`, `30CAPS`) agora entra no descritivo
+  (`PARACETAMOL 750MG 20CP` → `PARACETAMOL COMPRIMIDO 20UN`; antes saía `PARACETAMOL 20UN`).

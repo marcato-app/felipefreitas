@@ -1,0 +1,99 @@
+== farma_categoria.csv
+                                                 => N02B NAO NARCOTICOS ANTIPIRETICOS
+                                                   EMS DIPIRONA SODICA COMPRIMIDO 10UN | EMS | EMS PHARMA
+                                                   ["Categoria pelo princípio ativo Dipirona"] pri=0
+                                                 => C09C ANTAGONISTAS DE LA ANGIOTENSINA II PUROS
+                                                   LOSARTANA POTASSICA COMPRIMIDO 30UN | LOSARTANA POTASSICA | OUTRO FABRICANTE
+                                                   ["Categoria pelo princípio ativo Losartana (base pede validação)"] pri=2
+                                                 => J01C1 PENICILINAS DE AMPLO ESPECTRO ORAIS
+                                                   AMOXICILINA CLAVULANATO DE POTASSIO COMPRIMIDO 14UN | OUTRA MARCA | OUTRO FABRICANTE
+                                                   ["Categoria pelo princípio ativo Amoxicilina+Clavulanato (base pede validação)"] pri=2
+                                                 => J01C1 PENICILINAS DE AMPLO ESPECTRO ORAIS
+                                                   AMOXICILINA CAPSULA 21UN | OUTRA MARCA | OUTRO FABRICANTE
+                                                   ["Categoria pelo princípio ativo Amoxicilina (base pede validação)"] pri=2
+                                                 => TOPICOS OFTALMOLOGICOS ANTIGLAUCOMA
+                                                   TIMOLOL COLIRIO 5ML | OUTRA MARCA | OUTRO FABRICANTE
+                                                   ["Categoria pelo princípio ativo Timolol (base pede validação)"] pri=2
+                                                 => ANTI REUMATICOS NAO ESTEROIDAIS PUROS
+                                                   IBUPROFENO COMPRIMIDO 20UN | OUTRA MARCA | OUTRO FABRICANTE
+                                                   ["Categoria pelo princípio ativo Ibuprofeno (base pede validação)"] pri=2
+                                                 => N02B NAO NARCOTICOS ANTIPIRETICOS
+                                                   PARACETAMOL COMPRIMIDO 20UN | OUTRA MARCA | OUTRO FABRICANTE
+                                                   ["Categoria pelo princípio ativo Paracetamol (Acetaminofeno)"] pri=0
+                                                 => D01A1 ANTIFUNGICOS DERMATOLOGICOS TOPICOS
+                                                   CETOCONAZOL CREME 30G | OUTRA MARCA | OUTRO FABRICANTE
+                                                   ["Categoria pelo princípio ativo Cetoconazol tópico"] pri=0
+                                                 => J02A AGENTES ANTIMICOTICOS SISTEMICOS EXCLUINDO GRISEOF
+                                                   CETOCONAZOL COMPRIMIDO 10UN | OUTRA MARCA | OUTRO FABRICANTE
+                                                   ["Categoria pelo princípio ativo Cetoconazol (base pede validação)"] pri=2
+                                                 => VITAMINA D PURA
+                                                   SUPL ALIM VITAMINA CAPSULA 30UN | OUTRA MARCA | OUTRO FABRICANTE
+                                                   ["Categoria pelo princípio ativo Vitamina D (Colecalciferol) (destino corrigido em relação à base)"] pri=2
+                                                 => SHAMPOO LIQUIDO
+                                                   SH CETOCONAZOL SHAMPOO ANTICASPA 100ML | CETOCONAZOL | AVVIO PHARMA
+                                                   [] pri=0
+                                                 => BICARBONATO
+                                                   BICARBONATO KITANO SODIO 80G | KITANO | GENERAL MILLS
+                                                   [] pri=0
+                                                 => C07A AGENTES BETA BLOQUEADORES PUROS
+                                                   PROPRANOLOL COMPRIMIDO 30UN | OUTRA MARCA | OUTRO FABRICANTE
+                                                   ["Categoria pelo princípio ativo Propranolol (base pede validação)"] pri=2
+                                                 => C10A1 ESTATINASINIB DA HMG COA REDUTASE
+                                                   SINVASTATINA COMPRIMIDO GENERICO 30UN | OUTRA MARCA | OUTRO FABRICANTE
+                                                   ["Categoria pelo princípio ativo Sinvastatina (base pede validação)"] pri=2
+                                                 => OUTRA CATEGORIA
+                                                   AMOXICILINA CAES E GATOS COMPOSTO 10UN | OUTRA MARCA | OUTRO FABRICANTE
+                                                   [] pri=0
+                                                 => N02B NAO NARCOTICOS ANTIPIRETICOS
+                                                   DIPIRONA DORFLEX COMPRIMIDO 10UN | DIPIRONA | BIOVET
+                                                   ["Categoria pelo princípio ativo Dipirona"] pri=0
+                                                 => N02C9 TODAS AS OUTRAS PREPARACOES ANTI ENXAQUECA
+                                                   NEOSALDINA DRAGEA 30UN | OUTRA MARCA | OUTRO FABRICANTE
+                                                   [] pri=0
+== farma_laboratorio.csv
+                                                 => N02B NAO NARCOTICOS ANTIPIRETICOS
+                                                   EMS DIPIRONA SODICA COMPRIMIDO 10UN | EMS | EMS PHARMA
+                                                   ["Categoria pelo princípio ativo Dipirona"] pri=0
+                                                 => C09C ANTAGONISTAS DE LA ANGIOTENSINA II PUROS
+                                                   LOSARTANA POTASSICA COMPRIMIDO GERMED 30UN | LOSARTANA POTASSICA | EMS PHARMA
+                                                   ["Categoria pelo princípio ativo Losartana (base pede validação)"] pri=2
+                                                 => A02B2 INIBIDORES DA BOMBA DE PROTONS
+                                                   NEO QUIMICA OMEPRAZOL CAPSULA 28UN | NEO QUIMICA | HYPERA PHARMA
+                                                   ["Categoria pelo princípio ativo Omeprazol"] pri=0
+                                                 => J01C1 PENICILINAS DE AMPLO ESPECTRO ORAIS
+                                                   EUROFARMA AMOXICILINA CAPSULA 21UN | EUROFARMA | EUROFARMA
+                                                   ["Categoria pelo princípio ativo Amoxicilina (base pede validação)"] pri=2
+                                                 => C10A1 ESTATINASINIB DA HMG COA REDUTASE
+                                                   MEDLEY SINVASTATINA COMPRIMIDO 30UN | MEDLEY | MEDLEY
+                                                   ["Categoria pelo princípio ativo Sinvastatina (base pede validação)"] pri=2
+                                                 => ANTI REUMATICOS NAO ESTEROIDAIS PUROS
+                                                   PRATI DONADUZZI IBUPROFENO COMPRIMIDO 20UN | PRATI DONADUZZI | PRATI DONADUZZI
+                                                   ["Categoria pelo princípio ativo Ibuprofeno (base pede validação)"] pri=2
+                                                 => ASSOCIADOS
+                                                   DORFLEX COMPRIMIDO 10UN | OUTRA MARCA | OUTRO FABRICANTE
+                                                   [] pri=0
+                                                 => N02B NAO NARCOTICOS ANTIPIRETICOS
+                                                   PARACETAMOL COMPRIMIDO TEU 20UN | OUTRA MARCA | TEUTO
+                                                   ["Categoria pelo princípio ativo Paracetamol (Acetaminofeno)"] pri=0
+                                                 => D01A1 ANTIFUNGICOS DERMATOLOGICOS TOPICOS
+                                                   CIM CETOCONAZOL CREME 30G | CIM | CIMED
+                                                   ["Categoria pelo princípio ativo Cetoconazol tópico"] pri=0
+                                                 => C09C ANTAGONISTAS DE LA ANGIOTENSINA II PUROS
+                                                   LOSARTANA POTASSICA COMPRIMIDO EMS 30UN | LOSARTANA POTASSICA | EMS PHARMA
+                                                   ["Categoria pelo princípio ativo Losartana (base pede validação)","Arquivo: fabricante SANOFI FARMACEUTICA difere do laboratório na descrição (EMS PHARMA); usado EMS PHARMA"] pri=2
+                                                 => C07A AGENTES BETA BLOQUEADORES PUROS
+                                                   PROPRANOLOL COMPRIMIDO 30UN | OUTRA MARCA | CRISTALIA
+                                                   ["Categoria pelo princípio ativo Propranolol (base pede validação)"] pri=2
+== farma_nome_oficial.csv
+                                                 => N02B NAO NARCOTICOS ANTIPIRETICOS
+                                                   EMS DIPIRONA SODICA COMPRIMIDO 10UN | EMS | EMS PHARMA
+                                                   ["Categoria pelo princípio ativo Dipirona","Arquivo: fabricante EMS difere do laboratório na descrição (EMS PHARMA); usado EMS PHARMA"] pri=2
+                                                 => A02B2 INIBIDORES DA BOMBA DE PROTONS
+                                                   MEDLEY OMEPRAZOL CAPSULA 28UN | MEDLEY | SANOFI
+                                                   ["Categoria pelo princípio ativo Omeprazol"] pri=0
+                                                 => A02B1 ANTAGONISTAS H2
+                                                   RANITIDINA COMPRIMIDO 20UN | OUTRA MARCA | OUTRO FABRICANTE
+                                                   ["Categoria pelo princípio ativo Ranitidina"] pri=0
+                                                 => C09C ANTAGONISTAS DE LA ANGIOTENSINA II PUROS
+                                                   LOSARTANA POTASSICA COMPRIMIDO 30UN | LOSARTANA POTASSICA | OUTRO FABRICANTE
+                                                   ["Categoria pelo princípio ativo Losartana (base pede validação)"] pri=2

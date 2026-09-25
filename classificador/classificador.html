@@ -779,7 +779,9 @@ function qtyText(q) { if (!q || q.tot === null) return ''; return q.n > 1 ? q.n 
 
 /* descritivo */
 function groupOf(cat) { const cc = cfg.categorias.find(c => c.nome === cat); if (cc && cc.cesta === 'FARMACIA') return 'FARMA'; if (cat.startsWith('CAFE')) return 'CAFE'; if (cat.startsWith('FARINHA')) return 'FARINHA'; if (cat.startsWith('CHOCOLATE')) return 'CHOCOLATE'; if (cat.includes('CONSERVA') || cat === 'AZEITONA') return 'CONSERVA'; return null; }
-function expand(t, grp) { t = prepQ(t); for (const [rx, r] of PHRASE) t = t.replace(rx, r); const g = GROUP_TOK[grp] || {}; return t.split(' ').map(x => g[x] || TOK[x] || x).join(' '); }
+// Farmácia: forma colada no número (20CP, 14CPR, 30CAPS) vira "20 CP" para a forma entrar no descritivo
+const RX_FORMA_COLADA = /(?<![A-Z0-9.])(\d{1,3})(COMPR|COMP|CPR|CPS|CP|CAPS|CAP|DRG)(?![A-Z])/g;
+function expand(t, grp) { t = prepQ(t); if (grp === 'FARMA') t = t.replace(RX_FORMA_COLADA, '$1 $2'); for (const [rx, r] of PHRASE) t = t.replace(rx, r); const g = GROUP_TOK[grp] || {}; return t.split(' ').map(x => g[x] || TOK[x] || x).join(' '); }
 const QTY_RX = new RegExp('(?<![A-Z])(\\d{1,3}\\s*X\\s*)?\\d+(?:\\.\\d+)?\\s*' + U + '(\\s*X\\s*\\d{1,3})?(?![A-Z])', 'g');
 const CONNECT = new Set(['COM', 'SEM', 'AO', 'DE', 'DO', 'DA', 'E']);
 function cleanTokens(t, drop) {
