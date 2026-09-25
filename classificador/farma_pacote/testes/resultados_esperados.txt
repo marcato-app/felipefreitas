@@ -1,0 +1,71 @@
+== farma_categoria.csv (categoria, descritivo, alerta de princípio ativo)
+DIPIRONA SODICA 500MG C/10 CPR EMS             => NAO NARCOTICOS ANTIPIRETICOS
+                                                 EMS DIPIRONA SODICA COMPRIMIDO 10UN
+                                                 [Categoria pelo princípio ativo Dipirona] pri=0
+LOSARTANA POTASSICA 50MG 30 COMP               => ANTAGONISTAS DE LA ANGIOTENSINA II PUROS
+                                                 LOSARTANA POTASSICA COMPRIMIDO 30UN
+                                                 [Categoria pelo princípio ativo Losartana (base pede validação)] pri=2
+AMOXICILINA + CLAVULANATO DE POTASSIO 875MG 14CP => PENICILINAS DE AMPLO ESPECTRO ORAIS
+                                                 AMOXICILINA CLAVULANATO DE POTASSIO 14UN
+                                                 [Categoria pelo princípio ativo Amoxicilina+Clavulanato (base pede validação)] pri=2
+AMOXICILINA 500MG 21 CAPS                      => PENICILINAS DE AMPLO ESPECTRO ORAIS
+                                                 AMOXICILINA CAPSULA 21UN
+                                                 [Categoria pelo princípio ativo Amoxicilina (base pede validação)] pri=2
+TIMOLOL 0,5% COLIRIO 5ML                       => TOPICOS OFTALMOLOGICOS ANTIGLAUCOMA
+                                                 TIMOLOL COLIRIO 5ML
+                                                 [Categoria pelo princípio ativo Timolol (base pede validação)] pri=2
+IBUPROFENO 600MG 20 COMP                       => ANTI REUMATICOS NAO ESTEROIDAIS PUROS
+                                                 IBUPROFENO COMPRIMIDO 20UN
+                                                 [Categoria pelo princípio ativo Ibuprofeno (base pede validação)] pri=2
+PARACETAMOL 750MG 20CP                         => NAO NARCOTICOS ANTIPIRETICOS
+                                                 PARACETAMOL 20UN
+                                                 [Categoria pelo princípio ativo Paracetamol (Acetaminofeno)] pri=0
+CETOCONAZOL CREME 30G                          => ANTIFUNGICOS DERMATOLOGICOS TOPICOS
+                                                 CETOCONAZOL CREME 30G
+                                                 [Categoria pelo princípio ativo Cetoconazol tópico] pri=0
+CETOCONAZOL 200MG 10 COMP                      => AGENTES ANTIMICOTICOS SISTEMICOS EXCLUINDO GRISEOF
+                                                 CETOCONAZOL COMPRIMIDO 10UN
+                                                 [Categoria pelo princípio ativo Cetoconazol (base pede validação)] pri=2
+VITAMINA D 2000UI 30 CAPS                      => VITAMINA D PURA
+                                                 SUPL ALIM VITAMINA CAPSULA 30UN
+                                                 [Categoria pelo princípio ativo Vitamina D (Colecalciferol) (destino corrigido em relação à base)] pri=2
+SHAMPOO ANTICASPA CETOCONAZOL 100ML            => SHAMPOO LIQUIDO
+                                                 SH CETOCONAZOL SHAMPOO ANTICASPA 100ML
+                                                 [] pri=0
+BICARBONATO DE SODIO 80G KITANO                => BICARBONATO
+                                                 BICARBONATO KITANO SODIO 80G
+                                                 [] pri=0
+PROPRANOLOL 40MG 30 COMP                       => AGENTES BETA BLOQUEADORES PUROS
+                                                 PROPRANOLOL COMPRIMIDO 30UN
+                                                 [Categoria pelo princípio ativo Propranolol (base pede validação)] pri=2
+SINVASTATINA 20MG 30CP GENERICO                => ESTATINASINIB DA HMG COA REDUTASE
+                                                 SINVASTATINA GENERICO 30UN
+                                                 [Categoria pelo princípio ativo Sinvastatina (base pede validação)] pri=2
+AMOXICILINA 250MG P/ CAES E GATOS 10 COMP      => OUTRA CATEGORIA
+                                                 AMOXICILINA CAES E GATOS COMPOSTO 10UN
+                                                 [] pri=0
+DORFLEX DIPIRONA 300MG 10 COMP                 => NAO NARCOTICOS ANTIPIRETICOS
+                                                 DIPIRONA DORFLEX COMPRIMIDO 10UN
+                                                 [Categoria pelo princípio ativo Dipirona] pri=0
+NEOSALDINA 30 DRG                              => TODAS AS OUTRAS PREPARACOES ANTI ENXAQUECA
+                                                 NEOSALDINA DRAGEA 30UN
+                                                 [] pri=0 
+
+== farma_laboratorio.csv (descrição | marca | fabricante | alerta)
+DIPIRONA SODICA 500MG C/10 CPR EMS           | EMS              | EMS PHARMA             | 
+LOSARTANA POTASSICA 50MG 30 COMP GERMED      | LOSARTANA POTASS | EMS PHARMA             | 
+OMEPRAZOL 20MG 28 CAPS NEO QUIMICA           | NEO QUIMICA      | HYPERA PHARMA          | 
+AMOXICILINA 500MG 21 CAPS EUROFARMA          | EUROFARMA        | EUROFARMA              | 
+SINVASTATINA 20MG 30CP MEDLEY                | MEDLEY           | MEDLEY                 | 
+IBUPROFENO 600MG 20 COMP PRATI DONADUZZI     | PRATI DONADUZZI  | PRATI DONADUZZI        | 
+DORFLEX 10 COMP                              | OUTRA MARCA      | OUTRO FABRICANTE       | 
+PARACETAMOL 750MG 20CP TEU                   | OUTRA MARCA      | TEUTO                  | 
+CETOCONAZOL CREME 30G CIM                    | CIM              | CIMED                  | 
+LOSARTANA POTASSICA 50MG 30 COMP EMS         | LOSARTANA POTASS | EMS PHARMA             | Arquivo: fabricante SANOFI FARMACEUTICA difere do laboratório na descrição (EMS PHARMA); usado EMS PHARMA
+PROPRANOLOL 40MG 30 COMP                     | OUTRA MARCA      | CRISTALIA              |  
+
+== farma_nome_oficial.csv (categoria do arquivo com código -> interna -> final)
+N02B NAO NARCOTICOS ANTIPIRETICOS => interna: NAO NARCOTICOS ANTIPIRETICOS | final: NAO NARCOTICOS ANTIPIRETICOS
+A02B2 INIBIDORES DA BOMBA DE PROTONS => interna: INIBIDORES DA BOMBA DE PROTONS | final: INIBIDORES DA BOMBA DE PROTONS
+ANTAGONISTAS H2 => interna: ANTAGONISTAS H2 | final: ANTAGONISTAS H2
+ => interna:  | final: ANTAGONISTAS DE LA ANGIOTENSINA II PUROS 
