@@ -109,3 +109,11 @@ Pontos pra checar, em ordem:
 - `coerentes()` em `aggregate`: a referência é a 1ª descrição (ou a coluna de descrição principal do backlog — DESCRIPCION/DESCRICAO/DESCRITIVO…, se existir, vai para o 1º lugar). Descrições sem nenhuma palavra em comum com a referência (igual ou prefixo ≥4 letras, ignorando números, códigos de embalagem, atributos) não votam na categoria nem entram em marca, quantidade e descritivo. Alerta "Descrições de produtos diferentes no mesmo código" (prioridade 1 na revisão).
 - Não usar "maioria" como referência: no backlog de papelaria as duas descrições de fora muitas vezes são do mesmo produto errado.
 - Papelaria com as 3 descrições (Descripcion + TOP + MAX): itens com tipo diferente do da descrição principal 1.197 → 837 (de 26.719).
+
+## Marca só vale se existir na categoria EST MER 6 (fora da Farmácia)
+
+- Referência é sempre a EST MER 6 (nível da DIMA e do dicionário). `segmentos.py` gera `consts.json → segPadrao` (categoria → EST MER 6): mapa fixo (construção, papelaria…), nome idêntico, 1ª(s) palavra(s) = categoria DIMA, Farmácia pelo dicionário de princípios ativos. Hoje 733/1569 ligadas.
+- `segmentosEstMer6()` no `runAll`: 1º o campo "Segmentos" da categoria (fixado à mão ou calculado do backlog), 2º `segPadrao`, 3º aprendido na hora (EST MER 6 das marcas achadas nos itens da categoria, ≥3 itens, fatia ≥20%; em `data.segAprendido`).
+- Com a EST MER 6 conhecida, a marca tem que existir nela: DIMA primeiro; se não achar, dicionário com a mesma regra. Fabricante = maior venda da marca dentro da EST MER 6 (DIMA: mais frequente). EST MER 6 normalizada (acento/maiúscula).
+- Farmácia fica de fora (`seg.livre`): regra própria de fabricante, a definir.
+- `dados/marcas_por_categoria_revisao.xlsx`: antes × agora nos três backlogs de teste.

@@ -383,6 +383,7 @@ async function loadDict(file) {
   return dict.size;
 }
 function dictAdd(dict, mn, raw, fab, em, v) {
+    em = N(em); // EST MER 6 sempre normalizada (acento/maiúscula não atrapalham a comparação)
     let b = dict.get(mn);
     if (!b) { b = { names: new Map(), total: 0, em: new Map(), fabEm: new Map(), fabAll: new Map() }; dict.set(mn, b); }
     const rn = String(raw).trim(); b.names.set(rn, (b.names.get(rn) || 0) + v + 1e-6); b.total += v;
@@ -630,10 +631,10 @@ function validCand(g, black, weakOk) {
   if (/\d+(G|KG|ML|L|GR)$/.test(g)) return false;
   return true;
 }
-function relSales(mn, seg, DD) { const b = DD.map.get(mn); if (!b || !seg || !seg.length) return 0; let s = 0; for (const e of seg) s += b.em.get(e) || 0; return s; }
+function relSales(mn, seg, DD) { const b = DD.map.get(mn); if (!b || !seg || !seg.length) return 0; let s = 0; for (const e of seg) s += b.em.get(N(e)) || 0; return s; }
 function fabricante(mn, seg, DD) {
   const b = DD.map.get(mn); if (!b) return 'OUTRO FABRICANTE';
-  const s = new Map(); for (const e of seg || []) { const fm = b.fabEm.get(e); if (fm) for (const [f, v] of fm) s.set(f, (s.get(f) || 0) + v); }
+  const s = new Map(); for (const e of seg || []) { const fm = b.fabEm.get(N(e)); if (fm) for (const [f, v] of fm) s.set(f, (s.get(f) || 0) + v); }
   const pick = m => { let best = null, bv = -1; for (const [f, v] of m) if (f !== 'OUTRO FABRICANTE' && v > bv) { bv = v; best = f; } return best; };
   return pick(s) || pick(b.fabAll) || 'OUTRO FABRICANTE';
 }
@@ -685,12 +686,14 @@ function escolheMarca(cands, seg, sugn, DD) {
   let best = null;
   for (const [g, c] of cands) {
     if (drop.has(g)) continue; const rs = relSales(g, seg, DD); const rel = rs > 0 ? 1 : 0;
+    if (seg && seg.length && !seg.livre && !rel) continue; // marca de outra categoria EST MER 6 não concorre
     const sc = seg && seg.length ? c * (1 + rel) + 0.1 * (g.split(' ').length - 1) + (g === sugn ? 1.5 : 0) + (rs ? Math.log10(rs + 1) / 12 : 0)
       : c + 0.1 * (g.split(' ').length - 1) + (g === sugn ? 1.5 : 0) + Math.log10((D.get(g).total || 0) + 1) / 12;
     if (!best || sc > best.sc) best = { g, sc, c, rel };
   }
   if (!best) return null;
-  if (!(best.rel || best.g === sugn || best.c >= 0.9)) return null;
+  if (seg && seg.length && !seg.livre) { if (!best.rel) return null; } // categoria conhecida: marca precisa existir nela
+  else if (!(best.rel || best.g === sugn || best.c >= 0.9)) return null;
   return best.g;
 }
 
@@ -837,14 +840,43 @@ function nounOutra(T, bn) {
 const cleanD = s => N(s).replace(/[^A-Z0-9. ]/g, ' ').replace(/(?<!\d)\.|\.(?!\d)/g, ' ').replace(/\s+/g, ' ').trim();
 
 /* run */
+// Categoria EST MER 6 (nível da DIMA e do dicionário) de cada categoria: a marca só vale se existir nela.
+// Ordem: segmentos fixados/aprendidos do backlog na categoria (campo "Segmentos") > ligação padrão (segmentos.py)
+// > aprendido agora: EST MER 6 das marcas achadas nos itens da categoria, sem restrição (>= 3 itens, fatia >= 20%).
+function segmentosEstMer6(AGG, items, byName, C) {
+  // Farmácia tem regra própria (fabricante): fica como antes, sem ligação EST MER 6 obrigatória
+  const farma = cat => { const cc = byName.get(cat); return !!cc && cc.cesta === 'FARMACIA'; };
+  const fixo = cat => { const cc = byName.get(cat); if (cc && cc.segmento && cc.segmento.length) return cc.segmento.map(N); return ((K.segPadrao || {})[cat] || []).map(N); };
+  const acc = new Map(), n = new Map();
+  if (brandDicts().length) AGG.forEach((a, i) => {
+    if (a.cat === OUT || farma(a.cat) || fixo(a.cat).length) return;
+    const vocab = catVocab(C, a.cat); vocab.heads = new Set(a.T.map(t => (headPos(t, C.headIdx) || {}).w).filter(Boolean));
+    for (const DD of brandDicts()) { const bn = findBrand(a.T, [], items[i].sugMarca, C.black, DD, vocab); if (!bn) continue;
+      const b = DD.map.get(bn); let tot = 0; for (const v of b.em.values()) tot += v; if (!tot) break;
+      if (!acc.has(a.cat)) acc.set(a.cat, new Map()); const m = acc.get(a.cat);
+      for (const [e, v] of b.em) if (e) m.set(e, (m.get(e) || 0) + v / tot);
+      n.set(a.cat, (n.get(a.cat) || 0) + 1); break; }
+  });
+  const aprendido = new Map();
+  for (const [cat, m] of acc) { const k = n.get(cat); if (k < 3) continue;
+    const arr = [...m].map(([e, v]) => [e, v / k]).sort((x, y) => y[1] - x[1]).filter(x => x[1] >= 0.2).slice(0, 3).map(x => x[0]);
+    if (arr.length) aprendido.set(cat, arr); }
+  data.segAprendido = aprendido;
+  const f = cat => { if (farma(cat)) { const cc = byName.get(cat); return Object.assign([...(cc.segmento || [])], { livre: true }); }
+    const x = fixo(cat); return x.length ? x : (aprendido.get(cat) || []); };
+  return f;
+}
 async function runAll() {
   await loadDima();
   const C = compile(); autoSegments(); const res = []; const items = data.items; const t0 = performance.now();
   const byName = new Map(cfg.categorias.map(c => [c.nome, c]));
+  $('#runState').textContent = 'Classificando categorias…'; await new Promise(r => setTimeout(r, 0));
+  const AGG = items.map(it => aggregate(it.T, it.sugCat, C, it.main));
+  const segOf = segmentosEstMer6(AGG, items, byName, C);
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
-    const a = aggregate(it.T, it.sugCat, C, it.main); const T = a.T;
-    const cc = byName.get(a.cat); const seg = cc ? cc.segmento : [];
+    const a = AGG[i]; const T = a.T;
+    const cc = byName.get(a.cat); const seg = segOf(a.cat);
     let bn = null, BD = null;
     const vocab = catVocab(C, a.cat); vocab.heads = new Set(T.map(t => (headPos(t, C.headIdx) || {}).w).filter(Boolean));
     for (const DD of brandDicts()) { bn = findBrand(T, seg, it.sugMarca, C.black, DD, vocab); if (bn) { BD = DD; break; } }
