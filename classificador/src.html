@@ -700,7 +700,7 @@ function escolheMarca(cands, seg, sugn, DD) {
 }
 
 /* quantity */
-const U = '(KG|KGS|KILO|KILOS|K|G|GR|GRS|GRAMAS|GRAMA|GRM|ML|L|LT|LTS|LITRO|LITROS|OZ|LB)';
+const U = '(KG|KGS|KILO|KILOS|G|GR|GRS|GRAMAS|GRAMA|GRM|ML|L|LT|LTS|LITRO|LITROS|OZ|LB)'; // sem K solto: 7830K / 4K é código de modelo
 const NUM = '(\\d+(?:\\.\\d+)?)';
 // quantidade plausível por unidade: até 60 kg / 60 L (acima disso é código, referência ou capacidade, não conteúdo);
 // "K" solto só vale como quilo com número pequeno ("5K"), senão é código de modelo ("7830K")
@@ -942,6 +942,8 @@ function qtdArquivo(v) {
 const FOLHA_CONTA_RX = /(?<![A-Z0-9])(PAPEL|PAPEIS|SULFITE|OFICIO|RESMA|A4|CADERNO|CADERNETA|BLOCO|FICHARIO|REFIL|AGENDA|PLANNER|CARTOLINA|ALMACO|MARCADOR|NOTAS|DIARIO|LIVRO)(?![A-Z0-9])/;
 const PAPEL_RX = /(?<![A-Z0-9])(PAPEL|PAPEIS|CARTOLINA|CARTAO|CARTOES|A4|A3|A5|OFICIO|SULFITE|COUCHE|FLS|FOLHA|FOLHAS|FL|RESMA|ENVELOPE|ENVELOPES|BLOCO|CADERNO|GRAMATURA|M2)(?![A-Z0-9])/;
 function textoQtd(t) {
+  // "2K" só é quilo em produto vendido a peso (barbante, grampo, prego, arame...), nunca em objeto (escova 7830K, TV 4K)
+  if (SUBST_RX.test(t)) t = t.replace(/(?<![0-9.A-Z])(\d{1,2}(?:\.\d+)?)\s*K(?![A-Z0-9])/g, (m, n) => +n <= 50 ? n + 'KG' : m);
   t = t.replace(/(?<![A-Z0-9])(P|PARA|PRA)\s+((?:(?:PANELA|PRESSAO|FREEZER|LIXO|BALDE|GALAO|BOTIJAO|ATE|CAPACIDADE|DE)\s+){0,3})(\d+(?:\.\d+)?)\s*(KG|KGS|G|GR|GRS|L|LT|LTS|LITRO|LITROS|ML)(?![A-Z])/g, '$1 $2 CAPAC$3$4');
   // folhas contam como unidade só em produto de papel (não em janela, nem capacidade de grampeador/perfurador)
   if (FOLHA_CONTA_RX.test(t) && !/(?<![A-Z0-9])(GRAMPEADOR|PERFURADOR|GRAMPO|GRAMPOS|JANELA|PORTA|BASCULANTE)(?![A-Z0-9])/.test(t)
@@ -951,6 +953,17 @@ function textoQtd(t) {
   return t;
 }
 const CESTA_NAO_CONSUMO = new Set(['BAZAR', 'CONSTRUCAO E FERRAMENTA', 'TEXTIL', 'ELETRO']);
+// objeto físico: conteúdo é sempre contagem (nunca peso/volume), em qualquer cesta
+const DURAVEL = new Set('ESCOVA ESCOVAS PENTE PENTES TESOURA TESOURAS ALICATE ALICATES CORTADOR PINCA PINCAS ESPELHO PRESILHA PRESILHAS TIARA BOBS TOUCA PINCEL PINCEIS ESPONJA ESPONJAS APARELHO BARBEADOR BARBEADORES APLICADOR MAMADEIRA CHUPETA MORDEDOR VASSOURA RODO BALDE LIXEIRA CESTO CABIDE PRENDEDOR LIXA ACESSORIO ACESSORIOS SECADOR CHAPINHA MODELADOR BABYLISS NECESSAIRE'.split(' '));
+// substância vendida a peso/volume mesmo em cesta de objeto (bazar, construção...)
+const SUBST_RX = /(?<![A-Z0-9])(TINTA|TINTAS|COLA|COLAS|SILICONE|MASSA|ADESIVO|GLITTER|GLITER|PURPURINA|OLEO|GRAXA|CAL|CIMENTO|AREIA|BRITA|ARGAMASSA|REJUNTE|GESSO|ACIDO|THINNER|SOLVENTE|AGUARRAS|VERNIZ|SELADOR|ESMALTE|LUBRIFICANTE|DESENGRIPANTE|ESPUMA|VASELINA|AMONIA|SODA|QUEROSENE|ALCOOL|PARAFINA|CERA|DUREPOX|DUREPOXI|EPOXI|POXIPOL|SOLDA|ESTANHO|LINHA|LINHAS|FIO|FIOS|BARBANTE|BARB|LA|NOVELO|CARVAO|LENHA|ESTERCO|ADUBO|FERTILIZANTE|TERRA|SEMENTE|SEMENTES|SUBSTRATO|GUACHE|AQUARELA|CORANTE|ANILINA|BISCUIT|ARGILA|MASSINHA|PREGO|PREGOS|ARAME|GRAMPO|GRAMPOS|CLIPS|CLIPES|PARAFUSO|PARAFUSOS|REBITE|TACHINHA|VELA|INCENSO|ESSENCIA|AROMATIZANTE|DESINFETANTE|CLORO|BICARBONATO|PIGMENTO|CAFE|ACUCAR|SAL|RACAO|ALPISTE|GRANEL|PO|GEL|SPRAY|AEROSOL|LIQUIDO|LIQUIDA|CREME|CORRETIVO|REABASTECEDOR|ISCA|SELATRINCA|IMPERMEABILIZANTE|PEDRA|PEDRAS|SEIXO|SEIXOS|ELETRODO|ELETRODOS|GRANULADO|SABAO|DETERGENTE|SHAMPOO|CONDICIONADOR)(?![A-Z0-9])/;
+// tipo de produto (1ª palavra) que é objeto: o número com G/ML/L/KG é capacidade ou especificação, não conteúdo
+const OBJETO_TIPO = new Set('ESCOVA PENTE TESOURA ALICATE CORTADOR PINCA ESPELHO PRESILHA TIARA TOUCA PINCEL ESPONJA APARELHO BARBEADOR APLICADOR MAMADEIRA CHUPETA MORDEDOR VASSOURA RODO BALDE LIXEIRA CESTO CABIDE PRENDEDOR REGADOR PULVERIZADOR CARRINHO COPO COPOS TACA TACAS CANECA CANECAS JARRA GARRAFA GARRAFINHA SQUEEZE POTE POTES REGUA TRANSFERIDOR ESQUADRO CALCULADORA ESTOJO PRUMO LONA SACOLA SACOLAS BOBINA LIXA LIXAS BORRACHA ANEL CHIP CAIXA ORGANIZADOR ORGANIZADORA GALAO BOTIJAO FILTRO PANELA FORMA ASSADEIRA TAMPA LANCHEIRA MOCHILA BOLSA MALETA SECADOR CHAPINHA MODELADOR'.split(' '));
+function vendidoPorUnidade(cc, T, C) {
+  if (cc && N(cc.nome).split(' ').some(w => DURAVEL.has(w)) && !T.some(t => SUBST_RX.test(t))) return true; // categoria de objeto (escova, pente...)
+  const hp = T.length ? headPos(T[0], C.headIdx) : null;
+  return !!hp && OBJETO_TIPO.has(hp.w);
+}
 async function runAll() {
   await loadDima();
   const C = compile(); autoSegments(); const res = []; const items = data.items; const t0 = performance.now();
@@ -998,11 +1011,15 @@ async function runAll() {
       }
     }
     const Tq = T.map(textoQtd);
+    const soUN = vendidoPorUnidade(cc, T, C);
     let q = itemQty(Tq, it.sugQt);
+    if (soUN && (q.base === 'G' || q.base === 'ML')) q = { tot: null, flag: 'SEM_QTD' }; // objeto: peso/volume da descrição não é conteúdo
     // item que não é de consumo com peso/volume solto e contagem grande ("CARTUCHO 2KG C/500"): o conteúdo é a contagem
     if (q.tot !== null && q.n === 1 && (q.base === 'G' || q.base === 'ML') && (cc ? CESTA_NAO_CONSUMO.has(cc.cesta) : a.cat === OUT)) {
       const u = countQty(Tq); if (u && u.tot >= (cc ? 20 : 100)) q = u; }
-    const qf = prioArq() ? qtdArquivo(it.sugQt) : null;
+    let qf = prioArq() ? qtdArquivo(it.sugQt) : null;
+    if (qf && soUN && (qf.base === 'G' || qf.base === 'ML')) { arqAl.push(`Arquivo: conteúdo ${qtyText(qf)} não serve para produto vendido por unidade; usado a contagem`); qf = null; }
+    if (qf && (!qf.base || qf.base === 'UN') && qf.tot > 1000) { arqAl.push(`Arquivo: conteúdo ${fmtn(qf.tot)} fora do comum; ignorado`); qf = null; }
     if (qf) {
       const mesmo = q.tot !== null && (!qf.base || q.base === qf.base);
       const r = mesmo && qf.tot ? q.tot / qf.tot : 1;
