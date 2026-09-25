@@ -703,7 +703,11 @@ function escolheMarca(cands, seg, sugn, DD) {
 /* quantity */
 const U = '(KG|KGS|KILO|KILOS|K|G|GR|GRS|GRAMAS|GRAMA|GRM|ML|L|LT|LTS|LITRO|LITROS|OZ|LB)';
 const NUM = '(\\d+(?:\\.\\d+)?)';
-function conv(v, u) {
+// quantidade plausível por unidade: até 60 kg / 60 L (acima disso é código, referência ou capacidade, não conteúdo);
+// "K" solto só vale como quilo com número pequeno ("5K"), senão é código de modelo ("7830K")
+const QMAX = 60000;
+function conv(v, u) { const r = conv0(v, u); if (r[0] === null) return r; if (u === 'K' && !(v > 0 && v <= 50)) return [null, null]; if (r[0] > QMAX || r[0] < 0.1) return [null, null]; return r; }
+function conv0(v, u) {
   if (['KG', 'KGS', 'KILO', 'KILOS', 'K'].includes(u)) return [v * 1000, 'G'];
   if (['G', 'GR', 'GRS', 'GRAMAS', 'GRAMA', 'GRM'].includes(u)) return [v, 'G'];
   if (u === 'ML') return [v, 'ML'];
@@ -726,7 +730,7 @@ function parseQ(t) {
   return out;
 }
 const rnd = x => x >= 50 ? Math.round(x) : Math.round(x * 10) / 10;
-const RX_UN = /(?<![0-9.A-Z])(\d{1,3})\s*(?:UN|UND|UNID|UNIDADE|UNIDADES|UNI|UNDS|UNS|UNDS|COMP|COMPR|COMPRIMIDO|COMPRIMIDOS|CP|CPR|CPS|CAP|CAPS|CAPSULA|CAPSULAS|DRG|DRAGEA|DRAGEAS)(?![A-Z])/g;
+const RX_UN = /(?<![0-9.A-Z])(\d{1,3})\s*(?:UN|UND|UNID|UNIDADE|UNIDADES|UNI|UNDS|UNS|UNDS|COMP|COMPR|COMPRIMIDO|COMPRIMIDOS|CP|CPR|CPS|CAP|CAPS|CAPSULA|CAPSULAS|DRG|DRAGEA|DRAGEAS|FOLHASCONT)(?![A-Z])/g;
 const RX_CN = /(?<![A-Z0-9])(?:C|COM|CX|CX C|CX COM|BANDEJA|BDJ|EMB|CARTELA|PENTE)\s*(\d{1,3})(?![0-9.])(?!\s*(?:G|GR|GRS|KG|ML|L|LT|MG|CM|MM|M|X|%)(?![A-Z]))/g;
 const RX_DZ = /(?<![A-Z0-9.])(?:(\d{1,2})\s*)?(MEIA\s+)?(?:DZ|DUZ|DUZIA|DUZIAS)(?![A-Z])/;
 function parseU(t) {
@@ -933,6 +937,21 @@ function qtdArquivo(v) {
   const d = defaultQty(N(String(v)).replace(/\s+/g, '')); if (d) return Object.assign(d, { flag: '' });
   const n = parseFloat(String(v).replace(',', '.')); return n > 0 ? { tot: n, base: '', n: 1, uv: n, flag: '' } : null;
 }
+// Texto para ler quantidade, sem o que parece quantidade mas não é conteúdo:
+// - gramatura de papel ("PAPEL A4 180G", "CARTOLINA 180G": g/m², não peso)
+// - capacidade depois de P/PARA ("BORRACHA P PRESSAO 7 LT", "SACO P/ 30L")
+const FOLHA_CONTA_RX = /(?<![A-Z0-9])(PAPEL|PAPEIS|SULFITE|OFICIO|RESMA|A4|CADERNO|CADERNETA|BLOCO|FICHARIO|REFIL|AGENDA|PLANNER|CARTOLINA|ALMACO|MARCADOR|NOTAS|DIARIO|LIVRO)(?![A-Z0-9])/;
+const PAPEL_RX = /(?<![A-Z0-9])(PAPEL|PAPEIS|CARTOLINA|CARTAO|CARTOES|A4|A3|A5|OFICIO|SULFITE|COUCHE|FLS|FOLHA|FOLHAS|FL|RESMA|ENVELOPE|ENVELOPES|BLOCO|CADERNO|GRAMATURA|M2)(?![A-Z0-9])/;
+function textoQtd(t) {
+  t = t.replace(/(?<![A-Z0-9])(P|PARA|PRA)\s+((?:(?:PANELA|PRESSAO|FREEZER|LIXO|BALDE|GALAO|BOTIJAO|ATE|CAPACIDADE|DE)\s+){0,3})(\d+(?:\.\d+)?)\s*(KG|KGS|G|GR|GRS|L|LT|LTS|LITRO|LITROS|ML)(?![A-Z])/g, '$1 $2 CAPAC$3$4');
+  // folhas contam como unidade só em produto de papel (não em janela, nem capacidade de grampeador/perfurador)
+  if (FOLHA_CONTA_RX.test(t) && !/(?<![A-Z0-9])(GRAMPEADOR|PERFURADOR|GRAMPO|GRAMPOS|JANELA|PORTA|BASCULANTE)(?![A-Z0-9])/.test(t)
+      && !/(?<![0-9.A-Z])\d{1,3}\s*(UN|UND|UNID|UNIDADES|U)(?![A-Z])/.test(t)) // já tem contagem em unidades: folhas não contam
+    t = t.replace(/(?<![0-9.A-Z])(\d{1,4})\s*(FLS|FL|FOLHAS|FOLHA|FLHS|F)(?![A-Z])/g, '$1FOLHASCONT');
+  if (PAPEL_RX.test(t)) t = t.replace(/(?<![0-9.])(\d{2,3})\s*(G|GR|GRS|GRAMAS|G M2|GM2)(?![A-Z0-9])/g, (m, n) => (+n >= 40 && +n <= 450) ? ' GRAMAT' + n + ' ' : m);
+  return t;
+}
+const CESTA_NAO_CONSUMO = new Set(['BAZAR', 'CONSTRUCAO E FERRAMENTA', 'TEXTIL', 'ELETRO']);
 async function runAll() {
   await loadDima();
   const C = compile(); autoSegments(); const res = []; const items = data.items; const t0 = performance.now();
@@ -979,7 +998,11 @@ async function runAll() {
         fab = lab;
       }
     }
-    let q = itemQty(T, it.sugQt);
+    const Tq = T.map(textoQtd);
+    let q = itemQty(Tq, it.sugQt);
+    // item que não é de consumo com peso/volume solto e contagem grande ("CARTUCHO 2KG C/500"): o conteúdo é a contagem
+    if (q.tot !== null && q.n === 1 && (q.base === 'G' || q.base === 'ML') && (cc ? CESTA_NAO_CONSUMO.has(cc.cesta) : a.cat === OUT)) {
+      const u = countQty(Tq); if (u && u.tot >= (cc ? 20 : 100)) q = u; }
     const qf = prioArq() ? qtdArquivo(it.sugQt) : null;
     if (qf) {
       const mesmo = q.tot !== null && (!qf.base || q.base === qf.base);
@@ -991,9 +1014,9 @@ async function runAll() {
         const u = countQty(T); const us = cc && cc.unidadeSugerida;
         q = Object.assign({}, qf, { base: u ? u.base : us ? String(us).toUpperCase() : '' }); }
     }
-    if (q.tot === null) { const u = countQty(T); if (u) q = u; else { const d = defaultQty((cc && cc.qtdPadrao) || cfg.qtdPadrao); if (d) q = d; } }
+    if (q.tot === null) { const u = countQty(Tq); if (u) q = u; else { const d = defaultQty((cc && cc.qtdPadrao) || cfg.qtdPadrao); if (d) q = d; } }
     // sempre sai uma unidade de medida: vendido a quilo (KG/GRANEL sem número) -> 1KG; nada -> 1UN; número sem unidade -> UN
-    if (q.tot === null) { const kg = T.some(t => /(?<![A-Z0-9])(KG|KILO|QUILO|GRANEL)(?![A-Z0-9])/.test(t));
+    if (q.tot === null) { const kg = Tq.some(t => /(?<![A-Z0-9])(KG|KILO|QUILO|GRANEL)(?![A-Z0-9])/.test(t));
       q = { tot: kg ? 1000 : 1, base: kg ? 'G' : 'UN', n: 1, uv: kg ? 1000 : 1, flag: 'QTD_PADRAO' }; }
     if (!q.base) q = Object.assign({}, q, { base: 'UN' });
     // Farmácia sem início fixo no manual: começa pela marca; sem marca, pelo princípio ativo (ou pelo nome do produto)
@@ -1024,10 +1047,14 @@ async function runAll() {
     else if (q.flag === 'QTD_PADRAO') alerts.push('Sem quantidade na descrição; usado o padrão ' + qtyText(q));
     else if (q.flag === 'QTD_DIV') alerts.push('Quantidades diferentes entre descrições');
     const pri = alerts.some(x => /^(Nenhuma|Descrições|Sem evidência|Arquivo: categoria)/.test(x)) ? 1 : alerts.some(x => !x.startsWith('Categoria pelo princípio ativo') || /\((base pede validação|destino corrigido em relação à base)\)$/.test(x)) ? 2 : 0;
-    res.push({ it, cat: a.cat, marca, fab, qt: q.tot, desc, alerts, pri });
+    res.push({ it, cat: a.cat, marca, fab, qt: q.tot, qbase: q.base, desc, alerts, pri });
     if (i % 250 === 0) { $('#prog').style.width = (100 * i / items.length).toFixed(1) + '%'; $('#runState').textContent = `Classificando ${i.toLocaleString('pt-BR')} de ${items.length.toLocaleString('pt-BR')}…`; await new Promise(r => setTimeout(r, 0)); }
   }
   $('#prog').style.width = '100%';
+  // conteúdo em peso/volume muito fora do típico da categoria (>20x ou <1/20 da mediana): só avisa, não troca
+  { const med = new Map(); for (const r of res) { const b = r.qbase; if (r.qt && (b === 'G' || b === 'ML')) { const k = r.cat + '|' + b; if (!med.has(k)) med.set(k, []); med.get(k).push(r.qt); } }
+    for (const [k, v] of med) { v.sort((x, y) => x - y); med.set(k, v.length >= 5 ? v[Math.floor(v.length / 2)] : null); }
+    for (const r of res) { const m = med.get(r.cat + '|' + r.qbase); if (m && r.qt && (r.qt > 20 * m || r.qt < m / 20)) { r.alerts.push(`Conteúdo fora do comum para a categoria (típico ${fmtUnit(m, r.qbase)})`); r.pri = r.pri || 2; } } }
   data.results = res;
   const secs = ((performance.now() - t0) / 1000).toFixed(1);
   $('#runState').textContent = `${res.length.toLocaleString('pt-BR')} itens classificados em ${secs}s.`;

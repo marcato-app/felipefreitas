@@ -144,3 +144,11 @@ Pontos pra checar, em ordem:
 ## Sempre uma unidade de medida
 
 - Depois de descrição, arquivo e padrão da categoria: sem quantidade nenhuma → 1KG se a descrição diz KG/KILO/GRANEL sem número (vendido a quilo), senão 1UN; número sem unidade → UN. Alerta "Sem quantidade na descrição; usado o padrão …".
+
+## Conteúdo: o que parece quantidade mas não é
+
+- `conv()`: por unidade até 60 kg / 60 L (`QMAX`); acima é código/capacidade. "K" solto só é quilo com número ≤ 50 ("7830K" é modelo).
+- `textoQtd()` (texto só para ler quantidade): gramatura de papel (40–450 G com PAPEL/CARTOLINA/A4/FLS…) é ignorada; capacidade depois de P/PARA (colado no número ou com PANELA/PRESSAO/FREEZER/LIXO/BALDE/GALAO…) é ignorada; folhas (FLS/FOLHAS/F) contam como UN só em produto de papel (caderno, bloco, agenda, sulfite, refil…), nunca em grampeador/perfurador/janela, e só se não houver contagem em UN.
+- Cestas que não são de consumo (BAZAR, CONSTRUCAO, TEXTIL, ELETRO; OUTRA CATEGORIA com contagem ≥ 100): peso/volume solto + contagem ≥ 20 → conteúdo é a contagem ("CARTUCHO 2KG C/500" → 500UN, "BOBINA FREEZER 3KG C/50" → 50UN).
+- Aviso "Conteúdo fora do comum para a categoria (típico …)": peso/volume >20× ou <1/20 da mediana da categoria no backlog (≥ 5 itens). Só avisa.
+- `dados/conteudo_revisao.xlsx`: o que mudou e o que foi avisado nos backlogs de teste.
