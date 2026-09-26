@@ -474,8 +474,16 @@ async function loadBacklog(file) {
 const skuKey = v => String(v ?? '').replace(/\D/g, '').replace(/^0+/, '');
 // a loja cola a marca no "C/" e letras no número: FLUIMUCILC/16 CPR -> FLUIMUCIL C/16 CPR; PRED MILD10ML -> PRED MILD 10ML
 // padrão Anvisa: "50 MG COM REV CT BL AL AL X 30" -> COM é comprimido (depois da dose ou antes de REV/EFERV/MAST...)
-const anvisa = s => s.replace(/(\d\s*(?:MG|MCG|G|UI|%)(?:\/\w+)?\s+)COM(?=\s+(?!\d)|$)/gi, '$1COMP')
-  .replace(/(^|\s)COM(?=\s+(?:REV|EFERV|MAST|SUBL|ORODISP|DISP|DISPERS|LIB|VAG|SIMPLES|SULC|SOL)\b)/gi, '$1COMP');
+// a ordem das partes não importa: com cara de Anvisa (REV, EFERV, CT, BL...) ou "COM X 24", o COM solto é comprimido
+const RX_ANVISA = /(?<![A-Z])(REV|EFERV|MAST|SUBL|ORODISP|CT|BL|BLISTER|STRIP)(?![A-Z])/i;
+const anvisa = s => {
+  s = s.replace(/(\d\s*(?:MG|MCG|G|UI|%)(?:\/\w+)?\s+)COM(?=\s+(?!\d)|$)/gi, '$1COMP')
+    .replace(/(^|\s)COM(?=\s+(?:REV|EFERV|MAST|SUBL|ORODISP|DISP|DISPERS|LIB|VAG|SIMPLES|SULC|SOL)\b)/gi, '$1COMP')
+    .replace(/(^|\s)COM(?=\s*X\s*\d)/gi, '$1COMP');
+  s = s.replace(/(^|\s)COM(?=\s+\d+(?:[.,]\d+)?\s*(?:MG|MCG|G|UI|ML|%)(?![A-Z]))/gi, '$1COMP'); // "COM 100 MG": dose, não "com 100"
+  if (RX_ANVISA.test(s)) s = s.replace(/(^|\s)COM(?=\s+(?!\d)|$)/gi, '$1COMP');
+  return s;
+};
 const desgruda = s => anvisa(String(s || '')).replace(/^\s*ZZ(?=[A-Za-z]{3})/, '').replace(/([A-Za-z]{3,})[Cc]\/(?=\s*\d)/g, '$1 C/')
   .replace(/([A-Za-z]+)(\d+(?:[.,]\d+)?\s*(?:ML|MG|MCG|G|GR|KG|L|LT|UI|CPR|COMP|CAPS|CP|DRG|UN|%)(?![A-Za-z]))/gi, '$1 $2').replace(/\s+/g, ' ').trim();
 const RX_QTD_LOJA = /(?<![A-Z0-9])(C\s*\d{1,4}|\d{1,4}\s*(UN|UND|COMP|COMPR|COMPRIMIDOS?|CP|CPR|CPS|CAP|CAPS|CAPSULAS?|DRG|DRAGEAS?|SACHES?|ENV|AMP|AMPOLAS?|FLAC|ML|G|GR|KG|L|LT))(?![A-Z])/;

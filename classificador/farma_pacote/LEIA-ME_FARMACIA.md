@@ -185,6 +185,9 @@ anti-inflamatórios "Por Defecto" (ibuprofeno, diclofenaco…) → ANTI REUMATIC
   ("COM 12" continua sendo "com 12"); `X 30` é a quantidade quando há forma que se conta (comprimido, cápsula, sachê…);
   embalagem (CT, BL, AL, PLAS, OPC, TRANS, INC, AMB, VD, BG, TB, PVC…) sai do descritivo; SUS OR = SUSPENSAO ORAL,
   GOT = GOTAS, CREM DERM = CREME DERMATOLOGICO, LIB = LIBERACAO.
+- A ordem das partes não importa: "COM" é comprimido antes de REV/EFERV/MAST…, antes de "X 24", antes da dose
+  ("COM 100 MG") ou em qualquer lugar quando a descrição tem cara de Anvisa (REV, EFERV, CT, BL…); "COM 12" continua
+  "com 12". Teste com 32 ordens da mesma descrição (`testes_farma/ordens_anvisa.csv`): todas 24UN.
 - Dose em G antes da forma (`VITAMINA C 1 G COMP EFERV … X 10`): o conteúdo é a contagem (10), não 1G.
 - Resultado: `VERZENIOS REVESTIDO 50MG 30CPRS` (antes 1UN). Exemplos em `testes_farma/anvisa_formatos.csv`.
 
