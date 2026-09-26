@@ -232,6 +232,12 @@ anti-inflamatórios "Por Defecto" (ibuprofeno, diclofenaco…) → ANTI REUMATIC
   tópico, oral × injetável, nasal × oftálmico) são descartados. Resultado: 64 códigos novos de 131. Planilha para
   revisão: `dados/farma_nomes_oficiais_cmed.xlsx` (CATEGORIA DO APP, CODIGO, CLASSE NA CMED, PISTA, OBS).
 - `FIXOS` (decididos com o cliente): CORTICOIDES = S01B; INJETAVEIS = H02A1 (corticosteroide puro injetável).
+- `MANUAL` (49): o que a CMED não resolveu sozinha, código EphMRA conferido com a classe da CMED (C09B1, C09D1, G03A2,
+  G04C4, R03L1, D07B1…); quando a base do cliente já traz o nome, ele é usado igual (A11A1 PRENATAL, A11B1 PRENATAL,
+  A03E OUTRAS ASSOCIACOES). `MESMO_QUE`: categoria repetida recebe o nome oficial da que já tem o código (B02E, R03L2,
+  R03X, S01A). `SEM_ATC` (17): correlatos, dermocosméticos, luva, máscara, soro, água oxigenada, VITAMINA OUTRO,
+  MULTIVITAMINICO — não são medicamento, não existe código ATC; ficam só com o nome (como na DIMA do cliente).
+  Falta confirmar: EQUIVALENTES PARA PELE DERM EPIDERME. Aba "Manual e sem ATC" na planilha.
 - No app, `catCmed(classe, subst, produto)`: quando a classe da CMED tem várias subcategorias no app (ex. L01H →
   L01H1…L01H9), escolhe a que tem a substância/produto no `incluir` (ABEMACICLIBE → L01H5 CDK: VERZENIOS, KISQALI,
   IBRANCE).

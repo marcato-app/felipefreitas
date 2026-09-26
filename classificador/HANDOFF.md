@@ -238,6 +238,6 @@ Pontos pra checar, em ordem:
 ## Nomes oficiais pela CMED
 
 - `nomes_oficiais.py` → `pela_cmed()` dá código EphMRA às categorias sem código (64 de 131) e grava
-  `dados/farma_nomes_oficiais_cmed.xlsx`; `FIXOS` tem CORTICOIDES = S01B e INJETAVEIS = H02A1.
+  `dados/farma_nomes_oficiais_cmed.xlsx`; `FIXOS` tem CORTICOIDES = S01B e INJETAVEIS = H02A1; `MANUAL` (49), `MESMO_QUE` (4) e `SEM_ATC` (17) cobrem o resto.
 - `catCmed(classe, subst, produto)` escolhe a subcategoria pelo `incluir` (ABEMACICLIBE → L01H5).
 - Ordem: dima.py → farma_pa.py → nomes_oficiais.py → farma_marcas.py → farma_dima.py → cmed.py → build.py.
