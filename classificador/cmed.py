@@ -25,6 +25,22 @@ N = lambda s: ' '.join(re.sub(r'[^A-Z0-9 ]', ' ', unicodedata.normalize('NFKD', 
 PAGINA = 'https://www.gov.br/anvisa/pt-br/assuntos/medicamentos/cmed/precos'
 PAGINA_DCB = 'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/dcb'
 DADOS = 'https://dados.anvisa.gov.br/dados/DADOS_ABERTOS_MEDICAMENTOS.csv'
+SAUDE = 'https://dados.anvisa.gov.br/dados/TA_PRODUTO_SAUDE_SITE.csv'
+# produtos para saúde (correlatos): NOME_TECNICO da Anvisa -> categoria do app (só o que se vende em farmácia de varejo)
+TECNICO = [
+    (r'^(CURATIVO|COMPRESSA PARA CURATIVO|ESPARADRAPOS|ATADURAS|GAZES E ATADURAS|COMPRESSAS$)', 'CURATIVO'),
+    (r'^LUVAS (DESCARTAVEIS|CIRURGICAS)', 'LUVA DE PROCEDIMENTO'),
+    (r'^PRESERVATIVOS', 'PRESERVATIVO'),
+    (r'^LUBRIFICANTE INTIMO', 'LUBRIFICANTE INTIMO GEL'),
+    (r'^(INSTRUMENTO )?AUTOTESTE|^FITA TESTE|^TIRAS$|^LANCETA|^TERMOMETRO|^ESFIGMOMANOMETRO|^MONITOR DE PRESSAO ARTERIAL|^OXIMETRO', 'MONITORAMENTO E TESTE'),
+    (r'^NEBULIZADOR|^APARELHO PARA NEBULIZACAO|^INALADOR', 'AUXILIAR PARA RESPIRACAO'),
+    (r'^MASCARAS$|^MASCARA FACIAL CIRURGICA', 'MASCARA DE PROTECAO'),
+    (r'^BOLSAS (DE AGUA SILICONE|PARA TERAPIA DE CALOR)', 'AUXILIAR PARA TRATAMENTO'),
+    (r'^(SERINGAS|AGULHAS DESCARTAVEIS|AGULHA HIPODERMICA|BOLSA PARA (COLOSTOMIA|UROSTOMIA)|PROTETOR DE ESTOMA|FRASCOS COLETORES)', 'CORRELATO OUTROS'),
+    (r'^ALGODAO$', 'ALGODAO'),
+    (r'^LENTES DE CONTATO', 'PREPARADOS PARA USO COM LENTES DE CONTATO'),
+    (r'^APARELHO PARA ORDENHA', 'OUTROS BEBE PUERICULTURA LEVE'),
+]
 
 
 def baixa(url):
@@ -43,6 +59,7 @@ def baixar():
             alvo.write_bytes(baixa(url)); print('baixado', alvo.name)
         else: print('lista PMC já é a mais nova:', alvo.name)
     (d / 'DADOS_ABERTOS_MEDICAMENTOS.csv').write_bytes(baixa(DADOS)); print('baixado DADOS_ABERTOS_MEDICAMENTOS.csv')
+    (d / 'TA_PRODUTO_SAUDE_SITE.csv').write_bytes(baixa(SAUDE)); print('baixado TA_PRODUTO_SAUDE_SITE.csv')
     # DCB: lista consolidada mais nova ("3-2024-lista-consolidada-dcb-ago.xlsx")
     h = baixa(PAGINA_DCB).decode('utf-8', 'ignore').replace('\\u002F', '/')
     ls = set(re.findall(r'(https://www\.gov\.br/anvisa/pt-br/assuntos/farmacopeia/dcb/(\d)-(\d{4})-lista-consolidada-dcb[\w-]*\.xlsx)', h))
@@ -52,6 +69,53 @@ def baixar():
         if not alvo.exists():
             for velho in d.glob('dcb_*.xlsx'): velho.unlink()
             alvo.write_bytes(baixa(url + '/@@download/file')); print('baixado', alvo.name)
+
+
+GEN_SAUDE = set('''PRESERVATIVO PRESERVATIVOS CURATIVO CURATIVOS MASCARA MASCARAS ALGODAO SERINGA SERINGAS AGULHA AGULHAS LUVA LUVAS
+ESPARADRAPO ESPARADRAPOS ATADURA ATADURAS GAZE GAZES TESTE TESTES KIT FITA FITAS TIRA TIRAS LANCETA LANCETAS LANCETADOR
+TERMOMETRO NEBULIZADOR COMPRESSA COMPRESSAS BOLSA BOLSAS CONJUNTO SISTEMA APARELHO DISPOSITIVO AUTOTESTE LENTE LENTES
+GEL LUBRIFICANTE INTIMO MONITOR MEDIDOR COLETOR FRASCO PROTETOR DE DA DO E PARA COM SEM ADESIVO ESTERIL DESCARTAVEL'''.split())
+
+
+def correlatos():
+    """produtos para saúde da Anvisa: marca (1-2 palavras do começo do nome comercial) -> categoria pelo nome técnico;
+    só entra a marca cuja maioria dos produtos cai na mesma categoria de farmácia de varejo"""
+    f = here / 'dados' / 'cmed' / 'TA_PRODUTO_SAUDE_SITE.csv'
+    if not f.exists(): return []
+    rx = [(re.compile(a), c) for a, c in TECNICO]
+    por = defaultdict(Counter)
+    for r in csv.DictReader(io.StringIO(f.read_bytes().decode('latin-1')), delimiter=';'):
+        tec = N(r.get('NOME_TECNICO', '')); cat = next((c for x, c in rx if x.search(tec)), None) or '-'
+        nome = re.sub(r'\b(LTDA|S A|SA|EIRELI|ME)\b', ' ', N(r.get('NOME_COMERCIAL', ''))).split()
+        while nome and nome[0] in GEN_SAUDE: nome.pop(0)  # "PRESERVATIVO JONTEX ..." -> JONTEX
+        if not nome or re.search(r'\d', nome[0]): continue
+        chaves = {nome[0]} if len(nome[0]) >= 4 else set()
+        if len(nome) >= 2 and nome[1] not in GEN_SAUDE and not re.search(r'\d', nome[1]):
+            chaves.add(' '.join(nome[:2]))
+            if len(nome) >= 3 and nome[2] not in GEN_SAUDE and not re.search(r'\d', nome[2]): chaves.add(' '.join(nome[:3]))  # ACCU CHEK ACTIVE
+        for k in chaves: por[k][cat] += 1
+    # filtros contra falso positivo em outras cestas: palavra que é tipo de produto em alguma categoria (ROLETE),
+    # marca que a DIMA só tem fora da farmácia/higiene (OASIS), marca de uma palavra com um produto só
+    c_ = json.loads((here / 'consts.json').read_text(encoding='utf-8'))
+    vocab = set()
+    for x in c_['libSeed']['categorias'] + c_['cfg']['categorias']:
+        for t in (x.get('incluir') or []) + (x.get('tipo') or []): vocab.update(N(str(t).replace('*', ' ')).split())
+    fora, seg_farma = set(), {}
+    dz = here / 'dima.json.gz'
+    if dz.exists():
+        d = json.loads(gzip.decompress(dz.read_bytes())); r = d['rows']; seg_farma = defaultdict(bool); seg_outro = defaultdict(bool)
+        for k in range(0, len(r), 3):
+            m, sg = N(d['marcas'][r[k]]), d['segs'][r[k + 1]]
+            if re.match(r'^[A-Z]\d\d', sg) or re.search(r'CURATIV|PRESERV|ALGOD|TESTE|TERMOMET|LUVA|MASCAR|CORRELAT|ORTOPED|PUERICULT|LENTE|NEBULIZ|INALAD', N(sg)): seg_farma[m] = True
+            else: seg_outro[m] = True
+        fora = {m for m in seg_outro if not seg_farma[m]}
+    out = []
+    for k, c in sorted(por.items()):
+        tot = sum(c.values()); cat, v = max(((x, n) for x, n in c.items() if x != '-'), key=lambda t: t[1], default=('-', 0))
+        if cat == '-' or v / tot < 0.6 or k in fora or len(k.split()[0]) < 3: continue
+        if ' ' not in k and (k in vocab or not (seg_farma.get(k) or v >= 5)): continue  # uma palavra: marca de farmácia na DIMA ou 5+ produtos
+        out.append([k, cat])
+    return out
 
 
 def registrados(cprod, sub_cls):
@@ -173,9 +237,11 @@ def main():
     sub_cls = {k: v.most_common(1)[0][0] for k, v in sc.items()}
     out['reg'] = registrados({N(p) for p in out['prod']}, sub_cls)
     out['dcb'], out['sais'] = dcb(sub_cls)
+    out['saude'] = correlatos()
     raw = json.dumps(out, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
     (here / 'cmed.json.gz').write_bytes(gzip.compress(raw, 9))
     print(f"{arqs[-1].name} + {len(edicoes) - 1} anteriores: {len(rows)} apresentações ({n_hist} só em edições antigas), {len(vistos)} EANs, {len(idx['prod'])} produtos; "
+          f"{len(out['saude'])} produtos para saúde (correlatos); "
           f"DCB {len(out['dcb'])} substâncias com classe e {len(out['sais'])} sais; "
           f"{len(out['reg'])} registrados fora da lista de preços ({sum(1 for r in out['reg'] if r[2])} com classe pela substância); "
           f"{len(raw)/1e6:.1f} MB -> {(here / 'cmed.json.gz').stat().st_size/1e6:.2f} MB gzip")

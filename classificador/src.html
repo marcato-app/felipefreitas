@@ -648,7 +648,7 @@ function headIndex(cats) {
 }
 function compile() {
   const C = compile0(); const H = headIndex(C.cats); C.headIdx = H.idx; C.headWild = H.wild;
-  const act = new Set(actCats().map(c => c.nome)); C.fc = compileFC(act, C.pa); C.fr = compileFR(act, C.pa); C.pb = compilePB(act, C.pa); return C;
+  const act = new Set(actCats().map(c => c.nome)); C.fc = compileFC(act, C.pa); C.fr = compileFR(act, C.pa); C.pb = compilePB(act, C.pa); C.fs = compileFS(act); return C;
 }
 function compile0() {
   return {
@@ -732,6 +732,21 @@ function matchPB(t, C) {
   const B = C.pb; if (!B || !t) return null; B.rx.lastIndex = 0; const m = B.rx.exec(t); if (!m) return null;
   const r = B.map.get(m[0]); return r && (m[0].includes(' ') || m.index === 0 || sinalFarma(t)) ? r : null;
 }
+// produtos para saúde da Anvisa (correlatos): nome comercial -> categoria pelo nome técnico (JONTEX, ACCU CHEK...)
+function compileFS(active) {
+  if (!data.saude || !data.saude.length) return null; const map = new Map();
+  for (const [nome, cat] of data.saude) if (active.has(cat) && !GENERIC.has(nome) && !NOISE.has(nome)) map.set(nome, { nome, cat, seg: 'produto para saúde (Anvisa)' });
+  if (!map.size) return null;
+  const terms = [...map.keys()].sort((a, b) => b.length - a.length);
+  return { map, rx: new RegExp('(?<![A-Z0-9])(?:' + terms.map(escRx).join('|') + ')(?![A-Z0-9])') };
+}
+// a marca vem no começo da descrição ou logo depois do tipo (CURATIVO NEXCARE, PRESERVATIVO JONTEX)
+const TIPO_SAUDE = new Set('PRESERVATIVO PRESERVATIVOS CURATIVO CURATIVOS MASCARA ALGODAO SERINGA AGULHA LUVA LUVAS ESPARADRAPO ATADURA GAZE TESTE FITA TIRAS LANCETA LANCETAS TERMOMETRO NEBULIZADOR COMPRESSA BOLSA MONITOR MEDIDOR APARELHO LUBRIFICANTE GEL LENTE LENTES'.split(' '));
+function matchFS(t, C) {
+  const F = C.fs; if (!F || !t) return null; const m = t.match(F.rx); if (!m) return null;
+  const antes = t.slice(0, m.index).trim().split(' ').filter(Boolean);
+  return antes.length === 0 || (antes.length === 1 && TIPO_SAUDE.has(antes[0])) ? F.map.get(m[0]) : null;
+}
 function compileFR(active, P) { // registrados fora da lista de preços (ligação pela substância: vem depois da DIMA)
   if (!data.cmedReg || !data.cmedCls) return null; const Lb = labIndex(); const map = new Map();
   // medicamentos registrados fora da lista de preços: nome -> princípio ativo -> categoria (dicionário do cliente, ou classe da substância na CMED)
@@ -769,7 +784,7 @@ function classifyDesc(t, C) {
   if (!r || C.cesta.get(r) === 'FARMACIA' || (C.cesta.get(r) === 'PET' && !RX_PET.test(t))) {
     const f = matchFM([t], C.fm); if (f && f.cat) return f.cat;
     if (C.pa) { const p = matchPA(t, C.pa); if (p) return p.cat; }
-    const g = C.cesta.get(r) !== 'FARMACIA' && (matchFC(t, C) || matchPB(t, C) || matchFD(t, C) || matchFR(t, C)); if (g) return g.cat; } // CMED (classe oficial) antes da DIMA // DIMA: só completa o que base do cliente, dicionário e regras do manual não sabem
+    const g = C.cesta.get(r) !== 'FARMACIA' && (matchFC(t, C) || matchPB(t, C) || matchFD(t, C) || matchFR(t, C) || matchFS(t, C)); if (g) return g.cat; } // CMED (classe oficial) antes da DIMA // DIMA: só completa o que base do cliente, dicionário e regras do manual não sabem
   else {
     const f = matchFM([t], C.fm); if (f && f.cat && f.nome.includes(' ')) return f.cat; // LEITE MAG PHILLIPS, NEOCOPAN COMPOSTO
     // código de laboratório no fim ("ANLODIPINO 5MG 30 COMP BIS"): sem ele, se as regras não dão outra cesta, vale a Farmácia
@@ -1347,7 +1362,7 @@ function loadCmedEmb() { // lista embutida; um arquivo anexado depois substitui
     const bin = Uint8Array.from(atob(CMED_B64), c => c.charCodeAt(0));
     const j = JSON.parse(await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
     const r = montaCmed(j.rows.map(([e, p, a, l, c, su, t, ed]) => [e.split(','), { produto: j.prod[p], apres: a, lab: j.lab[l], classe: j.cls[c], subst: j.sub[su], tipo: j.tipo[t], ed }]));
-    data.cmedFonte = j.fonte; data.cmedReg = j.reg || []; data.dcb = j.dcb || [];
+    data.cmedFonte = j.fonte; data.cmedReg = j.reg || []; data.dcb = j.dcb || []; data.saude = j.saude || [];
     for (const w of j.sais || []) { FARMA_NAO_MARCA.add(w); SAIS_DCB.add(w); } // sais da DCB (CLORIDRATO, MESILATO...) nunca são marca
     return r;
   })().catch(e => { console.warn('CMED', e); return null; });
@@ -1522,6 +1537,8 @@ async function runAll(opts = {}) {
       const B0 = !(F0 && F0.cat === a.cat) && !C0 && !(G0 && G0.cat === a.cat) && T.map(t => matchPB(t, C)).find(Boolean);
       if (B0 && B0.cat === a.cat) alerts.push(`Categoria pela substância ${B0.pa} (DCB; classe CMED ${B0.seg})`);
       const D0 = !(F0 && F0.cat === a.cat) && !C0 && !(G0 && G0.cat === a.cat) && !(B0 && B0.cat === a.cat) && T.map(t => matchFD(t, C)).find(Boolean);
+      const S0 = !(F0 && F0.cat === a.cat) && !C0 && T.map(t => matchFS(t, C)).find(Boolean);
+      if (S0 && S0.cat === a.cat && !(G0 && G0.cat === a.cat) && !(B0 && B0.cat === a.cat)) alerts.push(`Categoria pelo cadastro Anvisa de produtos para saúde: ${S0.nome}`);
       const R0 = !(F0 && F0.cat === a.cat) && !(B0 && B0.cat === a.cat) && !C0 && !(G0 && G0.cat === a.cat) && !(D0 && D0.cat === a.cat) && T.map(t => matchFR(t, C)).find(Boolean);
       if (R0 && R0.cat === a.cat) alerts.push(`Categoria pelo registro Anvisa: ${R0.nome} (${R0.seg.replace('registro Anvisa: ', '')})` + (R0.esc ? ' (classe pela substância; revisar)' : ''));
       if (D0 && D0.cat === a.cat) alerts.push(`Categoria pela DIMA: ${D0.nome} em ${D0.seg}` + (D0.esc ? ' (subcategoria escolhida; revisar)' : ''));
@@ -1541,7 +1558,7 @@ async function runAll(opts = {}) {
     if (q.flag === 'SEM_QTD') alerts.push('Sem quantidade na descrição');
     else if (q.flag === 'QTD_PADRAO') alerts.push('Sem quantidade na descrição; usado o padrão ' + qtyText(q));
     else if (q.flag === 'QTD_DIV') alerts.push('Quantidades diferentes entre descrições');
-    const pri = alerts.some(x => /^(Nenhuma|Descrições|Sem evidência|Arquivo: categoria)/.test(x)) ? 1 : alerts.some(x => !/^Categoria pel[oa] (princípio ativo|marca|DIMA|CMED|registro Anvisa|substância)[ :]/.test(x) || /\((base pede validação|destino corrigido em relação à base|marca em \d+ categorias; usada a de maior venda|subcategoria escolhida; revisar|classe pela substância; revisar)\)$/.test(x)) ? 2 : 0;
+    const pri = alerts.some(x => /^(Nenhuma|Descrições|Sem evidência|Arquivo: categoria)/.test(x)) ? 1 : alerts.some(x => !/^Categoria pel[oa] (princípio ativo|marca|DIMA|CMED|registro Anvisa|substância|cadastro Anvisa)[ :]/.test(x) || /\((base pede validação|destino corrigido em relação à base|marca em \d+ categorias; usada a de maior venda|subcategoria escolhida; revisar|classe pela substância; revisar)\)$/.test(x)) ? 2 : 0;
     res.push({ it, cat: a.cat, marca, fab, qt: q.tot, qbase: q.base, desc, alerts, pri });
     if (!quiet && i % 250 === 0) { $('#prog').style.width = (100 * i / items.length).toFixed(1) + '%'; $('#runState').textContent = `Classificando ${i.toLocaleString('pt-BR')} de ${items.length.toLocaleString('pt-BR')}…`; await new Promise(r => setTimeout(r, 0)); }
   }

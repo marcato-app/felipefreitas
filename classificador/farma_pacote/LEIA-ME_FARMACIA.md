@@ -211,6 +211,14 @@ anti-inflamatórios "Por Defecto" (ibuprofeno, diclofenaco…) → ANTI REUMATIC
   ela tem na CMED → categoria (depois do dicionário do cliente, das regras e da CMED por produto; antes da DIMA);
   genérico sem estar no dicionário do cliente também sai com marca = substância base (CLORIDRATO DE SERTRALINA →
   SERTRALINA); os ~80 sais da DCB (CLORIDRATO, MESILATO, BESILATO…) nunca são marca e saem do descritivo do genérico.
+- Produtos para saúde / correlatos (Anvisa, TA_PRODUTO_SAUDE_SITE.csv, 116 mil registros, baixado pelo `--baixar`):
+  NOME_TECNICO → categoria do app (`TECNICO` no cmed.py: curativo, luva, preservativo, lubrificante íntimo, testes e
+  termômetros, nebulizador, máscara, bolsa térmica, seringa/ostomia, algodão, lentes, bombinha de leite). A marca é
+  tirada do começo do nome comercial (1-3 palavras, sem o tipo na frente: "PRESERVATIVO JONTEX" → JONTEX) e só entra
+  se a maioria dos produtos dela cair na mesma categoria; marca de uma palavra só se a DIMA a conhece como marca de
+  farmácia/saúde ou se tiver 5+ produtos. No app vale só quando nenhuma regra reconheceu a descrição, e a marca tem
+  que estar no começo (ou logo depois do tipo: CURATIVO NEXCARE). O agente de Farmácia também abre com PRESERVATIVO,
+  ALGODAO e OUTROS BEBE PUERICULTURA LEVE ativas. Teste: `testes_farma/correlatos.csv`.
 - Número solto (`ACEFLOR 24 REV CT BL AL PLAS OPC 100 MG`): em Farmácia, número sem unidade que não é dose e é tamanho de
   caixa comum (ou apresentação da CMED do produto) vira a contagem, com alerta.
 - Backlog só com o nome (`testes_farma/lojas_backlog_curto.csv`), sem arquivo das lojas: 1UN 65 → 1 e OUTRA CATEGORIA 5 → 0

@@ -22,7 +22,7 @@ COM CAMOMILA CAT                 | marca OUTRA MARCA            (esp. CAMOMILA) 
 COM PILULAS DE ERVA DE BICHO COMPOSTAS IMESCARD OSO | marca IMESCARD               (esp. PILULAS DE ERVA DE BICHO COMPOSTAS IMESCARD) | fab OSORIO DE MORAES       (esp. OSORIO DE MORAES) | A06A2 LAXANTES ESTIMULANTES | IMESCARD PILULAS DE ERVA DE BICHO COMPOSTAS 10MG 30CPRS
 COM NOVALGINA (OPE)              | marca NOVALGINA              (esp. NOVALGINA (OPE)) | fab OPELLA                 (esp. OPELLA) | A01A ESTOMATOLOGICOS | NOVALGINA OPE 10MG 30CPRS
 GEN CLOR DE SIBUTRAMINA BIO      | marca SIBUTRAMINA            (esp. SIBUTRAMINA) | fab BIOLAB                 (esp. ACHE LABORATORIOS FARMACEUTICOS SA) | A08A PREPARADOS ANOREXICOS EXETO OS DIETETICOS | SIBUTRAMINA CLOR 10MG 30CPRS
-COM DOVALLE DOV                  | marca DOVALLE                (esp. DOVALLE) | fab DOVALLE                (esp. DOVALLE) | OUTRA CATEGORIA | COMP DOVALLE COMPOSTO DOV 30UN
+COM DOVALLE DOV                  | marca OUTRA MARCA            (esp. DOVALLE) | fab DOVALLE                (esp. DOVALLE) | CURATIVO | CURATIVO DOV 10MG 30CPRS
 COM SANDOZ SDZ                   | marca SANDOZ                 (esp. SANDOZ) | fab SANDOZ                 (esp. SANDOZ) | OUTRA CATEGORIA | COMP SANDOZ COMPOSTO SDZ 30UN
 GEN LACTULOSE NTX                | marca LACTULOSE              (esp. LACTULOSE) | fab OUTRO FABRICANTE       (esp. PAGUE MENOS) | A06A6 LAXANTES OSMOTICOS | LACTULOSE NTX 10MG 30CPRS
 COM HUMAPEN HUM                  | marca HUMAPEN                (esp. HUMAPEN) | fab HUMAPEN                (esp. HUMAPEN) | OUTRA CATEGORIA | COMP HUMAPEN COMPOSTO HUM 30UN
@@ -52,7 +52,7 @@ COM BIOFHITUS BFT                | marca BIOFHITUS              (esp. BIOFHITUS)
 COM ADV TAY                      | marca ADV                    (esp. ADV) | fab ADV                    (esp. TAYUYNA) | OUTRA CATEGORIA | COMP ADV COMPOSTO TAY 30UN
 COM REGULAX FIBRAS               | marca REGULAX FIBRAS         (esp. REGULAX FIBRAS) | fab OUTRO FABRICANTE       (esp. ECOFITUS) | A06A1 LAXANTES SUAVIZANTES | REGULAX FIBRAS 10MG 30CPRS
 COM MAXINUTRI MAX                | marca MAXINUTRI              (esp. MAXINUTRI) | fab MAXINUTRI              (esp. MAXINUTRI) | OUTRA CATEGORIA | COMP MAXINUTRI COMPOSTO MAX 30UN
-COM PAGUE MENOS                  | marca PAGUE MENOS            (esp. PAGUE MENOS) | fab PAGUE MENOS            (esp. PAGUE MENOS) | OUTRA CATEGORIA | COMP PAGUE MENOS COMPOSTO 30UN
+COM PAGUE MENOS                  | marca OUTRA MARCA            (esp. PAGUE MENOS) | fab PAGUE MENOS            (esp. PAGUE MENOS) | CORRELATO OUTROS | MENOS 10MG 30CPRS
 COM PANVEL PVL                   | marca PANVEL                 (esp. PANVEL) | fab GRUPO PANVEL           (esp. GRUPO PANVEL) | OUTRA CATEGORIA | COMP PANVEL COMPOSTO PVL 30UN
 COM KATIGUA NTL                  | marca KATIGUA                (esp. KATIGUA) | fab GRUPO NATUBELL         (esp. GRUPO NATUBELL) | OUTRA CATEGORIA | COMP KATIGUA COMPOSTO NTL 30UN
 COM FORTVIGOR                    | marca FORTVIGOR              (esp. FORTVIGOR) | fab LA SAN DAY             (esp. SCHILLIFE IND E COM LTDA) | OUTRA CATEGORIA | COMP FORTVIGOR COMPOSTO 30UN
@@ -133,7 +133,7 @@ COM LINEA                        | marca LINEA                  (esp. LINEA) | f
 COM APISNUTRI APN                | marca APISNUTRI              (esp. APISNUTRI) | fab APISNUTRI              (esp. APISNUTRI) | OUTRA CATEGORIA | COMP APISNUTRI COMPOSTO APN 30UN
 COM HIDRACT NEXTER INR           | marca HIDRACT NEXTER         (esp. HIDRACT NEXTER) | fab ASSIFARMA              (esp. INTERCRON) | A07G REPOSITORES ELECTROLITICOS ORAIS | HIDRACT NEXTER 10MG 30CPRS
 COM ROCHA                        | marca ROCHA                  (esp. ROCHA) | fab ROCHA                  (esp. ROCHA) | OUTRA CATEGORIA | COMP ROCHA COMPOSTO 30UN
-COM RILEX PLUS                   | marca RILEX                  (esp. RILEX) | fab RILEX PRESERVATIVOS    (esp. BIOVITAE) | OUTRA CATEGORIA | COMP RILEX COMPOSTO PLUS 30UN
+COM RILEX PLUS                   | marca RILEX                  (esp. RILEX) | fab RILEX PRESERVATIVOS    (esp. BIOVITAE) | PRESERVATIVO | PRESERVATIVO RILEX COMPOSTO PLUS 30UN
 COM NUTRI VITALEY                | marca NUTRI VITALEY          (esp. NUTRI VITALEY) | fab NUTRI VITALEY          (esp. NUTRI VITALEY) | OUTRA CATEGORIA | COMP NUTRI VITALEY COMPOSTO 30UN
 COM IMEGOV NTV                   | marca IMEGOV                 (esp. IMEGOV) | fab NATIVITA FARMACEUTICA  (esp. NUTIVIT) | A11E1 COMPLEXO B PURO | IMEGOV 10MG 30CPRS
 COM BOLDO BEL                    | marca BEL                    (esp. BOLDO) | fab BEL FIX                (esp. BELFAR) | ERVA CHA | ERVA CHA BEL BOLDO COMPOSTO 30UN
@@ -158,7 +158,6 @@ COM VECTOR NUTRI                 | marca VECTOR NUTRI           (esp. VECTOR NUT
 COM MUCK FORT                    | marca OUTRA MARCA            (esp. MUCK) | fab OUTRO FABRICANTE       (esp. NASCILAB) | OUTRA CATEGORIA | MUCK COMPOSTO FORT 30UN
 COM CITRATO CALCIO FDC           | marca OUTRA MARCA            (esp. CITRATO CALCIO) | fab FDC VITAMINAS          (esp. SIN PROVEEDOR ASOCIADO) | A12A CALCIO | CITRATO CALCIO 10MG 30CPRS
 COM BIOSTEVI                     | marca BIOSTEVI               (esp. BIOSTEVI) | fab BIOSTEVI PHARMA        (esp. BIOSTEVI PHARMA) | OUTRA CATEGORIA | COMP BIOSTEVI COMPOSTO 30UN
-COM ESSENCIAL                    | marca ESSENCIAL              (esp. ESSENCIAL) | fab ESSENCIAL              (esp. ESSENCIAL) | OUTRA CATEGORIA | COMP ESSENCIAL COMPOSTO 30UN
 COM SANATIVO SNT                 | marca SANATIVO               (esp. SANATIVO) | fab LAPERFI                (esp. SANATIVO) | OUTRA CATEGORIA | COMP SANATIVO COMPOSTO SNT 30UN
 COM DOCTOR DAY                   | marca DOCTOR                 (esp. DOCTOR) | fab DOCTOR                 (esp. DOCTOR DAY) | OUTRA CATEGORIA | COMP DOCTOR COMPOSTO DAY 30UN
 COM MODO ON                      | marca OUTRA MARCA            (esp. MODO) | fab OUTRO FABRICANTE       (esp. SUPRA ERVAS BEBIDAS) | OUTRA CATEGORIA | MODO COMPOSTO 30UN

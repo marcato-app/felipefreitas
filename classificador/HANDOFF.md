@@ -232,3 +232,5 @@ Pontos pra checar, em ordem:
   (registrados fora da lista de preços, depois da DIMA, sempre com `sinalFarma`).
 - `cmed.py --historico` (edições anteriores, `dados/cmed/historico/*.json.gz`) e DCB (`dcb()` no cmed.py →
   `dcb`/`sais` no cmed.json.gz → `compilePB`/`matchPB` no app).
+- Correlatos: `correlatos()` no cmed.py → `saude` no cmed.json.gz → `compileFS`/`matchFS` (depois de DIMA e
+  registrados; só quando as regras não deram nada).
