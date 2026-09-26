@@ -200,6 +200,10 @@ anti-inflamatórios "Por Defecto" (ibuprofeno, diclofenaco…) → ANTI REUMATIC
   ATC. Produto de marca (não genérico): marca = nome do produto (DTN FOL, NATIFA PRO UBD).
 - Sem código de barras: o nome do produto/substância da CMED dá a categoria oficial (depois da base do cliente, do
   dicionário e das regras; antes da DIMA), e as apresentações que existem do produto validam o número solto.
+- `python3 cmed.py --baixar` baixa do site da Anvisa a lista PMC mais nova e os dados abertos de medicamentos
+  registrados (DADOS_ABERTOS_MEDICAMENTOS.csv). Os registrados que não estão na lista de preços (~10,5 mil nomes) entram
+  como nome → princípio ativo → categoria (dicionário do cliente, ou classe que a substância tem na CMED). Vêm depois da
+  DIMA e só valem com sinal de remédio na descrição (dose, forma, laboratório). Alerta "Categoria pelo registro Anvisa".
 - Número solto (`ACEFLOR 24 REV CT BL AL PLAS OPC 100 MG`): em Farmácia, número sem unidade que não é dose e é tamanho de
   caixa comum (ou apresentação da CMED do produto) vira a contagem, com alerta.
 - Backlog só com o nome (`testes_farma/lojas_backlog_curto.csv`), sem arquivo das lojas: 1UN 65 → 1 e OUTRA CATEGORIA 5 → 0

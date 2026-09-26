@@ -228,3 +228,5 @@ Pontos pra checar, em ordem:
   substitui. `cmedNoItem` (EAN → descrição oficial, `it.cmedCat`), override de categoria logo depois do `AGG` no
   `runAll`, `compileFC`/`matchFC` (nome do produto → classe oficial), `contagemSolta` (número sem unidade).
 - Atualizar: trocar o arquivo em `dados/cmed/` e rodar `python3 cmed.py && python3 build.py`.
+- `python3 cmed.py --baixar` baixa a lista PMC mais nova e os dados abertos de registrados; `compileFR`/`matchFR`
+  (registrados fora da lista de preços, depois da DIMA, sempre com `sinalFarma`).
