@@ -287,7 +287,16 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
 - Marca: a da base sem o código do laboratório (BWELL, não BWELL RDF); a base de marcas de Farmácia (Hoja) vence quando
   tem o nome mais completo da linha (MOBILITY OSCAL D). Descritivo: SUPL ALIM [MULT] + marca + complemento + dose +
   quantidade/forma, com VITAMINA D3, B12, OMEGA 3, K2, Q10 e A Z preservados.
+- Decisões do cliente: (1) remédio registrado vai para a categoria de remédio quando o app tem uma (A11/A12/A13...):
+  código de barras na lista CMED, ou marca da lista CMED (CITONEURIN, CEBION, CALTRATE, TARGIFOR) sem sinal de suplemento
+  (SUPL, A-Z) — nome só no registro da Anvisa não basta (CASTANHA DA INDIA, AMORA MIURA vendidos como suplemento);
+  essas categorias seguem o padrão "FARMA" da planilha (sem início fixo: marca ou princípio ativo). (2) Regra de
+  nutrientes: A-Z/polivitamínico ou 3+ vitaminas/minerais diferentes = MULTIVITAMINICO; 1 ou 2 = VITAMINA OUTRO
+  (`nutrientes()`: VITAMINA D3/B12/C..., B1-B12, D3, K2, CALCIO, MAGNESIO, ZINCO, FERRO, SELENIO, BIOTINA, FOLATO...;
+  CALCIO MDK = cálcio + magnésio + D + K); sem nutriente escrito, pela marca na base e pelas palavras.
 - Teste: `node testes_farma/rodar_vit.js && python3 testes_farma/comparar_vit.py` (entra só a descrição das lojas + a
   atual); `python3 testes_farma/planilha_vit.py` gera `dados/vitaminas/vitamina_mineral_corrigido.xlsx`.
-  Resultado: EST MER 7 certa 28% → 71%, começa com o padrão 38% → 71%, conteúdo 83% → 90%.
+  Resultado: EST MER 7 igual à base 28% → 62% + 964 remédios registrados na categoria de remédio (decisão 1); onde a
+  regra de nutrientes decide, 81% igual à base (as 661 diferenças são, na amostra, a base fora da regra); conteúdo
+  83% → 90%.
 

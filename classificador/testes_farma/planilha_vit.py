@@ -13,13 +13,17 @@ cab = ['CODIGO BARRAS', 'DESCRICAO ATUAL', 'DESCRITIVO NOVO', 'EST MER 7 ATUAL',
 ws.append(cab)
 for c in ws[1]: c.font = Font(bold=True, color='FFFFFF'); c.fill = PatternFill('solid', fgColor='1F3864')
 n = {'desc': 0, 'conf': 0}
-for b, (bc, d, cat, marca, fab, desc, qt) in zip(base, out):
+for b, (bc, d, cat, marca, fab, desc, qt, *resto) in zip(base, out):
+    reg = bool(resto and resto[0]); nut = resto[1] if len(resto) > 1 else None
     e7 = b['Est Mer 7 Descripcion']; conf = []
-    if not N(cat).endswith(N(e7)): conf.append('categoria')
+    if reg and not N(cat).endswith(N(e7)): conf.append('remédio registrado: categoria de remédio')
+    elif not N(cat).endswith(N(e7)) and {cat, e7} == {'VITAMINA OUTRO', 'MULTIVITAMINICO'} and nut not in (None, 0):
+        conf.append('regra de nutrientes (até 2 = OUTRO; 3+ ou A-Z = MULTI): conferir a base')
+    elif not N(cat).endswith(N(e7)): conf.append('categoria')
     try: q = float(b['Contenido'])
     except ValueError: q = 0
     if q > 1 and abs((qt or 0) - q) > 0.01: conf.append('conteúdo')
-    if not desc.startswith('SUPL ALIM'): conf.append('padrão SUPL ALIM')
+    if not desc.startswith('SUPL ALIM') and not reg: conf.append('padrão SUPL ALIM')
     n['desc'] += desc != b['Descripcion']; n['conf'] += bool(conf)
     ws.append([bc, b['Descripcion'], desc, e7, cat, b['Marca'], marca, b['Fabricante'], fab, b['Contenido'], qt, ', '.join(conf)])
 for col, w in zip('ABCDEFGHIJKL', [15, 50, 55, 18, 30, 22, 22, 26, 26, 10, 10, 26]): ws.column_dimensions[col].width = w

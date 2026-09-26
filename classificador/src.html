@@ -732,6 +732,29 @@ const vitTok = t => t.replace(/(?<![A-Z0-9])A ?Z(?![A-Z0-9])/g, 'A_Z')
   .replace(/(?<![A-Z0-9_])(B\d{1,2}|D3|K2|Q10|COQ10|MK7|MK 7)(?![A-Z0-9])/g, m => vitCod(m.replace(' ', '')) + '_');
 // marca da base com o código do laboratório (CALCITRAN FRQ, BWELL (RDF)) -> CALCITRAN, BWELL
 const semCodLab = (m, T) => String(m).replace(/\s*\([A-Z0-9 ]{0,5}\)\s*$/, '').replace(/ ([A-Z]{2,3})$/, (x, c) => labIndex().codigo.has(c) || (K.farmaCodLab || {})[c] || !T.some(t => t.split(' ').includes(c)) ? '' : x);
+const RX_MULTI = /(?<![A-Z0-9])(A ?Z|POLIVITAMINICOS?|MULTIVITAMINICOS?|MULTIVITAMINAS|POLIVITAMINAS|POLIVIT|MULTIVIT|MULTI VITAMINICO|POLI VITAMINICO)(?![A-Z0-9])/;
+// vitaminas e minerais diferentes escritos nas descrições (VITAMINA D3 = D, B12, ZINCO, CALCIO...): cada um conta uma vez
+const NUTRI_W = { CALCIO: 'CA', CALCIUM: 'CA', MAGNESIO: 'MG', MAGNESIUM: 'MG', ZINCO: 'ZN', ZINC: 'ZN', SELENIO: 'SE', FERRO: 'FE',
+  CROMO: 'CR', POTASSIO: 'KP', IODO: 'I', COBRE: 'CU', MANGANES: 'MN', FOSFORO: 'P', BORO: 'BO', SILICIO: 'SI', BIOTINA: 'B7',
+  NIACINA: 'B3', NICOTINAMIDA: 'B3', RIBOFLAVINA: 'B2', TIAMINA: 'B1', PIRIDOXINA: 'B6', CIANOCOBALAMINA: 'B12',
+  METILCOBALAMINA: 'B12', COBALAMINA: 'B12', FOLICO: 'B9', FOLATO: 'B9', METILFOLATO: 'B9', COLECALCIFEROL: 'D',
+  MENAQUINONA: 'K', RETINOL: 'A', TOCOFEROL: 'E', ASCORBICO: 'C' };
+const nutKey = x => /^[DK]\d*$/.test(x) ? x[0] : x === 'MK7' ? 'K' : x;
+function nutrientes(T) {
+  const k = new Set();
+  for (const t of T) {
+    for (const m of t.matchAll(/(?<![A-Z])(?:VITAMINAS?|VITAM|VIT)((?:\s+(?:[ABCDEK]\d{0,2}|E))+)(?![A-Z0-9])/g))
+      for (const x of m[1].trim().split(/\s+/)) k.add(nutKey(x));
+    for (const m of t.matchAll(/(?<![A-Z0-9])(B\d{1,2}|D3|K2|MK7)(?![A-Z0-9])/g)) k.add(nutKey(m[1]));
+    if (/(?<![A-Z])COMPLEXO B(?![A-Z0-9])/.test(t)) k.add('B');
+    if (/(?<![A-Z])MDK(?![A-Z0-9])/.test(t)) ['MG', 'D', 'K'].forEach(x => k.add(x)); // CALCIO MDK = cálcio + magnésio + D + K
+    for (const w of t.split(' ')) if (NUTRI_W[w]) k.add(NUTRI_W[w]);
+  }
+  return k;
+}
+// nome de remédio registrado que é marca (CITONEURIN, DEPURA, CALTRATE), não substância ou nutriente (VITAMINA C, COLECALCIFEROL)
+const regMarca = (g, C) => !!g && !!g.nome && !/(?<![A-Z])(VITAMINAS?|VIT|OMEGA|COMPLEXO|POLIVITAMINICO|MULTIVITAMINICO)(?![A-Z])/.test(g.nome)
+  && !g.nome.split(' ').some(w => NUTRI_W[w]) && !farmaNaoMarca(g.nome, C, new Set());
 const catVitAtc = nome => /^A1[123][A-Z]/.test(nomeOf(nome)) || nome === 'VITAMINA OUTRO' || nome === 'MULTIVITAMINICO';
 // devolve { m: marca da base (ou null), cat: VITAMINA OUTRO | MULTIVITAMINICO } quando o item é suplemento de vitamina/mineral
 function vitDe(T, cat, farma, C) {
@@ -742,10 +765,15 @@ function vitDe(T, cat, farma, C) {
   const supl = T.some(t => RX_SUPL.test(t)), forma = T.some(t => RX_FORMA_SUPL.test(t));
   const ok = catVitAtc(cat) || (farma && (supl || (m && !m.gen))) || (cat === OUT && (supl || m) && (forma || supl)); // nome genérico (ZINCO) não tira de outra categoria de Farmácia
   if (!ok) return null;
+  // regra do cliente: A-Z / polivitamínico ou 3+ vitaminas/minerais -> MULTIVITAMINICO; 1 ou 2 -> VITAMINA OUTRO;
+  // sem nutriente escrito (só marca): pela marca na base e pelas palavras (naive Bayes)
+  const nut = nutrientes(T);
+  if (RX_MULTI.test(T.join(' | ')) || nut.size >= 3) return { m, cat: 'MULTIVITAMINICO', nut: nut.size };
+  if (nut.size) return { m, cat: 'VITAMINA OUTRO', nut: nut.size };
   let sc = V.prior; for (const w of new Set(T.join(' ').split(' '))) sc += V.pesos[w] || 0;
   if (/^A11[AB]/.test(nomeOf(cat)) || cat === 'MULTIVITAMINICO') sc += 2;
   if (m && m.n >= 3 && m.pm >= 0.8) sc = Math.max(sc, 1); else if (m && m.n >= 3 && m.pm <= 0.2) sc = Math.min(sc, -1);
-  return { m, cat: sc > 0 ? 'MULTIVITAMINICO' : 'VITAMINA OUTRO' };
+  return { m, cat: sc > 0 ? 'MULTIVITAMINICO' : 'VITAMINA OUTRO', nut: 0 };
 }
 // sinal de remédio na descrição: dose (MG, UI, %), forma farmacêutica ou código de laboratório no fim
 const RX_SINAL_FARMA = /(?<![A-Z])(\d+(\.\d+)?\s*(MG|MCG|UI|MEQ)|COMP|COMPR|COMPRIMIDOS?|CPR|CAPS|CAPSULAS?|DRG|DRAGEAS?|GTS|GOTAS|XPE|XAROPE|POMADA|COLIRIO|AMPOLAS?|INJETAVEL|SUSP|SUSPENSAO|SOL ORAL|EFERV|EFERVESCENTE|SPRAY NASAL|OVULOS?|SUPOSITORIOS?)(?![A-Z])/;
@@ -1449,7 +1477,11 @@ async function runAll(opts = {}) {
   // suplemento de vitamina/mineral: VITAMINA OUTRO / MULTIVITAMINICO (ganha dos grupos ATC A11/A12/A13 e de palavra solta como ÓLEO)
   if (C.vit) items.forEach((it, i) => { const a = AGG[i], cc = byName.get(a.cat); it.vit = null;
     if (a.cat !== OUT && !(cc && cc.cesta === 'FARMACIA')) return;
-    const v = vitDe(a.T || it.T, a.cat, !!cc, C); if (!v) return; it.vit = v;
+    const TT = a.T || it.T;
+    // remédio registrado (código de barras na lista CMED, ou marca da lista CMED sem sinal de suplemento) fica na categoria
+    // de remédio (A11/A12...); nome só no registro da Anvisa não basta (fitoterápico vendido como suplemento: CASTANHA DA INDIA)
+    if (cc && a.cat !== 'VITAMINA OUTRO' && a.cat !== 'MULTIVITAMINICO' && (it.cmed || (!TT.some(t => RX_SUPL.test(t)) && TT.some(t => regMarca(matchFC(t, C), C))))) { it.vitReg = true; return; }
+    const v = vitDe(TT, a.cat, !!cc, C); if (!v) return; it.vit = v;
     if (v.cat !== a.cat) AGG[i] = Object.assign({}, a, { cat: v.cat, vitTrocou: a.cat }); });
   const segOf = segmentosEstMer6(AGG, items, byName, C);
   for (let i = 0; i < items.length; i++) {

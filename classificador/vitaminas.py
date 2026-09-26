@@ -111,6 +111,15 @@ def main():
     prior = round(math.log(tot[True] / tot[False]), 2)
     # só trava as marcas que aparecem na base de vitaminas (as que caíram lá por engano); as outras já não são marca de vitamina
     trava = sorted(t for t in fora if t in por and por[t][3] < 10 and len(t) >= 3 and t not in COMUM and t.split()[0] not in NUTRI)
+    # planilha de padrões do cliente: categoria de remédio de vitamina (A11, A12, A13, B02B) é "FARMA" -> sem início fixo
+    pz = here / 'dados' / 'padroes_descritivo.xlsx'
+    if pz.exists():
+        import openpyxl
+        pad = {N(r[0]): N(r[2]) for r in list(openpyxl.load_workbook(pz, read_only=True).worksheets[0].iter_rows(values_only=True))[1:] if r[0]}
+        for x in cj['libSeed']['categorias'] + cj['cfg']['categorias']:
+            o = of.get(x['nome'], '')
+            if x.get('cesta') == 'FARMACIA' and x.get('inicio') and re.match(r'^(A1[123]|B02B)', o) and pad.get(N(o), 'FARMA') in ('FARMA', ''):
+                x['inicio'] = ''
     cj['farmaVit'] = {'marcas': marcas, 'pesos': pesos, 'prior': prior, 'fora': trava}
     (here / 'consts.json').write_text(json.dumps(cj, ensure_ascii=False), encoding='utf-8')
     # acerto do modelo MULTI x OUTRO na própria base (só as palavras, sem a marca)
