@@ -272,3 +272,22 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
 - `OMEPRAZOL 20MG 28 CAPS NEO QUIMICA` → fabricante HYPERA PHARMA
 - `CETOCONAZOL CREME 30G` → ANTIFUNGICOS DERMATOLOGICOS TOPICOS; `CETOCONAZOL 200MG 10 COMP` → antimicóticos sistêmicos
 - `AMOXICILINA 250MG P/ CAES E GATOS` → não vai para Farmácia humana
+
+### 3.5i VITAMINA E MINERAL (aprendido com a base do cliente)
+- Base: `dados/vitaminas/vitamina_mineral.tsv` (12.423 SKUs da EST MER 6 VITAMINA E MINERAL, com EST MER 7, marca,
+  fabricante, conteúdo e as descrições das lojas). Padrões de início de descritivo: `dados/padroes_descritivo.xlsx`
+  (VITAMINA OUTRO = SUPL ALIM, MULTIVITAMINICO = SUPL ALIM MULT; já eram o `inicio` das categorias).
+- `python3 vitaminas.py` → `farmaVit` no consts.json: ~3 mil marcas de vitamina (base + DIMA VITAMINA E MINERAL) com
+  fabricante e % de MULTIVITAMINICO, pesos de palavras MULTI × OUTRO (naive Bayes) e as marcas travadas (`fora`:
+  remédio que caiu na base por engano, ex. NEOSALDINA, MOUNJARO — a DIMA/Hoja só conhecem fora de vitamina).
+- No app (depois do override da CMED): suplemento de vitamina/mineral vai para VITAMINA OUTRO ou MULTIVITAMINICO — ganha
+  dos grupos ATC A11/A12/A13 (na base do cliente até CITONEURIN, DEPURA, CALTRATE ficam em VITAMINA OUTRO) e de palavra
+  solta (ÓLEO de peixe não é laxante). Sai de outra categoria de Farmácia com SUPL/SUPLEMENTO/A-Z ou marca de vitamina;
+  de OUTRA CATEGORIA com isso + forma/dose. Nome genérico (ZINCO, OMEGA 3) sozinho não tira de outra categoria.
+- Marca: a da base sem o código do laboratório (BWELL, não BWELL RDF); a base de marcas de Farmácia (Hoja) vence quando
+  tem o nome mais completo da linha (MOBILITY OSCAL D). Descritivo: SUPL ALIM [MULT] + marca + complemento + dose +
+  quantidade/forma, com VITAMINA D3, B12, OMEGA 3, K2, Q10 e A Z preservados.
+- Teste: `node testes_farma/rodar_vit.js && python3 testes_farma/comparar_vit.py` (entra só a descrição das lojas + a
+  atual); `python3 testes_farma/planilha_vit.py` gera `dados/vitaminas/vitamina_mineral_corrigido.xlsx`.
+  Resultado: EST MER 7 certa 28% → 71%, começa com o padrão 38% → 71%, conteúdo 83% → 90%.
+
