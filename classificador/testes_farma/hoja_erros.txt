@@ -141,7 +141,7 @@ COM BOE                          | marca BOE                    (esp. BOE) | fab
 COM GUAMAX MUNE                  | marca OUTRA MARCA            (esp. GUAMAX) | fab OUTRO FABRICANTE       (esp. AROMA BEM ESTAR IND E COM DE PROD NATURAIS) | OUTRA CATEGORIA | GUAMAX COMPOSTO MUNE 30UN
 COM BEM NUTRIR                   | marca BEM NUTRIR             (esp. BEM NUTRIR) | fab BEM NUTRIR             (esp. BEM NUTRIR) | OUTRA CATEGORIA | COMP BEM NUTRIR COMPOSTO 30UN
 COM E CLER                       | marca OUTRA MARCA            (esp. E) | fab OUTRO FABRICANTE       (esp. BIOFHITUS) | OUTRA CATEGORIA | COMP COMPOSTO CLER 30UN
-COM BUONA VITA                   | marca VITA                   (esp. BUONA) | fab VITA                   (esp. AGUA MINERAL LEVE LTDA) | OUTRA CATEGORIA | BUONA VITA COMPOSTO 30UN
+COM BUONA VITA                   | marca BUONA                  (esp. BUONA) | fab MASSAS BUONA           (esp. AGUA MINERAL LEVE LTDA) | G03J MODULAD SELETIVOS DOS RECEPT DO ESTROGENIO | BUONA VITA 10MG 30CPRS
 COM FITOWAY FIW                  | marca FITOWAY                (esp. FITOWAY) | fab FITOWAY                (esp. FITOWAY) | OUTRA CATEGORIA | COMP FITOWAY COMPOSTO FIW 30UN
 COM TOPWAY                       | marca TOPWAY                 (esp. TOPWAY) | fab TOPWAY NUTRITION       (esp. TOPWAY NUTRITION) | OUTRA CATEGORIA | COMP TOPWAY COMPOSTO 30UN
 COM BEAUTY DRINK                 | marca BEAUTY DRINK           (esp. BEAUTY DRINK) | fab BEAUTY IN CIA          (esp. BEAUTY IN CIA) | DRINKS | DRINKS BEAUTY DRINK COMPOSTO 30UN

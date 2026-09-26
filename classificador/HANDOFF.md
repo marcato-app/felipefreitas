@@ -221,3 +221,10 @@ Pontos pra checar, em ordem:
   descrições do backlog e das lojas quando o código já foi anexado (`lojasNoItem`).
 - Tema: segue o sistema; `#claro` / `#escuro` no link fixa o tema.
 - Testes: os scripts vão para a etapa 6 (`irEtapa(6)`) antes de clicar em Classificar.
+
+## Lista CMED/Anvisa
+
+- `cmed.py` → `cmed.json.gz` → `/*CMED*/null` no `build.py`; `loadCmedEmb()` carrega ao abrir; `loadCmed(file)` (etapa 3)
+  substitui. `cmedNoItem` (EAN → descrição oficial, `it.cmedCat`), override de categoria logo depois do `AGG` no
+  `runAll`, `compileFC`/`matchFC` (nome do produto → classe oficial), `contagemSolta` (número sem unidade).
+- Atualizar: trocar o arquivo em `dados/cmed/` e rodar `python3 cmed.py && python3 build.py`.

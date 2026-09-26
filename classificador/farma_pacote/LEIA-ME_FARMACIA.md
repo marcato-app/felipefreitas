@@ -191,6 +191,20 @@ anti-inflamatórios "Por Defecto" (ibuprofeno, diclofenaco…) → ANTI REUMATIC
 - Dose em G antes da forma (`VITAMINA C 1 G COMP EFERV … X 10`): o conteúdo é a contagem (10), não 1G.
 - Resultado: `VERZENIOS REVESTIDO 50MG 30CPRS` (antes 1UN). Exemplos em `testes_farma/anvisa_formatos.csv`.
 
+### 3.5g Lista CMED/Anvisa (embutida) e número solto
+- `dados/cmed/` (PMC - xls da Anvisa, 26 mil apresentações) → `python3 cmed.py` → `cmed.json.gz` (0,4 MB), embutido pelo
+  `build.py`. Na tela (etapa 3) dá para anexar uma lista mais nova, que substitui a embutida.
+- Código de barras na CMED: a descrição oficial (PRODUTO + APRESENTAÇÃO, ex. `VERZENIOS 50 MG COM REV CT BL AL AL X 30`)
+  vira a principal (quantidade oficial); o laboratório da CMED vira o fabricante quando a descrição não traz outro; a
+  CLASSE TERAPÊUTICA (EphMRA "L1H", "M1A1" → L01H, M01A1) decide a categoria quando o app deu outra cesta ou outro grupo
+  ATC. Produto de marca (não genérico): marca = nome do produto (DTN FOL, NATIFA PRO UBD).
+- Sem código de barras: o nome do produto/substância da CMED dá a categoria oficial (depois da base do cliente, do
+  dicionário e das regras; antes da DIMA), e as apresentações que existem do produto validam o número solto.
+- Número solto (`ACEFLOR 24 REV CT BL AL PLAS OPC 100 MG`): em Farmácia, número sem unidade que não é dose e é tamanho de
+  caixa comum (ou apresentação da CMED do produto) vira a contagem, com alerta.
+- Backlog só com o nome (`testes_farma/lojas_backlog_curto.csv`), sem arquivo das lojas: 1UN 65 → 1 e OUTRA CATEGORIA 5 → 0
+  só com a CMED embutida.
+
 ### 3.6 Marca
 - Regra (decidida): **nome comercial**; genérico → **princípio ativo** como marca (como escrito na descrição: LOSARTANA,
   DIPIRONA), fabricante = laboratório.

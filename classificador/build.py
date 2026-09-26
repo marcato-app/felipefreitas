@@ -15,6 +15,9 @@ s = s.replace('/*CONSTS*/null', (here / 'consts.json').read_text(encoding='utf-8
 import base64
 dz = here / 'dima.json.gz'
 s = s.replace('/*DIMA*/null', '"' + base64.b64encode(dz.read_bytes()).decode() + '"' if dz.exists() else 'null')
+# lista CMED/Anvisa (cmed.py) embutida do mesmo jeito
+cz = here / 'cmed.json.gz'
+s = s.replace('/*CMED*/null', '"' + base64.b64encode(cz.read_bytes()).decode() + '"' if cz.exists() else 'null')
 (here / 'classificador.html').write_text(s, encoding='utf-8')
 print('ok:', here / 'classificador.html', f'{len(s):,} bytes')
 # agente de Farmácia: mesmo app, publicado em artifact próprio (link separado do classificador geral)

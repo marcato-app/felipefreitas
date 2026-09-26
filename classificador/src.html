@@ -207,11 +207,12 @@ td.alert{color:var(--warn); font-size:12px}
     </section>
 
     <!-- 3 dicionário -->
-    <section class="step hidden" data-step="3" data-nome="Dicionário de marcas" data-sub="opcional">
-      <div class="step-h"><span class="eyebrow">Etapa 3 de 6</span><h2>Dicionário de marcas</h2>
-        <p>A base DIMA já vem embutida e é usada primeiro. O dicionário enviado aqui só entra quando a DIMA não acha a marca. Pode ser .csv (inclusive UTF-16) ou .xlsx.</p></div>
+    <section class="step hidden" data-step="3" data-nome="Dicionário e CMED" data-sub="opcional">
+      <div class="step-h"><span class="eyebrow">Etapa 3 de 6</span><h2>Dicionário de marcas e lista CMED</h2>
+        <p>A base DIMA já vem embutida e é usada primeiro. A lista da CMED (Anvisa) é a referência oficial de apresentações: com ela, a quantidade vem do registro do produto. O dicionário enviado aqui só entra quando a DIMA não acha a marca. Pode ser .csv (inclusive UTF-16) ou .xlsx.</p></div>
       <div class="grid3">
         <div class="drop" id="dropDict"><span class="req">Dicionário</span><h3>Arraste o arquivo aqui</h3><div class="st" id="stDict">ou clique para escolher (.csv ou .xlsx)</div><input type="file" id="fDict" accept=".csv,.txt,.xlsx,.xls"></div>
+        <div class="drop" id="dropCmed"><span class="req">Lista CMED (Anvisa)</span><h3>PMC - xls da Anvisa</h3><div class="st" id="stCmed">Com o código de barras (EAN) o app pega a apresentação oficial (quantidade), o laboratório e a classe terapêutica. Baixe em gov.br/anvisa → CMED → Preços.</div><input type="file" id="fCmed" accept=".xls,.xlsx,.csv"></div>
       </div>
     </section>
 
@@ -359,7 +360,7 @@ const FLAVORS = new Set(K.const.FLAVORS), ATTR = new Set(K.const.ATTR), NOISE = 
 const TOK = K.const.TOK, GROUP_TOK = K.const.GROUP_TOK;
 // Farmácia: abreviações de forma farmacêutica (COMP é comprimido, não "composto")
 GROUP_TOK.FARMA = Object.assign({ COMP: 'COMPRIMIDO', COMPR: 'COMPRIMIDO', CP: 'COMPRIMIDO', CPR: 'COMPRIMIDO', CPS: 'COMPRIMIDO', CAP: 'CAPSULA', CAPS: 'CAPSULA',
-  DRG: 'DRAGEA', SUS: 'SUSPENSAO', OR: 'ORAL', GOT: 'GOTAS', CREM: 'CREME', DERM: 'DERMATOLOGICO', LIB: 'LIBERACAO', VD: '', BG: '', TB: '', COLI: 'COLIRIO', COL: 'COLIRIO', LIOF: 'LIOFILIZADO', SOL: 'SOLUCAO', SUSP: 'SUSPENSAO', XPE: 'XAROPE', XAR: 'XAROPE', GTS: 'GOTAS', POM: 'POMADA', AMP: 'AMPOLA', INJ: 'INJETAVEL', EFERV: 'EFERVESCENTE', REV: 'REVESTIDO' }, GROUP_TOK.FARMA || {});
+  DRG: 'DRAGEA', EFEV: 'EFERVESCENTE', TRANSD: 'TRANSDERMICO', OFT: 'OFTALMICO', OC: 'OCULAR', SUS: 'SUSPENSAO', OR: 'ORAL', GOT: 'GOTAS', CREM: 'CREME', DERM: 'DERMATOLOGICO', LIB: 'LIBERACAO', VD: '', BG: '', TB: '', COLI: 'COLIRIO', COL: 'COLIRIO', LIOF: 'LIOFILIZADO', SOL: 'SOLUCAO', SUSP: 'SUSPENSAO', XPE: 'XAROPE', XAR: 'XAROPE', GTS: 'GOTAS', POM: 'POMADA', AMP: 'AMPOLA', INJ: 'INJETAVEL', EFERV: 'EFERVESCENTE', REV: 'REVESTIDO' }, GROUP_TOK.FARMA || {});
 const PHRASE = K.const.PHRASE.map(([p, r]) => [new RegExp(p, 'g'), r]);
 const PROTECT = K.const.PROTECT.map(p => [new RegExp('(?<![A-Z_])' + p + '(?![A-Z_])', 'g'), p.replace(/ /g, '_')]);
 
@@ -474,7 +475,7 @@ const skuKey = v => String(v ?? '').replace(/\D/g, '').replace(/^0+/, '');
 // a loja cola a marca no "C/" e letras no número: FLUIMUCILC/16 CPR -> FLUIMUCIL C/16 CPR; PRED MILD10ML -> PRED MILD 10ML
 // padrão Anvisa: "50 MG COM REV CT BL AL AL X 30" -> COM é comprimido (depois da dose ou antes de REV/EFERV/MAST...)
 // a ordem das partes não importa: com cara de Anvisa (REV, EFERV, CT, BL...) ou "COM X 24", o COM solto é comprimido
-const RX_ANVISA = /(?<![A-Z])(REV|EFERV|MAST|SUBL|ORODISP|CT|BL|BLISTER|STRIP)(?![A-Z])/i;
+const RX_ANVISA = /(?<![A-Z])(REV|EFERV|EFEV|MAST|SUBL|ORODISP|CT|BL|BLISTER|STRIP)(?![A-Z])/i;
 const anvisa = s => {
   s = s.replace(/(\d\s*(?:MG|MCG|G|UI|%)(?:\/\w+)?\s+)COM(?=\s+(?!\d)|$)/gi, '$1COMP')
     .replace(/(^|\s)COM(?=\s+(?:REV|EFERV|MAST|SUBL|ORODISP|DISP|DISPERS|LIB|VAG|SIMPLES|SULC|SOL)\b)/gi, '$1COMP')
@@ -513,12 +514,13 @@ async function loadLojas(file) {
 }
 // junta as descrições das lojas no item: a mais completa vira a principal; as outras ajudam na votação
 function aplicaLojas() {
-  if (!data.lojas) return;
+  if (!data.lojas && !data.cmed) return;
+  if (!data.lojas) { if (data.items) for (const it of data.items) { if (!it.D0) it.D0 = it.D.slice(); it.D = it.D0.slice(); it.T = it.D.map(N); cmedNoItem(it); } return; }
   if (!data.items) { // sem backlog: o arquivo das lojas é o backlog
     data.items = [...data.lojas.values()].map(e => ({ barcode: e.bc, D: [], T: [], main: false, sugCatRaw: '', sugCat: '', sugMarca: '', sugFab: '', sugQt: null }));
     data.semBacklog = true;
   }
-  for (const it of data.items) lojasNoItem(it);
+  for (const it of data.items) { lojasNoItem(it); cmedNoItem(it); }
 }
 function lojasNoItem(it) {
   {
@@ -576,6 +578,7 @@ function dictFinish(dict, semPrimeira) {
 // Base DIMA embutida (dima.py): marca x categoria x fabricante + abreviaturas + categorias sem marca.
 // A marca é procurada primeiro aqui; o dicionário enviado só entra quando a DIMA não acha nada.
 const DIMA_B64 = /*DIMA*/null;
+const CMED_B64 = /*CMED*/null; // lista de preços da CMED/Anvisa (cmed.py)
 let dimaP = null;
 function loadDima() {
   if (dimaP) return dimaP;
@@ -657,6 +660,7 @@ function compile0() {
     pa: compilePA(new Set(actCats().map(c => c.nome))),
     fm: compileFM(new Set(actCats().map(c => c.nome))),
     fd: compileFD(new Set(actCats().map(c => c.nome))),
+    fc: compileFC(new Set(actCats().map(c => c.nome))),
     black: new Set([...cfg.falsasMarcas.map(N), ...K.const.USER_BLACK]),
   };
 }
@@ -710,6 +714,19 @@ const RX_SINAL_FARMA = /(?<![A-Z])(\d+(\.\d+)?\s*(MG|MCG|UI|MEQ)|COMP|COMPR|COMP
 function sinalFarma(t) { if (RX_SINAL_FARMA.test(t)) return true; const w = t.split(' '), l = w[w.length - 1]; return w.length > 1 && !!((K.farmaCodLab || {})[l] || labIndex().codigo.has(l)); }
 // termo da DIMA: de uma palavra só vale no começo da descrição ou com sinal de remédio (FRONTAL em "CAIXA ... FRONTAL" não)
 function matchFD(t, C) { const g = matchFM([t], C.fd); if (!g) return null; if (g.nome.includes(' ') || t.startsWith(g.nome + ' ') || t === g.nome || sinalFarma(t)) return g; return null; }
+function compileFC(active) {
+  if (!data.cmedCls) return null; const Lb = labIndex(); const map = new Map();
+  for (const [kp, cm] of data.cmedCls) {
+    if (kp.length < 4 || Lb.chave.has(kp) || FARMA_NAO_MARCA.has(kp) || GENERIC.has(kp) || NOISE.has(kp)) continue;
+    let best = '', v = 0, tot = 0; for (const [c, n] of cm) { tot += n; if (n > v) { v = n; best = c; } }
+    const cat = catCmed(best); if (!cat || !active.has(cat)) continue;
+    map.set(kp, { nome: kp, cat, seg: best, esc: v / tot < 0.6 ? 1 : 0 });
+  }
+  if (!map.size) return null;
+  const terms = [...map.keys()].sort((a, b) => b.length - a.length);
+  return { map, rx: new RegExp('(?<![A-Z0-9])(?:' + terms.map(escRx).join('|') + ')(?![A-Z0-9])') };
+}
+function matchFC(t, C) { const g = matchFM([t], C.fc); if (!g) return null; if (g.nome.includes(' ') || t.startsWith(g.nome + ' ') || t === g.nome || sinalFarma(t)) return g; return null; }
 function matchFM(T, F) { if (!F) return null; for (const t of T) { const m = t.match(F.rx); if (m) return F.map.get(m[0]); } return null; }
 function classifyDesc(t, C) {
   const r = classifyRules(t, C);
@@ -720,7 +737,7 @@ function classifyDesc(t, C) {
   if (!r || C.cesta.get(r) === 'FARMACIA' || (C.cesta.get(r) === 'PET' && !RX_PET.test(t))) {
     const f = matchFM([t], C.fm); if (f && f.cat) return f.cat;
     if (C.pa) { const p = matchPA(t, C.pa); if (p) return p.cat; }
-    const g = C.cesta.get(r) !== 'FARMACIA' && matchFD(t, C); if (g) return g.cat; } // DIMA: só completa o que base do cliente, dicionário e regras do manual não sabem
+    const g = C.cesta.get(r) !== 'FARMACIA' && (matchFC(t, C) || matchFD(t, C)); if (g) return g.cat; } // CMED (classe oficial) antes da DIMA // DIMA: só completa o que base do cliente, dicionário e regras do manual não sabem
   else {
     const f = matchFM([t], C.fm); if (f && f.cat && f.nome.includes(' ')) return f.cat; // LEITE MAG PHILLIPS, NEOCOPAN COMPOSTO
     // código de laboratório no fim ("ANLODIPINO 5MG 30 COMP BIS"): sem ele, se as regras não dão outra cesta, vale a Farmácia
@@ -728,7 +745,7 @@ function classifyDesc(t, C) {
     if (w.length > 1 && ((K.farmaCodLab || {})[last] || labIndex().codigo.has(last))) {
       const r2 = classifyRules(w.slice(0, -1).join(' '), C);
       if (!r2 || C.cesta.get(r2) === 'FARMACIA') {
-        const g = matchFM([t], C.fm) || (C.pa && matchPA(t, C.pa)) || matchFD(t, C); if (g) return g.cat; }
+        const g = matchFM([t], C.fm) || (C.pa && matchPA(t, C.pa)) || matchFC(t, C) || matchFD(t, C); if (g) return g.cat; }
     }
   }
   return r;
@@ -1029,9 +1046,11 @@ function complement(T, cat, ini, bn, grp, catCfg) {
   const cnt = new Map(); for (const L of lists) for (const w of new Set(L)) cnt.set(w, (cnt.get(w) || 0) + 1);
   const n = lists.length;
   const score = L => [...new Set(L)].reduce((a, w) => a + ((cnt.get(w) >= 2) ? 1 : 0) + (FLAVORS.has(w) ? 1 : 0), 0) - 0.05 * L.length;
-  const base = lists.slice(0, 4).reduce((a, L) => score(L) > score(a) ? L : a, lists[0]);
+  // Farmácia: a 1ª descrição é a principal (a oficial da CMED ou a mais completa das lojas, quando houver)
+  const base = grp === 'FARMA' ? lists[0] : lists.slice(0, 4).reduce((a, L) => score(L) > score(a) ? L : a, lists[0]);
+  const n1 = grp === 'FARMA'; // na Farmácia as palavras da principal valem mesmo sem aparecer nas outras
   const keep = [];
-  for (const w of base) { const good = FLAVORS.has(w) || w.includes('_') || (n <= 2 && w.length >= 3) || cnt.get(w) >= 2 || CONNECT.has(w) || ATTR.has(w); if (!good) continue; if (w.length <= 2 && !CONNECT.has(w)) continue; keep.push(w); }
+  for (const w of base) { const good = FLAVORS.has(w) || w.includes('_') || ((n <= 2 || n1) && w.length >= 3) || cnt.get(w) >= 2 || CONNECT.has(w) || ATTR.has(w); if (!good) continue; if (w.length <= 2 && !CONNECT.has(w)) continue; keep.push(w); }
   for (const [w, c] of [...cnt].sort((a, b) => b[1] - a[1])) if (FLAVORS.has(w) && !keep.includes(w) && c >= Math.max(2, Math.floor(n / 2) + 1)) keep.push(w);
   let words = tidy(keep);
   if (cat.startsWith('CHOCOLATE')) { const p = Tx.map(pct).find(x => x); if (p) words = words.filter(w => w !== 'CACAU').concat([String(p), 'CACAU']); }
@@ -1093,7 +1112,7 @@ function segmentosEstMer6(AGG, items, byName, C) {
 /* ---- Farmácia: fabricante é sempre o laboratório escrito na descrição, conferido com o dicionário / DIMA ---- */
 const ATC_RX = /^[A-Z]\d\d[A-Z]?\d? /;
 const LAB_LIXO = new Set('LABORATORIO LABORATORIOS LAB LABS FARMACEUTICA FARMACEUTICOS FARMACEUTICO FARMA PHARMA PHARMACEUTICA IND INDUSTRIA COM COMERCIO SA S A LTDA ME EIRELI DO DA DE E BRASIL BR'.split(' '));
-const LAB_COD_NAO = new Set('MARCA OUTRA OUTRO COM SEM CPR COMP CAP CAPS DRG GTS SOL SUS XPE AMP INJ CRE POM GEL ADT INF PED UN UND CX FR'.split(' '));
+const LAB_COD_NAO = new Set('MARCA OUTRA OUTRO COM SEM CPR COMP CAP CAPS DRG GTS SOL SUS XPE AMP INJ CRE POM GEL ADT INF PED UN UND CX FR MCG MG ML UI MEQ REV CT BL AL PLAS OPC GOT'.split(' '));
 // nome do laboratório como aparece na descrição -> código de 3 letras da base (o fabricante vem do código)
 const LAB_ALIAS = { GERMED: 'GER', LEGRAND: 'LEG', 'NEO QUIMICA': 'NEO', NEOQUIMICA: 'NEO', 'NOVA QUIMICA': 'NVQ', NOVAQUIMICA: 'NVQ',
   PRATI: 'PRD', 'PRATI DONADUZZI': 'PRD', EURO: 'EUR', SANOFI: 'SNF', MULTILAB: 'MUL', MANTECORP: 'MAN', KLEY: 'KLE', 'KLEY HERTZ': 'KLE' };
@@ -1112,7 +1131,7 @@ function labIndex() {
   for (const [c, f] of Object.entries(K.farmaCodLab || {})) if (!codigo.has(c) && !LAB_COD_NAO.has(c)) codigo.set(c, f); // base de marcas do cliente depois da DIMA
   const chave = new Map(); // termo que pode aparecer em qualquer lugar da descrição -> fabricante
   for (const [k, f] of nomes) { const w = k.split(' ').filter(x => !LAB_LIXO.has(x)); if (!w.length) continue;
-    const full = w.join(' '); if (full.length >= 3 && !GENERIC.has(full)) chave.set(full, f); } // nome completo (sem LTDA, FARMA...), nunca só a 1ª palavra
+    const full = w.join(' '); if (full.length >= 3 && !GENERIC.has(full) && !LAB_COD_NAO.has(full)) chave.set(full, f); } // nome completo (sem LTDA, FARMA...), nunca só a 1ª palavra
   for (const [a, c] of Object.entries(LAB_ALIAS)) if (codigo.has(c)) chave.set(a, codigo.get(c));
   const termos = [...chave.keys()].sort((a, b) => b.length - a.length);
   LABS = { chave, codigo, rx: termos.length ? new RegExp('(?<![A-Z0-9])(?:' + termos.map(escRx).join('|') + ')(?![A-Z0-9])') : null };
@@ -1164,7 +1183,7 @@ function nomeComercial(T, C, vocab, paW) {
 const RX_DOSE_RAW = /(?<![0-9.A-Z])(\d+(?:\.\d+)?(?:\s*\+\s*\d+(?:\.\d+)?)*)\s*(MG|MCG|UG|UI|MEQ|%)(?:\s*\/\s*(\d+(?:\.\d+)?)?\s*(ML|G|GOTA|GTS|DIA))?(?![A-Z])/g;
 function dosagemRaw(D) {
   for (const d0 of D) {
-    const t = String(d0).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/(\d),(\d)/g, '$1.$2');
+    const t = String(d0).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/(\d),(\d)/g, '$1.$2').replace(/\(\s*([\d.\s+]+?)\s*\)/g, '$1'); // (0,5 + 0,1) MG
     const out = []; let m; RX_DOSE_RAW.lastIndex = 0;
     while ((m = RX_DOSE_RAW.exec(t))) { const d = m[1].replace(/\s+/g, '') + m[2] + (m[4] ? '/' + (m[3] && +m[3] !== 1 ? m[3] : '') + (m[4] === 'GTS' ? 'GOTA' : m[4]) : ''); if (!out.includes(d)) out.push(d); }
     if (out.length) return out.join('+');
@@ -1245,14 +1264,93 @@ function vendidoPorUnidade(cc, T, C) {
   const hp = T.length ? headPos(T[0], C.headIdx) : null;
   return !!hp && OBJETO_TIPO.has(hp.w);
 }
+// Farmácia sem unidade na quantidade ("ACEFLOR 24 REV CT BL AL PLAS OPC 100 MG"): o número solto que não é dose
+// e é tamanho de caixa comum (ou uma apresentação que existe na CMED para o produto) é a contagem
+const PACKS = new Set([2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 15, 16, 18, 20, 21, 24, 25, 28, 30, 32, 36, 40, 42, 45, 48, 50, 56, 60, 63, 84, 90, 100, 120, 150, 180, 200, 250, 300, 500]);
+function contagemSolta(T, it) {
+  const validas = cmedContagens(it);
+  for (const t0 of T) {
+    const t = t0.replace(/\d+(?:\.\d+)?(?:\s*\+\s*\d+(?:\.\d+)?)*\s*(?:MG|MCG|UG|G|GR|UI|ML|L|MEQ|%)(?:\s*\d*\s*(?:ML|G))?(?![A-Z])/g, ' '); // tira as doses
+    const w = t.split(' ');
+    for (let i = 0; i < w.length; i++) {
+      if (!/^\d{1,3}$/.test(w[i])) continue; const n = +w[i];
+      if (i > 0 && /^([A-Z]|VITAMINA|VIT|OMEGA|COQ|SPF|NR|N|NO|LOTE|REF|COD)$/.test(w[i - 1])) continue; // VITAMINA D 3, B 12, SPF 50
+      if (validas ? validas.has(n) : PACKS.has(n)) return { tot: n, base: 'UN', n: 1, uv: n, flag: '', solta: true };
+    }
+  }
+  return null;
+}
+/* ---- CMED (lista de preços da Anvisa): EAN -> produto, apresentação, laboratório, classe terapêutica ---- */
+async function loadCmed(file) {
+  const rows = await readTable(file);
+  const h = rows.findIndex(r => r && r.some(v => /APRESENTA/i.test(String(v ?? ''))) && r.some(v => /EAN/i.test(String(v ?? ''))));
+  if (h < 0) throw new Error('não achei o cabeçalho da lista (colunas APRESENTAÇÃO e EAN)');
+  const H = rows[h].map(v => normH(v ?? ''));
+  const col = (...ts) => { for (const t of ts) { const i = H.findIndex(x => x === t); if (i >= 0) return i; } for (const t of ts) { const i = H.findIndex(x => x.startsWith(t)); if (i >= 0) return i; } return -1; };
+  const iS = col('SUBSTANCIA'), iL = col('LABORATORIO'), iP = col('PRODUTO'), iA = col('APRESENTACAO'), iC = col('CLASSETERAPEUTICA'), iT = col('TIPODEPRODUTO', 'TIPO');
+  const iE = H.map((x, i) => /^EAN/.test(x) ? i : -1).filter(i => i >= 0);
+  if (iP < 0 || iA < 0 || !iE.length) throw new Error('faltam as colunas PRODUTO, APRESENTAÇÃO ou EAN');
+  const txt = (r, i) => i >= 0 ? String(r[i] ?? '').trim() : '';
+  const L = rows.slice(h + 1).filter(r => r && r[iP]).map(r => [iE.map(i => skuKey(r[i])),
+    { subst: txt(r, iS), lab: txt(r, iL), produto: txt(r, iP), apres: txt(r, iA), classe: txt(r, iC), tipo: txt(r, iT) }]);
+  const res = montaCmed(L); data.cmedArquivo = file.name; return res;
+}
+function montaCmed(L) {
+  const m = new Map(), prod = new Map(), cls = new Map();
+  for (const [eans, e] of L) {
+    { const kp = N(e.produto); if (kp) { if (!cls.has(kp)) cls.set(kp, new Map()); const c = cls.get(kp); c.set(e.classe, (c.get(e.classe) || 0) + 1); } }
+    for (const k of eans) if (k && k.length >= 8) m.set(k, e);
+    const n = parseU(N(desgruda(e.apres))); if (n) { const kp = N(e.produto); if (!prod.has(kp)) prod.set(kp, new Set()); prod.get(kp).add(n); }
+  }
+  data.cmed = m; data.cmedProd = prod; data.cmedCls = cls; data.cmedCod = null;
+  return { eans: m.size, produtos: prod.size };
+}
+let cmedP = null;
+function loadCmedEmb() { // lista embutida; um arquivo anexado depois substitui
+  if (cmedP) return cmedP;
+  cmedP = (async () => {
+    if (!CMED_B64 || typeof DecompressionStream === 'undefined' || data.cmedArquivo) return null;
+    const bin = Uint8Array.from(atob(CMED_B64), c => c.charCodeAt(0));
+    const j = JSON.parse(await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
+    const r = montaCmed(j.rows.map(([e, p, a, l, c, su, t]) => [e.split(','), { produto: j.prod[p], apres: a, lab: j.lab[l], classe: j.cls[c], subst: j.sub[su], tipo: j.tipo[t] }]));
+    data.cmedFonte = j.fonte; return r;
+  })().catch(e => { console.warn('CMED', e); return null; });
+  return cmedP;
+}
+// classe terapêutica da CMED ("M1A1 - ANTI-REUMATICOS...") -> categoria do app (código EphMRA com 2 dígitos: M01A1)
+function catCmed(classe) {
+  const m = /^\s*([A-Z])\s*(\d{1,2})\s*([A-Z])\s*(\d)?/.exec(N(classe)); if (!m) return '';
+  if (!data.cmedCod) { data.cmedCod = new Map(); for (const c of cfg.categorias) { if (c.cesta !== 'FARMACIA') continue; const k = (/^([A-Z]\d\d[A-Z]\d?)\s/.exec(nomeOf(c.nome) + ' ') || [])[1]; if (k) { if (!data.cmedCod.has(k)) data.cmedCod.set(k, []); data.cmedCod.get(k).push(c.nome); } } }
+  const k4 = m[1] + m[2].padStart(2, '0') + m[3], k5 = k4 + (m[4] || '');
+  const exato = data.cmedCod.get(k5); if (exato) return exato[0];
+  const filhos = [...data.cmedCod].filter(([k]) => k.startsWith(k4)).flatMap(([, v]) => v);
+  if (filhos.length === 1) return filhos[0];
+  const nome = catInterna(String(classe).replace(/^[^-]*-\s*/, '')); return cfg.categorias.some(c => c.nome === nome) ? nome : (data.cmedCod.get(k4) || [''])[0];
+}
+function cmedNoItem(it) {
+  const e = data.cmed && data.cmed.get(skuKey(it.barcode)); it.cmed = e || null; it.cmedCat = '';
+  if (!e) return;
+  const d = desgruda(`${e.produto} ${e.apres}`); // descrição oficial vira a principal (o laboratório vai direto para o fabricante)
+  it.D = [d, ...it.D.filter(x => N(x) !== N(d))]; it.T = it.D.map(N); it.main = true; it.cmedCat = catCmed(e.classe);
+}
+function cmedContagens(it) {
+  if (!data.cmedProd || !it) return null;
+  for (const t of it.T || []) { const w = t.split(' '); for (let k = Math.min(3, w.length); k >= 1; k--) { const s = data.cmedProd.get(w.slice(0, k).join(' ')); if (s) return s; } }
+  return null;
+}
 async function runAll(opts = {}) {
-  await loadDima();
+  await loadDima(); await loadCmedEmb();
   if (!opts.items) aplicaLojas();
   const quiet = !!opts.silent;
   const C = compile(); autoSegments(); const res = []; const items = opts.items || data.items; const t0 = performance.now();
   const byName = new Map(cfg.categorias.map(c => [c.nome, c]));
   if (!quiet) { $('#runState').textContent = 'Classificando categorias…'; await new Promise(r => setTimeout(r, 0)); }
   const AGG = items.map(it => categoriaArquivo(it, aggregate(it.T, it.sugCat, C, it.main), byName));
+  // código de barras na lista da CMED: a classe terapêutica oficial decide quando o app deu outra cesta ou outro grupo ATC
+  const cod4 = x => ((/^([A-Z]\d\d[A-Z])/.exec(nomeOf(x)) || [])[1] || '');
+  items.forEach((it, i) => { const c = it.cmedCat, a = AGG[i]; if (!c || !C.names.has(c) || a.cat === c) return;
+    const cc = byName.get(a.cat); if (cc && cc.cesta === 'FARMACIA' && cod4(a.cat) && cod4(a.cat) === cod4(c)) return;
+    AGG[i] = Object.assign({}, a, { cat: c, cmedTrocou: a.cat }); });
   const segOf = segmentosEstMer6(AGG, items, byName, C);
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
@@ -1260,7 +1358,7 @@ async function runAll(opts = {}) {
     const cc = byName.get(a.cat); const seg = segOf(a.cat);
     let bn = null, BD = null;
     const vocab = catVocab(C, a.cat); vocab.heads = new Set(T.map(t => (headPos(t, C.headIdx) || {}).w).filter(Boolean));
-    const arqAl = [];
+    const arqAl = [], alerts0 = [];
     const sm = N(it.sugMarca), marcaArq = prioArq() && valido(it.sugMarca) && !C.black.has(sm);
     let marca, fab;
     if (marcaArq && !marcaNaDesc(sm, T)) { // marca do arquivo não aparece: troca só se a descrição trouxer outra marca da categoria
@@ -1322,8 +1420,12 @@ async function runAll(opts = {}) {
         }
       }
     }
-    if (farma) { // fabricante = laboratório da descrição
-      const lab = labDaDescricao(T);
+    if (farma && it.cmed && !marcaArq && !/GENERIC/.test(N(it.cmed.tipo))) { // produto de marca na CMED: o nome completo (DTN-FOL, não DTN)
+      const pn = N(it.cmed.produto);
+      if (pn && !farmaNaoMarca(pn, C, palavrasPA(T, C)) && (!bn || marca === 'OUTRA MARCA' || (pn !== N(bn) && pn.startsWith(N(bn) + ' ')))) { bn = pn; marca = pn; BD = null; }
+    }
+    if (farma) { // fabricante = laboratório da descrição; sem ele, o laboratório da CMED
+      const lab = labDaDescricao(T) || (it.cmed && it.cmed.lab ? (labDaDescricao([N(it.cmed.lab)]) || N(it.cmed.lab).replace(/\b(LTDA|S A|SA|EIRELI|ME|INDUSTRIA|COMERCIO|IND|COM)\b/g, ' ').replace(/\s+/g, ' ').trim()) : null);
       if (lab) {
         if (prioArq() && valido(it.sugFab) && N(it.sugFab) !== N(lab)) arqAl.push(`Arquivo: fabricante ${it.sugFab.trim()} difere do laboratório na descrição (${lab}); usado ${lab}`);
         fab = lab;
@@ -1351,6 +1453,7 @@ async function runAll(opts = {}) {
     }
     if (cc && cc.cesta === 'FARMACIA' && (q.base === 'G' || q.base === 'ML') && Tq.some(t => /\d\s*(G|ML)\s+(COMP|COMPR|COMPRIMIDOS?|CPR|CP|CAP|CAPS|CAPSULAS?|DRG|DRAGEAS?)(?![A-Z])/.test(t))) {
       const u = countQty(Tq); if (u) q = u; } // é a dose por comprimido, não o conteúdo
+    if (q.tot === null && cc && cc.cesta === 'FARMACIA') { const u = countQty(Tq) || contagemSolta(Tq, it); if (u) { q = u; if (u.solta) alerts0.push(`Quantidade pelo número ${u.tot} da descrição (sem unidade escrita)`); } }
     if (q.tot === null) { const u = countQty(Tq); if (u) q = u; else { const d = defaultQty((cc && cc.qtdPadrao) || cfg.qtdPadrao); if (d) q = d; } }
     // sempre sai uma unidade de medida: vendido a quilo (KG/GRANEL sem número) -> 1KG; nada -> 1UN; número sem unidade -> UN
     if (q.tot === null) { const kg = Tq.some(t => /(?<![A-Z0-9])(KG|KILO|QUILO|GRANEL)(?![A-Z0-9])/.test(t));
@@ -1366,19 +1469,22 @@ async function runAll(opts = {}) {
     let qTxt = qtyText(q), dose = '';
     if (farma) { // Farmácia: sem laboratório no descritivo; dosagem (500MG) e a forma como unidade (10CPRS)
       const lab = labAchado(T2), fu = q.base === 'UN' && q.n === 1 ? formaUn(T2) : null;
-      comp = comp.split(' ').filter(w => !(lab && lab.termo.split(' ').includes(w)) && !(fu && fu[2].test(w)) && !/^\.*(MG|MCG|UG|UI|ML|G|DIA|GEN)$/.test(w) && !/^(CT|BL|AL|PLAS|PLAST|OPC|TRANS|INC|AMB|VD|X|STRIP|CX|EMB|PVC|PVDC|PE|PP)$/.test(w)).join(' ');
+      comp = comp.split(' ').filter(w => !(lab && lab.termo.split(' ').includes(w)) && !(fu && fu[2].test(w)) && !/^\.*(MG|MCG|UG|UI|ML|G|DIA|GEN)$/.test(w) && !/^(CT|BL|AL|PLAS|PLAST|OPC|TRANS|INC|AMB|VD|X|STRIP|STR|CX|EMB|PVC|PVDC|PE|PP|PCTFE|PEAD|PEBD|CALEND|MOLE|DURA|SER|AGU|DIL|PREENC|FA|FAMP|CGT|BG|TB|ENV|DES|ACOMP|APLIC|COPO|MED|DOS|SIST|FRAC)$/.test(w)).join(' ');
       if (fu) qTxt = fmtn(q.tot) + fu[1];
       const D2 = it.D.filter(d => T2.includes(N(d)));
       dose = dosagemRaw(D2.length ? D2 : it.D) || dosagem(T2);
     }
     // o descritivo é sempre padronizado pelo app (já com a categoria, marca e conteúdo mantidos do arquivo)
     const desc = cleanD([ini, brandTxt, comp].filter(Boolean).join(' ')) + (dose ? ' ' + dose : '') + (qTxt ? ' ' + qTxt : '');
-    const alerts = [];
+    const alerts = [...alerts0];
     { const F0 = matchFM(T, C.fm); if (F0 && F0.cat === a.cat) alerts.push('Categoria pela marca ' + F0.nome + (F0.ncat > 1 ? ` (marca em ${F0.ncat} categorias; usada a de maior venda)` : ''));
       const C0 = !(F0 && F0.cat === a.cat) && C.pa && T.map(t => matchPA(t, C.pa)).find(p => p && p.cat === a.cat);
-      const D0 = !(F0 && F0.cat === a.cat) && !C0 && T.map(t => matchFD(t, C)).find(Boolean);
+      const G0 = !(F0 && F0.cat === a.cat) && !C0 && !it.cmed && T.map(t => matchFC(t, C)).find(Boolean);
+      if (G0 && G0.cat === a.cat) alerts.push(`Categoria pela CMED: ${G0.nome} em ${G0.seg}` + (G0.esc ? ' (subcategoria escolhida; revisar)' : ''));
+      const D0 = !(F0 && F0.cat === a.cat) && !C0 && !(G0 && G0.cat === a.cat) && T.map(t => matchFD(t, C)).find(Boolean);
       if (D0 && D0.cat === a.cat) alerts.push(`Categoria pela DIMA: ${D0.nome} em ${D0.seg}` + (D0.esc ? ' (subcategoria escolhida; revisar)' : ''));
       if (C0) alerts.push('Categoria pelo princípio ativo ' + C0.pa + (C0.corrigido ? ' (destino corrigido em relação à base)' : C0.validar ? ' (base pede validação)' : '')); }
+    if (it.cmed) alerts.push(`Categoria pela CMED: ${it.cmed.classe || it.cmed.produto}` + (a.cmedTrocou ? ` (antes ${nomeOf(a.cmedTrocou)})` : ''));
     if (a.arqTrocada) alerts.push(`Arquivo: categoria ${a.arqTrocada} não bate com a descrição (outra cesta); usada ${a.cat}`);
     alerts.push(...arqAl);
     if (a.misturadas) alerts.push(`Descrições de produtos diferentes no mesmo código (${a.misturadas} ignorada${a.misturadas > 1 ? 's' : ''})`);
@@ -1393,7 +1499,7 @@ async function runAll(opts = {}) {
     if (q.flag === 'SEM_QTD') alerts.push('Sem quantidade na descrição');
     else if (q.flag === 'QTD_PADRAO') alerts.push('Sem quantidade na descrição; usado o padrão ' + qtyText(q));
     else if (q.flag === 'QTD_DIV') alerts.push('Quantidades diferentes entre descrições');
-    const pri = alerts.some(x => /^(Nenhuma|Descrições|Sem evidência|Arquivo: categoria)/.test(x)) ? 1 : alerts.some(x => !/^Categoria pel[oa] (princípio ativo|marca|DIMA)[ :]/.test(x) || /\((base pede validação|destino corrigido em relação à base|marca em \d+ categorias; usada a de maior venda|subcategoria escolhida; revisar)\)$/.test(x)) ? 2 : 0;
+    const pri = alerts.some(x => /^(Nenhuma|Descrições|Sem evidência|Arquivo: categoria)/.test(x)) ? 1 : alerts.some(x => !/^Categoria pel[oa] (princípio ativo|marca|DIMA|CMED)[ :]/.test(x) || /\((base pede validação|destino corrigido em relação à base|marca em \d+ categorias; usada a de maior venda|subcategoria escolhida; revisar)\)$/.test(x)) ? 2 : 0;
     res.push({ it, cat: a.cat, marca, fab, qt: q.tot, qbase: q.base, desc, alerts, pri });
     if (!quiet && i % 250 === 0) { $('#prog').style.width = (100 * i / items.length).toFixed(1) + '%'; $('#runState').textContent = `Classificando ${i.toLocaleString('pt-BR')} de ${items.length.toLocaleString('pt-BR')}…`; await new Promise(r => setTimeout(r, 0)); }
   }
@@ -1566,6 +1672,12 @@ setupDrop('#dropLojas', '#fLojas', async file => {
     status('#stLojas', `<b>${r.skus.toLocaleString('pt-BR')}</b> SKUs · ${r.linhas.toLocaleString('pt-BR')} descrições de loja · ${escH(file.name)}` + (semB ? '<br>Sem backlog: estes SKUs viram o backlog.' : ''), true);
     $('#btnRun').disabled = false; $('#runState').textContent = 'Pronto para classificar.'; }
   catch (e) { status('#stLojas', 'Não consegui ler: ' + escH(e.message)); }
+});
+setupDrop('#dropCmed', '#fCmed', async file => {
+  data.cmedArquivo = file.name; status('#stCmed', 'Lendo ' + escH(file.name) + ' (a lista tem dezenas de milhares de linhas)…');
+  try { const r = await loadCmed(file); if (data.items) aplicaLojas();
+    status('#stCmed', `<b>${r.eans.toLocaleString('pt-BR')}</b> códigos de barras · ${r.produtos.toLocaleString('pt-BR')} produtos · ${escH(file.name)}`, true); }
+  catch (e) { status('#stCmed', 'Não consegui ler: ' + escH(e.message)); }
 });
 setupDrop('#dropDict', '#fDict', async file => {
   status('#stDict', 'Lendo ' + escH(file.name) + ' (arquivos grandes levam alguns segundos)…');
@@ -1864,7 +1976,7 @@ const etapaPulada = {}; let etapaAtual = 1;
 function etapaFeita(n) {
   if (n === 1) return !!(data.items && !data.semBacklog);
   if (n === 2) return !!data.lojas;
-  if (n === 3) return !!data.dict;
+  if (n === 3) return !!(data.dict || data.cmed);
   if (n === 6) return !!data.results;
   return false;
 }
@@ -1899,6 +2011,7 @@ irEtapa(1);
 
 /* ------------------------------------------------------------------ consulta rápida (1 SKU, sem planilha) */
 function qTile(rot, val, extra, wide) { return el('div', { class: 'qv' + (wide ? ' wide' : '') }, el('span', {}, rot), el('b', {}, val || '—'), extra ? el('i', {}, extra) : ''); }
+loadCmedEmb().then(r => { if (r && !data.cmedArquivo) { const st = $('#stCmed'); st.innerHTML = `Já embutida: <b>${r.eans.toLocaleString('pt-BR')}</b> códigos de barras (${escH(data.cmedFonte || '')}). Anexe uma lista mais nova só se quiser atualizar.`; st.closest('.drop').classList.add('done'); } });
 // abre com o exemplo já classificado (a descrição de exemplo fica no campo; é só trocar)
 (async () => { try { await loadDima(); if ($('#qDesc').value && $('#qOut').classList.contains('hidden')) $('#qForm').requestSubmit(); } catch (_) {} })();
 $('#qForm').addEventListener('submit', async e => {
@@ -1909,14 +2022,15 @@ $('#qForm').addEventListener('submit', async e => {
   if (!sku && !desc) { aviso('Cole a descrição do produto (o código é opcional).'); $('#qDesc').focus(); return; }
   btn.disabled = true; btn.textContent = 'Classificando…';
   try {
-    await loadDima();
+    await loadDima(); await loadCmedEmb();
     const k = skuKey(sku);
     const doArq = k && data.items ? data.items.find(x => skuKey(x.barcode) === k) : null; // SKU que já está no backlog
     const D = [...(desc ? [desgruda(desc)] : []), ...(doArq ? (doArq.D0 || doArq.D) : [])];
     const it = { barcode: sku || 'CONSULTA', D, T: D.map(N), main: !!desc, sugCatRaw: doArq ? doArq.sugCatRaw : '', sugCat: doArq ? doArq.sugCat : '',
       sugMarca: doArq ? doArq.sugMarca : '', sugFab: doArq ? doArq.sugFab : '', sugQt: doArq ? doArq.sugQt : null };
+    if (k && data.cmed) cmedNoItem(it);
     if (k && data.lojas) {
-      lojasNoItem(it);
+      lojasNoItem(it); cmedNoItem(it);
       if (desc) { const d0 = desgruda(desc); it.D = [d0, ...it.D.filter(d => N(d) !== N(d0))]; it.T = it.D.map(N); } // a descrição digitada vem primeiro
     }
     if (!it.D.length) { aviso('Não achei esse código no backlog nem no arquivo das lojas. Cole a descrição do produto.'); return; }
