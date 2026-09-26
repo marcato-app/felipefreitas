@@ -360,7 +360,7 @@ const FLAVORS = new Set(K.const.FLAVORS), ATTR = new Set(K.const.ATTR), NOISE = 
 const TOK = K.const.TOK, GROUP_TOK = K.const.GROUP_TOK;
 // Farmácia: abreviações de forma farmacêutica (COMP é comprimido, não "composto")
 GROUP_TOK.FARMA = Object.assign({ COMP: 'COMPRIMIDO', COMPR: 'COMPRIMIDO', CP: 'COMPRIMIDO', CPR: 'COMPRIMIDO', CPS: 'COMPRIMIDO', CAP: 'CAPSULA', CAPS: 'CAPSULA',
-  DRG: 'DRAGEA', COLI: 'COLIRIO', COL: 'COLIRIO', LIOF: 'LIOFILIZADO', SOL: 'SOLUCAO', SUSP: 'SUSPENSAO', XPE: 'XAROPE', XAR: 'XAROPE', GTS: 'GOTAS', POM: 'POMADA', AMP: 'AMPOLA', INJ: 'INJETAVEL', EFERV: 'EFERVESCENTE', REV: 'REVESTIDO' }, GROUP_TOK.FARMA || {});
+  DRG: 'DRAGEA', SUS: 'SUSPENSAO', OR: 'ORAL', GOT: 'GOTAS', CREM: 'CREME', DERM: 'DERMATOLOGICO', LIB: 'LIBERACAO', VD: '', BG: '', TB: '', COLI: 'COLIRIO', COL: 'COLIRIO', LIOF: 'LIOFILIZADO', SOL: 'SOLUCAO', SUSP: 'SUSPENSAO', XPE: 'XAROPE', XAR: 'XAROPE', GTS: 'GOTAS', POM: 'POMADA', AMP: 'AMPOLA', INJ: 'INJETAVEL', EFERV: 'EFERVESCENTE', REV: 'REVESTIDO' }, GROUP_TOK.FARMA || {});
 const PHRASE = K.const.PHRASE.map(([p, r]) => [new RegExp(p, 'g'), r]);
 const PROTECT = K.const.PROTECT.map(p => [new RegExp('(?<![A-Z_])' + p + '(?![A-Z_])', 'g'), p.replace(/ /g, '_')]);
 
@@ -473,7 +473,10 @@ async function loadBacklog(file) {
 /* ---- descrições das lojas (SKU x loja x descrição): escolhe a mais completa de cada SKU ---- */
 const skuKey = v => String(v ?? '').replace(/\D/g, '').replace(/^0+/, '');
 // a loja cola a marca no "C/" e letras no número: FLUIMUCILC/16 CPR -> FLUIMUCIL C/16 CPR; PRED MILD10ML -> PRED MILD 10ML
-const desgruda = s => String(s || '').replace(/^\s*ZZ(?=[A-Za-z]{3})/, '').replace(/([A-Za-z]{3,})[Cc]\/(?=\s*\d)/g, '$1 C/')
+// padrão Anvisa: "50 MG COM REV CT BL AL AL X 30" -> COM é comprimido (depois da dose ou antes de REV/EFERV/MAST...)
+const anvisa = s => s.replace(/(\d\s*(?:MG|MCG|G|UI|%)(?:\/\w+)?\s+)COM(?=\s+(?!\d)|$)/gi, '$1COMP')
+  .replace(/(^|\s)COM(?=\s+(?:REV|EFERV|MAST|SUBL|ORODISP|DISP|DISPERS|LIB|VAG|SIMPLES|SULC|SOL)\b)/gi, '$1COMP');
+const desgruda = s => anvisa(String(s || '')).replace(/^\s*ZZ(?=[A-Za-z]{3})/, '').replace(/([A-Za-z]{3,})[Cc]\/(?=\s*\d)/g, '$1 C/')
   .replace(/([A-Za-z]+)(\d+(?:[.,]\d+)?\s*(?:ML|MG|MCG|G|GR|KG|L|LT|UI|CPR|COMP|CAPS|CP|DRG|UN|%)(?![A-Za-z]))/gi, '$1 $2').replace(/\s+/g, ' ').trim();
 const RX_QTD_LOJA = /(?<![A-Z0-9])(C\s*\d{1,4}|\d{1,4}\s*(UN|UND|COMP|COMPR|COMPRIMIDOS?|CP|CPR|CPS|CAP|CAPS|CAPSULAS?|DRG|DRAGEAS?|SACHES?|ENV|AMP|AMPOLAS?|FLAC|ML|G|GR|KG|L|LT))(?![A-Z])/;
 // nota de completude: quantidade, dosagem, forma, laboratório/marca, quantas lojas usam, tamanho
@@ -934,11 +937,14 @@ const RX_UN = new RegExp('(?<![0-9.A-Z])(\\d{1,3})\\s*(?:' + UN_CONTA + ')(?![A-
 const RX_UN_PACK = new RegExp('(?<![0-9.A-Z])(\\d{1,2})\\s*X\\s*(\\d{1,3})\\s*(?:' + UN_CONTA + ')(?![A-Z])');
 const RX_CN = /(?<![A-Z0-9])(?:C|COM|CX|CX C|CX COM|BANDEJA|BDJ|EMB|CARTELA|PENTE)\s*(\d{1,3})(?![0-9.])(?!\s*(?:G|GR|GRS|KG|ML|L|LT|MG|CM|MM|M|X|%)(?![A-Z]))/g;
 const RX_DZ = /(?<![A-Z0-9.])(?:(\d{1,2})\s*)?(MEIA\s+)?(?:DZ|DUZ|DUZIA|DUZIAS)(?![A-Z])/;
+const RX_FORMA_CONTA = /(?<![A-Z])(COMP|COMPR|COMPRIMIDOS?|CPR|CPRS|CP|CAP|CAPS|CAPSULAS?|DRG|DRAG|DRAGEAS?|SACHES?|ENV|ENVELOPES?|AMP|AMPOLAS?|FLAC|FLACONETES?|ADES|ADESIVOS?|OVULOS?|SUPOS|SUPOSITORIOS?|PAST|PASTILHAS?|GOMAS?|TABLETES?|SER|SERINGAS?)(?![A-Z])/;
+const RX_X_QTD = /(?<![A-Z0-9.])X\s*(\d{1,4})(?![0-9.])(?!\s*(?:ML|G|GR|MG|MCG|L|LT|KG|CM|MM|M|UI|%|X)(?![A-Z]))/;
 function parseU(t) {
   let m; if ((m = RX_UN_PACK.exec(t)) && +m[1] > 1 && +m[2] > 0) return +m[1] * +m[2];
   RX_UN.lastIndex = 0; if ((m = RX_UN.exec(t)) && +m[1] > 0) return +m[1];
   RX_CN.lastIndex = 0; if ((m = RX_CN.exec(t)) && +m[1] > 1) return +m[1];
   if ((m = RX_DZ.exec(t))) return m[2] ? 6 : 12 * (m[1] ? +m[1] : 1);
+  if (RX_FORMA_CONTA.test(t) && (m = RX_X_QTD.exec(t)) && +m[1] > 0) return +m[1]; // padrão Anvisa: ... CT BL AL AL X 30
   return null;
 }
 function countQty(T) {
@@ -983,7 +989,7 @@ function qtyText(q) { if (!q || q.tot === null) return ''; return q.n > 1 ? q.n 
 function groupOf(cat) { const cc = cfg.categorias.find(c => c.nome === cat); if (cc && cc.cesta === 'FARMACIA') return 'FARMA'; if (cat.startsWith('CAFE')) return 'CAFE'; if (cat.startsWith('FARINHA')) return 'FARINHA'; if (cat.startsWith('CHOCOLATE')) return 'CHOCOLATE'; if (cat.includes('CONSERVA') || cat === 'AZEITONA') return 'CONSERVA'; return null; }
 // Farmácia: forma colada no número (20CP, 14CPR, 30CAPS) vira "20 CP" para a forma entrar no descritivo
 const RX_FORMA_COLADA = /(?<![A-Z0-9.])(\d{1,3})(COMPR|COMP|CPR|CPS|CP|CAPS|CAP|DRG)(?![A-Z])/g;
-function expand(t, grp) { t = prepQ(t); if (grp === 'FARMA') t = t.replace(RX_FORMA_COLADA, '$1 $2'); for (const [rx, r] of PHRASE) t = t.replace(rx, r); const g = GROUP_TOK[grp] || {}; return t.split(' ').map(x => g[x] || TOK[x] || x).join(' '); }
+function expand(t, grp) { t = prepQ(t); if (grp === 'FARMA') t = t.replace(RX_FORMA_COLADA, '$1 $2'); for (const [rx, r] of PHRASE) t = t.replace(rx, r); const g = GROUP_TOK[grp] || {}; return t.split(' ').map(x => x in g ? g[x] : TOK[x] || x).filter(Boolean).join(' '); }
 const QTY_RX = new RegExp('(?<![A-Z])(\\d{1,3}\\s*X\\s*)?\\d+(?:\\.\\d+)?\\s*' + U + '(\\s*X\\s*\\d{1,3})?(?![A-Z])', 'g');
 const CONNECT = new Set(['COM', 'SEM', 'AO', 'DE', 'DO', 'DA', 'E']);
 function cleanTokens(t, drop) {
@@ -1336,6 +1342,8 @@ async function runAll(opts = {}) {
         const u = countQty(T); const us = cc && cc.unidadeSugerida;
         q = Object.assign({}, qf, { base: u ? u.base : us ? String(us).toUpperCase() : '' }); }
     }
+    if (cc && cc.cesta === 'FARMACIA' && (q.base === 'G' || q.base === 'ML') && Tq.some(t => /\d\s*(G|ML)\s+(COMP|COMPR|COMPRIMIDOS?|CPR|CP|CAP|CAPS|CAPSULAS?|DRG|DRAGEAS?)(?![A-Z])/.test(t))) {
+      const u = countQty(Tq); if (u) q = u; } // é a dose por comprimido, não o conteúdo
     if (q.tot === null) { const u = countQty(Tq); if (u) q = u; else { const d = defaultQty((cc && cc.qtdPadrao) || cfg.qtdPadrao); if (d) q = d; } }
     // sempre sai uma unidade de medida: vendido a quilo (KG/GRANEL sem número) -> 1KG; nada -> 1UN; número sem unidade -> UN
     if (q.tot === null) { const kg = Tq.some(t => /(?<![A-Z0-9])(KG|KILO|QUILO|GRANEL)(?![A-Z0-9])/.test(t));
@@ -1351,7 +1359,7 @@ async function runAll(opts = {}) {
     let qTxt = qtyText(q), dose = '';
     if (farma) { // Farmácia: sem laboratório no descritivo; dosagem (500MG) e a forma como unidade (10CPRS)
       const lab = labAchado(T2), fu = q.base === 'UN' && q.n === 1 ? formaUn(T2) : null;
-      comp = comp.split(' ').filter(w => !(lab && lab.termo.split(' ').includes(w)) && !(fu && fu[2].test(w)) && !/^\.*(MG|MCG|UG|UI|ML|G|DIA|GEN)$/.test(w)).join(' ');
+      comp = comp.split(' ').filter(w => !(lab && lab.termo.split(' ').includes(w)) && !(fu && fu[2].test(w)) && !/^\.*(MG|MCG|UG|UI|ML|G|DIA|GEN)$/.test(w) && !/^(CT|BL|AL|PLAS|PLAST|OPC|TRANS|INC|AMB|VD|X|STRIP|CX|EMB|PVC|PVDC|PE|PP)$/.test(w)).join(' ');
       if (fu) qTxt = fmtn(q.tot) + fu[1];
       const D2 = it.D.filter(d => T2.includes(N(d)));
       dose = dosagemRaw(D2.length ? D2 : it.D) || dosagem(T2);

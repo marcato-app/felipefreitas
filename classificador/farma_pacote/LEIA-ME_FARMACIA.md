@@ -180,6 +180,14 @@ anti-inflamatórios "Por Defecto" (ibuprofeno, diclofenaco…) → ANTI REUMATIC
 - Teste `testes_farma/formatos_farmacia.csv` (147 descrições reais e formatos comuns): 1UN 20 → 4 (3 são 1 unidade
   mesmo: ZOLADEX, 1 AMPOLA, 1 SERINGA; 1 é descrição cortada "ACECLOFENACO 10").
 
+### 3.5f Descrição no padrão Anvisa
+- `VERZENIOS 50 MG COM REV CT BL AL AL X 30`: COM depois da dose ou antes de REV/EFERV/MAST/SUBL… = comprimido
+  ("COM 12" continua sendo "com 12"); `X 30` é a quantidade quando há forma que se conta (comprimido, cápsula, sachê…);
+  embalagem (CT, BL, AL, PLAS, OPC, TRANS, INC, AMB, VD, BG, TB, PVC…) sai do descritivo; SUS OR = SUSPENSAO ORAL,
+  GOT = GOTAS, CREM DERM = CREME DERMATOLOGICO, LIB = LIBERACAO.
+- Dose em G antes da forma (`VITAMINA C 1 G COMP EFERV … X 10`): o conteúdo é a contagem (10), não 1G.
+- Resultado: `VERZENIOS REVESTIDO 50MG 30CPRS` (antes 1UN). Exemplos em `testes_farma/anvisa_formatos.csv`.
+
 ### 3.6 Marca
 - Regra (decidida): **nome comercial**; genérico → **princípio ativo** como marca (como escrito na descrição: LOSARTANA,
   DIPIRONA), fabricante = laboratório.
