@@ -234,3 +234,10 @@ Pontos pra checar, em ordem:
   `dcb`/`sais` no cmed.json.gz → `compilePB`/`matchPB` no app).
 - Correlatos: `correlatos()` no cmed.py → `saude` no cmed.json.gz → `compileFS`/`matchFS` (depois de DIMA e
   registrados; só quando as regras não deram nada).
+
+## Nomes oficiais pela CMED
+
+- `nomes_oficiais.py` → `pela_cmed()` dá código EphMRA às categorias sem código (64 de 131) e grava
+  `dados/farma_nomes_oficiais_cmed.xlsx`; `FIXOS` tem CORTICOIDES = S01B e INJETAVEIS = H02A1.
+- `catCmed(classe, subst, produto)` escolhe a subcategoria pelo `incluir` (ABEMACICLIBE → L01H5).
+- Ordem: dima.py → farma_pa.py → nomes_oficiais.py → farma_marcas.py → farma_dima.py → cmed.py → build.py.

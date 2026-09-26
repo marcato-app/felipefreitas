@@ -721,7 +721,7 @@ function compilePB(active, P) {
   for (const [base, cls] of data.dcb) {
     if (base.length < 5 || GENERIC.has(base) || NOISE.has(base) || FARMA_NAO_MARCA.has(base)) continue;
     if (P) { P.rx.lastIndex = 0; if (P.rx.test(base)) continue; } // já está no dicionário do cliente
-    const cat = catCmed(cls); if (!cat || !active.has(cat)) continue;
+    const cat = catCmed(cls, base); if (!cat || !active.has(cat)) continue;
     rules.push({ pa: base, cat, seg: cls, alts: [[base]], partes: [base], dcb: true });
   }
   if (!rules.length) return null;
@@ -766,7 +766,7 @@ function compileFC(active, P) {
   for (const [kp, cm] of data.cmedCls) {
     if (kp.length < 4 || Lb.chave.has(kp) || FARMA_NAO_MARCA.has(kp) || GENERIC.has(kp) || NOISE.has(kp)) continue;
     let best = '', v = 0, tot = 0; for (const [c, n] of cm) { tot += n; if (n > v) { v = n; best = c; } }
-    const cat = catCmed(best); if (!cat || !active.has(cat)) continue;
+    const cat = catCmed(best, (data.cmedProdSub || new Map()).get(kp), kp); if (!cat || !active.has(cat)) continue;
     map.set(kp, { nome: kp, cat, seg: best, esc: v / tot < 0.6 ? 1 : 0 });
   }
   if (!map.size) return null;
@@ -1344,13 +1344,14 @@ async function loadCmed(file) {
   const res = montaCmed(L); data.cmedArquivo = file.name; return res;
 }
 function montaCmed(L) {
-  const m = new Map(), prod = new Map(), cls = new Map();
+  const m = new Map(), prod = new Map(), cls = new Map(), psub = new Map();
   for (const [eans, e] of L) {
+    if (!psub.has(N(e.produto))) psub.set(N(e.produto), e.subst);
     { const kp = N(e.produto); if (kp) { if (!cls.has(kp)) cls.set(kp, new Map()); const c = cls.get(kp); c.set(e.classe, (c.get(e.classe) || 0) + 1); } }
     for (const k of eans) if (k && k.length >= 8) m.set(k, e);
     const n = parseU(N(desgruda(e.apres))); if (n) { const kp = N(e.produto); if (!prod.has(kp)) prod.set(kp, new Set()); prod.get(kp).add(n); }
   }
-  data.cmed = m; data.cmedProd = prod; data.cmedCls = cls; data.cmedCod = null;
+  data.cmed = m; data.cmedProd = prod; data.cmedCls = cls; data.cmedProdSub = psub; data.cmedCod = null;
   return { eans: m.size, produtos: prod.size };
 }
 let cmedP = null;
@@ -1369,20 +1370,25 @@ function loadCmedEmb() { // lista embutida; um arquivo anexado depois substitui
   return cmedP;
 }
 // classe terapêutica da CMED ("M1A1 - ANTI-REUMATICOS...") -> categoria do app (código EphMRA com 2 dígitos: M01A1)
-function catCmed(classe) {
+function catCmed(classe, subst, produto) {
   const m = /^\s*([A-Z])\s*(\d{1,2})\s*([A-Z])\s*(\d)?/.exec(N(classe)); if (!m) return '';
   if (!data.cmedCod) { data.cmedCod = new Map(); for (const c of cfg.categorias) { if (c.cesta !== 'FARMACIA') continue; const k = (/^([A-Z]\d\d[A-Z]\d?)\s/.exec(nomeOf(c.nome) + ' ') || [])[1]; if (k) { if (!data.cmedCod.has(k)) data.cmedCod.set(k, []); data.cmedCod.get(k).push(c.nome); } } }
   const k4 = m[1] + m[2].padStart(2, '0') + m[3], k5 = k4 + (m[4] || '');
   const exato = data.cmedCod.get(k5); if (exato) return exato[0];
   const filhos = [...data.cmedCod].filter(([k]) => k.startsWith(k4)).flatMap(([, v]) => v);
   if (filhos.length === 1) return filhos[0];
+  if (filhos.length > 1 && (subst || produto)) { // grupo com várias subcategorias: a que tem a substância/produto nos termos (ABEMACICLIBE -> CDK)
+    const alvo = [...String(subst || '').split(/[;,+]/), produto || ''].map(N).filter(Boolean);
+    const f = filhos.find(nm => { const c = cfg.categorias.find(x => x.nome === nm); return c && (c.incluir || []).some(t => { const n = N(String(t).replace(/\*/g, '')); return alvo.some(a => a === n || a.endsWith(' ' + n)); }); });
+    if (f) return f;
+  }
   const nome = catInterna(String(classe).replace(/^[^-]*-\s*/, '')); return cfg.categorias.some(c => c.nome === nome) ? nome : (data.cmedCod.get(k4) || [''])[0];
 }
 function cmedNoItem(it) {
   const e = data.cmed && data.cmed.get(skuKey(it.barcode)); it.cmed = e || null; it.cmedCat = '';
   if (!e) return;
   const d = desgruda(`${e.produto} ${e.apres}`); // descrição oficial vira a principal (o laboratório vai direto para o fabricante)
-  it.D = [d, ...it.D.filter(x => N(x) !== N(d))]; it.T = it.D.map(N); it.main = true; it.cmedCat = catCmed(e.classe);
+  it.D = [d, ...it.D.filter(x => N(x) !== N(d))]; it.T = it.D.map(N); it.main = true; it.cmedCat = catCmed(e.classe, e.subst, e.produto);
 }
 function cmedContagens(it) {
   if (!data.cmedProd || !it) return null;

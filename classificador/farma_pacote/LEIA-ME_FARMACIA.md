@@ -224,6 +224,17 @@ anti-inflamatórios "Por Defecto" (ibuprofeno, diclofenaco…) → ANTI REUMATIC
 - Backlog só com o nome (`testes_farma/lojas_backlog_curto.csv`), sem arquivo das lojas: 1UN 65 → 1 e OUTRA CATEGORIA 5 → 0
   só com a CMED embutida.
 
+
+### 3.5h Nomes oficiais pela CMED e subcategoria por substância
+- `nomes_oficiais.py` (`pela_cmed`): as categorias de Farmácia que não tinham código (EST MER 7) ganham o código pela
+  CMED — os termos do `incluir` de cada categoria (produtos e substâncias, inclusive edições antigas) votam na classe
+  EphMRA e o nome da categoria confirma. Um código vai para uma categoria só; conflitos (puro × associado, sistêmico ×
+  tópico, oral × injetável, nasal × oftálmico) são descartados. Resultado: 64 códigos novos de 131. Planilha para
+  revisão: `dados/farma_nomes_oficiais_cmed.xlsx` (CATEGORIA DO APP, CODIGO, CLASSE NA CMED, PISTA, OBS).
+- `FIXOS` (decididos com o cliente): CORTICOIDES = S01B; INJETAVEIS = H02A1 (corticosteroide puro injetável).
+- No app, `catCmed(classe, subst, produto)`: quando a classe da CMED tem várias subcategorias no app (ex. L01H →
+  L01H1…L01H9), escolhe a que tem a substância/produto no `incluir` (ABEMACICLIBE → L01H5 CDK: VERZENIOS, KISQALI,
+  IBRANCE).
 ### 3.6 Marca
 - Regra (decidida): **nome comercial**; genérico → **princípio ativo** como marca (como escrito na descrição: LOSARTANA,
   DIPIRONA), fabricante = laboratório.

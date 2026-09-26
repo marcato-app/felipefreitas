@@ -10,6 +10,7 @@ EST MER 7 / EST MER 6 com código e rodar de novo).
 Uso: python3 nomes_oficiais.py && python3 build.py
 """
 import gzip, json, re, unicodedata
+from collections import Counter
 from pathlib import Path
 import openpyxl
 
@@ -20,7 +21,8 @@ tira = lambda s: COD.sub('', s.strip())
 
 
 # decididos com o cliente quando a fonte tem mais de um código para o mesmo nome
-FIXOS = {'CORTICOIDES': 'S01B CORTICOIDES'}  # R03D ou S01B: cliente escolheu o oftalmológico
+FIXOS = {'CORTICOIDES': 'S01B CORTICOIDES',  # R03D ou S01B: cliente escolheu o oftalmológico
+         'INJETAVEIS': 'H02A1 INJETAVEIS'}  # corticosteroide puro injetável (CMED H02A1)
 
 
 def conserta(nome):
@@ -29,6 +31,106 @@ def conserta(nome):
     except (UnicodeEncodeError, UnicodeDecodeError): t = nome
     t = unicodedata.normalize('NFKD', t).encode('ascii', 'ignore').decode()
     return re.sub(r'^[-\s]+', '', t).strip()
+
+
+SIN = {'PREOTEINA': 'PROTEINA', 'KINASE': 'QUINASE', 'ANTIINFLAMATORIOS': 'ANTI INFLAMATORIOS', 'ANTIREUMATICOS': 'ANTI REUMATICOS',
+       'ESTEROIDES': 'ESTEROIDAIS', 'DESCONGESTIVOS': 'DESCONGESTIONANTES', 'OFTALMICOS': 'OFTALMOLOGICOS', 'CORTICOESTEROIDES': 'CORTICOIDES', 'CORTICOSTEROIDES': 'CORTICOIDES'}
+STOP = set('DE DA DO DAS DOS E EM PARA A O OS AS OU C P INCLUINDO EXCETO EXCLUINDO'.split())
+ASSOC = re.compile(r'(?<![A-Z])(ASSO\w*|COMB\w*|COM (?!ACAO|ATIVIDADE)\w+|C [A-Z]\w*|FORMAS COMBINADAS)(?![A-Z])')
+
+
+GENERICAS = set('OUTROS OUTRAS TODOS TODAS PRODUTOS PREPARACOES AGENTES SIMPLES PUROS PURAS ASSOCIADOS ASSOCIACOES'.split())
+
+
+def distintas(a, b):
+    """palavras em comum que não são genéricas (OUTROS, PRODUTOS...); palavra cortada vale (INTERF = INTERFERONAS)"""
+    A, B = toks(a) - GENERICAS, toks(b) - GENERICAS
+    n = sum(1 for x in A if any(x == y or (min(len(x), len(y)) >= 5 and (x.startswith(y) or y.startswith(x))) for y in B))
+    return 9 if toks(a) == toks(b) else n  # nome idêntico ("TODOS OUTROS ANTINEOPLASICOS") sempre vale
+
+
+def conflito(cat, cl):
+    """nome da categoria e da classe dizem coisas opostas: puro x associado, sistêmico x tópico, com x sem"""
+    a, b = N(cat), N(cl)
+    if bool(ASSOC.search(a)) != bool(ASSOC.search(b)): return True
+    if bool(re.search(r'PUROS?|PURAS?|SOZINHOS|SOLO|SIMPLES', a)) and ASSOC.search(b): return True
+    for x, y in (('SISTEMIC', 'TOPIC'), ('ORA', 'INJET'), ('NASA', 'OFTAL')):
+        if (x in a and y in b and x not in b) or (y in a and x in b and y not in b): return True
+    if re.search(r'\bSEM\b', a) and not re.search(r'\bSEM\b', b): return True
+    return False
+
+
+def toks(s):
+    t = re.sub(r'\bANTI (?=[A-Z])', 'ANTI', N(s)).replace('OFTAMOLOGICOS', 'OFTALMOLOGICOS')  # ANTI HISTAMINICOS = ANTIHISTAMINICOS
+    return {SIN.get(w, w) for w in t.split() if w not in STOP}
+
+
+def cod_cmed(c):
+    m = re.match(r'^\s*([A-Z])\s*(\d{1,2})\s*([A-Z])\s*(\d)?', N(c))
+    return (m.group(1) + m.group(2).zfill(2) + m.group(3) + (m.group(4) or '')) if m else None
+
+
+def pela_cmed(cats, out):
+    """categoria de Farmácia sem código -> código EphMRA da lista CMED/Anvisa, por duas pistas:
+    termos da categoria (substâncias/produtos do "incluir") -> classe deles na CMED, e nome da categoria x nome da classe.
+    Só grava quando as pistas concordam; tudo vai para dados/farma_nomes_oficiais_cmed.xlsx para conferir."""
+    cz = here / 'cmed.json.gz'
+    if not cz.exists(): return []
+    j = json.loads(gzip.decompress(cz.read_bytes()))
+    linhas = [(j['prod'][r[1]], j['sub'][r[5]], j['cls'][r[4]]) for r in j['rows']]
+    for h in sorted((here / 'dados' / 'cmed' / 'historico').glob('*.json.gz')):
+        linhas += [(r[1], r[5], r[4]) for r in json.loads(gzip.decompress(h.read_bytes()))]
+    nome_cls, por_termo = {}, {}
+    for prod, sub, cl in linhas:
+        k = cod_cmed(cl)
+        if not k: continue
+        nome_cls.setdefault(k, Counter())[N(re.sub(r'^[^-]*-\s*', '', cl))] += 1
+        for t in [N(prod)] + [N(x) for x in re.split(r'[;,+]', sub)]:
+            if t: por_termo.setdefault(t, Counter())[k] += 1
+    nome_cls = {k: v.most_common(1)[0][0] for k, v in nome_cls.items()}
+    usados = {v.split(' ')[0] for v in out.values() if COD.match(v)}
+    rel = []
+    for x in cats:
+        if x.get('cesta') != 'FARMACIA' or COD.match(out.get(x['nome'], '')): continue
+        votos = Counter()
+        for t in x.get('incluir') or []:
+            t = N(str(t).replace('*', ' '))
+            c = por_termo.get(t) or next((v for k, v in por_termo.items() if k.endswith(' ' + t) or k.startswith(t + ' ')), None)  # CLORIDRATO DE X
+            if c: votos[c.most_common(1)[0][0]] += 1
+        tn = toks(x['nome'])
+        sim = lambda k: len(tn & toks(nome_cls[k])) / max(1, len(tn | toks(nome_cls[k])))
+        escolha, motivo, obs = None, '', ''
+        if votos:
+            k, v = votos.most_common(1)[0]
+            ok = v / sum(votos.values()) >= 0.6 and (sim(k) >= 0.3 or (v >= 2 and sim(k) > 0) or v >= 4)
+            if ok and not conflito(x['nome'], nome_cls[k]) and k not in usados: escolha, motivo = k, f'termos ({v} de {sum(votos.values())}) + nome {sim(k):.2f}'
+            elif ok: obs = f'recusado: {k} {nome_cls[k]}' + (' (código já usado)' if k in usados else ' (nome em conflito)')
+        if not escolha:
+            cand = sorted(((sim(k), k) for k in nome_cls if len(k) == 5 and k not in usados and not conflito(x['nome'], nome_cls[k]) and distintas(x['nome'], nome_cls[k]) >= 2), reverse=True)[:2]
+            if cand and cand[0][0] >= 0.6 and (len(cand) < 2 or cand[0][0] - cand[1][0] >= 0.15): escolha, motivo = cand[0][1], f'nome {cand[0][0]:.2f}'
+        rel.append([x['nome'], escolha or '', nome_cls.get(escolha, '') if escolha else '', motivo, obs, sim(escolha) if escolha else 0])
+    # cada código para uma categoria só (a de nome mais parecido)
+    dono = {}
+    for r in rel:
+        if r[1] and (r[1] not in dono or r[5] > dono[r[1]][5]): dono[r[1]] = r
+    for r in rel:
+        if r[1] and dono[r[1]] is not r: r[4] = f'recusado: {r[1]} ficou com {dono[r[1]][0]}'; r[1] = r[2] = r[3] = ''
+    # segunda rodada, só pelo nome, para quem perdeu a disputa ou não achou nada (sem repetir código)
+    tomados = usados | {r[1] for r in rel if r[1]}
+    for r in rel:
+        if r[1]: continue
+        tn = toks(r[0]); sim = lambda k: len(tn & toks(nome_cls[k])) / max(1, len(tn | toks(nome_cls[k])))
+        cand = sorted(((sim(k), k) for k in nome_cls if len(k) == 5 and k not in tomados and not conflito(r[0], nome_cls[k]) and distintas(r[0], nome_cls[k]) >= 2), reverse=True)[:2]
+        if cand and cand[0][0] >= 0.5 and (len(cand) < 2 or cand[0][0] - cand[1][0] >= 0.15):
+            r[1], r[2], r[3] = cand[0][1], nome_cls[cand[0][1]], f'nome {cand[0][0]:.2f} (2ª rodada)'; tomados.add(r[1])
+    for r in rel:
+        if r[1]: out[r[0]] = r[1] + ' ' + N(conserta(r[0]))
+    for r in rel: r.pop()
+    wb = openpyxl.Workbook(); ws = wb.active; ws.title = 'Pela CMED'
+    ws.append(['CATEGORIA DO APP', 'CODIGO', 'CLASSE NA CMED', 'PISTA', 'OBS'])  # OBS: o que foi recusado e por quê
+    for r in rel: ws.append(r)
+    wb.save(here / 'dados' / 'farma_nomes_oficiais_cmed.xlsx')
+    return rel
 
 
 def main():
@@ -64,11 +166,13 @@ def main():
         elif len(f) > 1: amb.append((x['nome'], sorted(f)))
         elif conserta(x['nome']) != x['nome']: out[x['nome']] = conserta(x['nome'])
     out.update({k: v for k, v in FIXOS.items() if any(x['nome'] == k for x in cats)})
+    rel = pela_cmed(cats, out)  # categorias de Farmácia ainda sem código: código pela lista CMED/Anvisa
     amb = [a for a in amb if a[0] not in FIXOS]
     c['nomesOficiais'] = out
     (here / 'consts.json').write_text(json.dumps(c, ensure_ascii=False), encoding='utf-8')
     far = [x['nome'] for x in cats if x.get('cesta') == 'FARMACIA']
     print(f"{len(out)} nomes oficiais ({sum(1 for n in far if n in out)} de {len(far)} de Farmácia); ambíguos: {amb}")
+    print(f"pela CMED: {sum(1 for r in rel if r[1])} códigos novos de {len(rel)} categorias sem código (dados/farma_nomes_oficiais_cmed.xlsx)")
 
 
 if __name__ == '__main__':
