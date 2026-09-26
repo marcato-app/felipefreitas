@@ -15,7 +15,7 @@ const casos = process.argv.slice(2).length ? process.argv.slice(2)
     await p.evaluate(() => { for (const c of cfg.categorias) c.ativa = true; renderCats(); }); // todas as categorias ativas
     await p.setInputFiles('#fBacklog', f);
     await p.waitForFunction(() => !document.querySelector('#btnRun').disabled, null, { timeout: 60000 });
-    await p.click('#btnRun');
+    await p.evaluate(() => { if (typeof irEtapa === 'function') irEtapa(6); }); await p.click('#btnRun');
     await p.waitForFunction(() => data.results && data.results.length, null, { timeout: 120000 });
     const r = await p.evaluate(() => data.results.map(x => ({ d: x.it.descs ? x.it.descs[0] : (x.it.desc || ''), cat: nomeOf(x.cat), marca: x.marca, fab: x.fab, desc: x.desc, alerts: x.alerts, pri: x.pri })));
     console.log('== ' + path.basename(f));

@@ -13,7 +13,7 @@ const exp = new Map(fs.readFileSync(path.join(__dirname, 'dima_amostra_esperado.
   await p.evaluate(() => { for (const c of cfg.categorias) c.ativa = true; renderCats(); });
   await p.setInputFiles('#fBacklog', path.join(__dirname, 'dima_amostra.csv'));
   await p.waitForFunction(() => !document.querySelector('#btnRun').disabled, null, { timeout: 60000 });
-  await p.click('#btnRun');
+  await p.evaluate(() => { if (typeof irEtapa === 'function') irEtapa(6); }); await p.click('#btnRun');
   await p.waitForFunction(() => data.results && data.results.length, null, { timeout: 300000 });
   const r = await p.evaluate(() => data.results.map(x => ({ bc: String(x.it.barcode), cat: nomeOf(x.cat), cesta: (cfg.categorias.find(c => c.nome === x.cat) || {}).cesta || '', marca: x.marca, fab: x.fab, desc: x.desc, d: x.it.D[0] })));
   let out = 0, farma = 0, cod = 0, fab = 0; const linhas = [];

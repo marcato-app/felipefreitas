@@ -9,7 +9,7 @@ const [lojas, backlog] = process.argv.slice(2);
   if (backlog) { await p.setInputFiles('#fBacklog', backlog); await p.waitForFunction(() => data.items, null, { timeout: 60000 }); }
   if (lojas) { await p.setInputFiles('#fLojas', lojas); await p.waitForFunction(() => data.lojas && !document.querySelector('#btnRun').disabled, null, { timeout: 60000 }); }
   await p.waitForFunction(() => !document.querySelector('#btnRun').disabled, null, { timeout: 60000 });
-  await p.click('#btnRun');
+  await p.evaluate(() => { if (typeof irEtapa === 'function') irEtapa(6); }); await p.click('#btnRun');
   await p.waitForFunction(() => data.results && data.results.length, null, { timeout: 300000 });
   const r = await p.evaluate(() => data.results.map(x => ({ bc: String(x.it.barcode), loja: x.it.lojaUsada || x.it.D[0], cat: nomeOf(x.cat), marca: x.marca, fab: x.fab, qt: x.qt, base: x.qbase, desc: x.desc })));
   let un1 = 0, out = 0;

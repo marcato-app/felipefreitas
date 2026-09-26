@@ -211,3 +211,13 @@ Pontos pra checar, em ordem:
 - `#dropLojas` → `loadLojas` (colunas SKU e Descripcion Minorista) → `aplicaLojas` (também no começo do `runAll`):
   a descrição de maior `notaDesc` vira `it.D[0]`; `desgruda` limpa a grafia das lojas. Exemplo em `dados/lojas/`.
 - Teste: `node testes_farma/rodar_lojas.js <lojas.csv> [backlog.csv]`.
+
+## Tela nova (visual Data Excellence, para embutir no AppGen)
+
+- Sem barra lateral própria (o AppGen já tem): cabeçalho, card "Consulta rápida" e card de etapas com passo a passo
+  (Backlog · Descrições das lojas · Dicionário · Categorias e regras · Marcas e exceções · Classificar), cada uma com
+  "Pular esta etapa" / "Continuar". Todos os IDs antigos foram mantidos.
+- Consulta rápida: `runAll({ items: [item], silent: true })` classifica 1 SKU sem mexer nos resultados da tela; usa as
+  descrições do backlog e das lojas quando o código já foi anexado (`lojasNoItem`).
+- Tema: segue o sistema; `#claro` / `#escuro` no link fixa o tema.
+- Testes: os scripts vão para a etapa 6 (`irEtapa(6)`) antes de clicar em Classificar.

@@ -1,191 +1,297 @@
 <title>Classificador de Backlog</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{
-  --bg:#F3F5F2; --surface:#FFFFFF; --sunk:#E8ECE6; --ink:#16232E; --ink2:#4A5864; --line:#D3DAD2;
-  --accent:#0B6E5B; --accent-ink:#FFFFFF; --accent-soft:#D6EDE6; --warn:#9A5B00; --warn-soft:#FBEBD0; --bad:#B42318; --bad-soft:#FBE2DF;
-  --ok:#1C7C3A; --chip:#EEF1EC; --focus:#1F6FEB;
-  --display:"Archivo", "Helvetica Neue", Arial, sans-serif; --body:"IBM Plex Sans", "Segoe UI", Arial, sans-serif; --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --bg:#F5F7FB; --surface:#FFFFFF; --sunk:#F0F3F8; --ink:#0F1B2D; --ink2:#5B6778; --line:#E2E7EF; --line2:#CDD5E1;
+  --navy:#0B3B7A; --accent:#1B5FD1; --accent-ink:#FFFFFF; --accent-soft:#E7EFFC; --accent-line:#B9CFF4;
+  --warn:#9A5B00; --warn-soft:#FDF1DC; --bad:#B42318; --bad-soft:#FDE7E4; --ok:#157F3C; --ok-soft:#E3F4E8; --chip:#EEF2F7; --focus:#1B5FD1;
+  --shadow:0 1px 2px rgba(15,27,45,.04), 0 2px 8px rgba(15,27,45,.04);
+  --display:"Manrope", "Segoe UI", system-ui, Arial, sans-serif; --body:"Manrope", "Segoe UI", system-ui, Arial, sans-serif; --mono:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){ color-scheme:dark;
-    --bg:#10171D; --surface:#172129; --sunk:#0C1216; --ink:#E4EAEE; --ink2:#9BAAB5; --line:#2A3843;
-    --accent:#3CC4A2; --accent-ink:#06231C; --accent-soft:#163C33; --warn:#E6A94A; --warn-soft:#3A2B12; --bad:#F08A7E; --bad-soft:#3D1D19; --ok:#5ED28A; --chip:#1F2B34; --focus:#6CA8FF; }
+    --bg:#0D1522; --surface:#131E2F; --sunk:#0F1929; --ink:#E6ECF4; --ink2:#98A6B8; --line:#24324A; --line2:#33445F;
+    --navy:#9CC0FF; --accent:#5C95F5; --accent-ink:#081427; --accent-soft:#16284A; --accent-line:#2C4A80;
+    --warn:#F0B55A; --warn-soft:#3A2A10; --bad:#F2918A; --bad-soft:#3D1C1A; --ok:#6BD49A; --ok-soft:#12301F; --chip:#1A2740; --focus:#8DB5FF;
+    --shadow:none; }
 }
 :root[data-theme="dark"]{ color-scheme:dark;
-  --bg:#10171D; --surface:#172129; --sunk:#0C1216; --ink:#E4EAEE; --ink2:#9BAAB5; --line:#2A3843;
-  --accent:#3CC4A2; --accent-ink:#06231C; --accent-soft:#163C33; --warn:#E6A94A; --warn-soft:#3A2B12; --bad:#F08A7E; --bad-soft:#3D1D19; --ok:#5ED28A; --chip:#1F2B34; --focus:#6CA8FF; }
+  --bg:#0D1522; --surface:#131E2F; --sunk:#0F1929; --ink:#E6ECF4; --ink2:#98A6B8; --line:#24324A; --line2:#33445F;
+  --navy:#9CC0FF; --accent:#5C95F5; --accent-ink:#081427; --accent-soft:#16284A; --accent-line:#2C4A80;
+  --warn:#F0B55A; --warn-soft:#3A2A10; --bad:#F2918A; --bad-soft:#3D1C1A; --ok:#6BD49A; --ok-soft:#12301F; --chip:#1A2740; --focus:#8DB5FF;
+  --shadow:none; }
 *{box-sizing:border-box}
-body{background:var(--bg); color:var(--ink); font-family:var(--body); font-size:14px; line-height:1.5; padding-inline:16px; padding-block:0 64px}
-.wrap{max-width:1080px; margin:0 auto; display:flex; flex-direction:column; gap:28px}
-header.top{display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:12px; padding-block:28px 4px; border-bottom:2px solid var(--ink)}
-h1{font-family:var(--display); font-weight:800; font-size:30px; letter-spacing:-.01em; margin:0; text-wrap:balance}
-h1 small{display:block; font-family:var(--mono); font-weight:400; font-size:12px; letter-spacing:.06em; color:var(--ink2); text-transform:uppercase; margin-bottom:4px}
-.lead{color:var(--ink2); max-width:60ch; margin:6px 0 0}
-section.step{display:flex; flex-direction:column; gap:14px}
-.step-h{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
-.step-h .n{font-family:var(--mono); font-size:12px; color:var(--accent); border:1px solid var(--accent); border-radius:3px; padding:1px 6px}
-h2{font-family:var(--display); font-weight:700; font-size:20px; margin:0}
-.step-h p{margin:0; color:var(--ink2); flex-basis:100%}
-.grid3{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px}
-.drop{background:var(--surface); border:1.5px dashed var(--line); border-radius:6px; padding:14px; display:flex; flex-direction:column; gap:8px; position:relative; min-height:128px}
+body{background:var(--bg); color:var(--ink); font-family:var(--body); font-size:14.5px; line-height:1.5; padding-inline:16px; padding-block:0 56px; margin:0}
+.wrap{max-width:1180px; margin:0 auto; display:flex; flex-direction:column; gap:20px}
+code{font-family:var(--mono); font-size:.9em; background:var(--chip); border-radius:4px; padding:0 4px}
+/* cabeçalho */
+header.top{display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; gap:16px; padding-block:28px 0}
+header.top > div:first-child{flex:1 1 520px; min-width:0}
+header.top > .bar{padding-top:4px}
+h1{font-family:var(--display); font-weight:800; font-size:30px; letter-spacing:-.015em; margin:0; text-wrap:balance; color:var(--ink)}
+.lead{color:var(--ink2); margin:6px 0 0; font-size:15.5px; max-width:75ch}
+/* cards */
+.card{background:var(--surface); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow)}
+.card-h{display:flex; align-items:center; gap:14px; padding:18px 22px}
+.card-h .ico{width:42px; height:42px; flex:none; border-radius:10px; background:var(--accent-soft); color:var(--accent); display:grid; place-items:center}
+.card-h .ico svg{width:22px; height:22px}
+.card-h h2{font-family:var(--display); font-size:17px; font-weight:700; margin:0}
+.card-h p{margin:2px 0 0; color:var(--ink2)}
+.card-b{padding:0 22px 22px; display:flex; flex-direction:column; gap:14px}
+/* consulta rápida */
+form.quick{display:grid; grid-template-columns:minmax(150px,220px) minmax(0,1fr) auto; gap:10px; align-items:end}
+.quick-res{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px}
+.qv{border:1px solid var(--line); border-radius:10px; padding:10px 12px; background:var(--sunk); display:flex; flex-direction:column; gap:2px; min-width:0}
+.qv span{font-size:11.5px; font-weight:700; color:var(--ink2); text-transform:uppercase; letter-spacing:.06em}
+.qv b{font-weight:700; overflow-wrap:anywhere}
+.qv.wide{grid-column:1/-1; background:var(--accent-soft); border-color:var(--accent-line)}
+.qv.wide b{font-family:var(--mono); font-size:15px; font-weight:500}
+.qv i{font-style:normal; font-family:var(--mono); font-size:12px; color:var(--ink2)}
+.quick-al{display:flex; flex-wrap:wrap; gap:6px}
+/* etapas */
+.stepper{display:flex; gap:6px; padding:14px 16px; border-bottom:1px solid var(--line); overflow-x:auto}
+.stepper button{display:flex; align-items:center; gap:9px; border:1px solid transparent; background:transparent; border-radius:10px; padding:8px 12px 8px 8px; white-space:nowrap; color:var(--ink2); font-weight:600}
+.stepper button:hover{background:var(--sunk); border-color:transparent}
+.stepper .dot{width:26px; height:26px; border-radius:50%; display:grid; place-items:center; font-size:12.5px; font-weight:700; background:var(--chip); color:var(--ink2); font-variant-numeric:tabular-nums}
+.stepper button[aria-current="step"]{background:var(--accent-soft); color:var(--ink)}
+.stepper button[aria-current="step"] .dot{background:var(--accent); color:var(--accent-ink)}
+.stepper button[data-st="feito"] .dot{background:var(--ok-soft); color:var(--ok)}
+.stepper button[data-st="pulado"] .dot{background:var(--chip); color:var(--ink2); text-decoration:line-through}
+.stepper small{display:block; font-weight:500; font-size:11.5px; color:var(--ink2)}
+section.step{padding:22px; display:flex; flex-direction:column; gap:16px}
+.step-h{display:flex; flex-direction:column; gap:4px}
+.step-h .eyebrow{font-size:12px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:.07em}
+.step-h h2{font-family:var(--display); font-weight:800; font-size:21px; margin:0; text-wrap:balance}
+.step-h p{margin:0; color:var(--ink2); max-width:80ch}
+.step-f{display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; padding:14px 22px; border-top:1px solid var(--line); background:var(--sunk); border-radius:0 0 14px 14px}
+.step-f .r{display:flex; gap:8px; flex-wrap:wrap}
+/* uploads */
+.grid3{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px}
+.drop{background:var(--surface); border:1.5px dashed var(--line2); border-radius:12px; padding:18px; display:flex; flex-direction:column; gap:6px; position:relative; min-height:140px; transition:border-color .15s, background .15s}
+.drop:hover{border-color:var(--accent-line); background:var(--accent-soft)}
 .drop.drag{border-color:var(--accent); background:var(--accent-soft)}
-.drop.done{border-style:solid; border-color:var(--accent)}
-.drop h3{margin:0; font-size:14px; font-weight:600}
-.drop .req{font-family:var(--mono); font-size:11px; color:var(--ink2); text-transform:uppercase; letter-spacing:.05em}
-.drop .st{font-size:13px; color:var(--ink2)}
+.drop.done{border-style:solid; border-color:var(--ok); background:var(--ok-soft)}
+.drop h3{margin:0; font-size:15px; font-weight:700}
+.drop .req{font-size:11px; font-weight:700; color:var(--ink2); text-transform:uppercase; letter-spacing:.07em}
+.drop .st{font-size:13.5px; color:var(--ink2)}
 .drop .st b{color:var(--ink)}
 .drop input[type=file]{position:absolute; inset:0; opacity:0; cursor:pointer}
+/* controles */
 .bar{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
-button,.btn{font:inherit; font-weight:500; border-radius:5px; border:1px solid var(--line); background:var(--surface); color:var(--ink); padding:7px 12px; cursor:pointer}
-button:hover{border-color:var(--ink2)}
+button,.btn{font:inherit; font-weight:600; font-size:14px; border-radius:9px; border:1px solid var(--line2); background:var(--surface); color:var(--ink); padding:8px 14px; cursor:pointer; display:inline-flex; align-items:center; gap:8px}
+button:hover,.btn:hover{border-color:var(--ink2)}
 button.pri{background:var(--accent); color:var(--accent-ink); border-color:var(--accent)}
-button.pri:hover{filter:brightness(1.07)}
+button.pri:hover{filter:brightness(1.08)}
 button.ghost{background:transparent}
+button.link{border:0; background:transparent; color:var(--ink2); padding:8px 6px}
+button.link:hover{color:var(--ink)}
 button:disabled{opacity:.5; cursor:not-allowed}
-button.sm{padding:3px 8px; font-size:12px}
+button.sm{padding:3px 9px; font-size:12.5px}
+button svg{width:17px; height:17px}
 :focus-visible{outline:2px solid var(--focus); outline-offset:2px}
-input[type=text],input[type=number],textarea,select{font:inherit; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:5px; padding:6px 8px; width:100%}
+input[type=text],input[type=number],textarea,select{font:inherit; color:var(--ink); background:var(--surface); border:1px solid var(--line2); border-radius:9px; padding:9px 12px; width:100%}
+input[type=text]::placeholder{color:var(--ink2); opacity:.8}
 textarea{font-family:var(--mono); font-size:12.5px; line-height:1.45; resize:vertical}
-label.f{display:flex; flex-direction:column; gap:4px; font-size:12px; font-weight:600; color:var(--ink2)}
+label.f{display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:600; color:var(--ink2)}
 label.f span.h{font-weight:400}
-.panel{background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:14px; display:flex; flex-direction:column; gap:12px}
+.panel{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:12px}
+details.adv{border:1px solid var(--line); border-radius:12px; background:var(--surface)}
+details.adv > summary{cursor:pointer; padding:12px 16px; font-weight:700; list-style:none; display:flex; justify-content:space-between; align-items:center}
+details.adv > summary::-webkit-details-marker{display:none}
+details.adv > summary::after{content:"+"; font-size:18px; color:var(--ink2)}
+details.adv[open] > summary::after{content:"–"}
+details.adv > div{padding:0 16px 16px; display:flex; flex-direction:column; gap:12px}
 .note{font-size:13px; color:var(--ink2)}
-.msg{font-size:13px; padding:8px 10px; border-radius:5px; background:var(--chip)}
-.msg.ok{background:var(--accent-soft)} .msg.warn{background:var(--warn-soft)} .msg.bad{background:var(--bad-soft)}
-.cats{display:flex; flex-direction:column; border:1px solid var(--line); border-radius:6px; overflow:hidden; background:var(--surface)}
+.msg{font-size:13.5px; padding:10px 12px; border-radius:9px; background:var(--chip)}
+.msg.ok{background:var(--ok-soft)} .msg.warn{background:var(--warn-soft)} .msg.bad{background:var(--bad-soft)}
+/* categorias */
+.cats{display:flex; flex-direction:column; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--surface); max-height:560px; overflow-y:auto}
 details.cat{border-top:1px solid var(--line)}
 details.cat:first-child{border-top:0}
 details.cat.off > summary{opacity:.5}
-.act{display:flex; align-items:center; gap:6px; font-variant-numeric:tabular-nums; color:var(--muted,#777); font-size:13px}
-.act input{width:18px; height:18px; margin:0; cursor:pointer}
-details.cat summary{list-style:none; display:grid; grid-template-columns:58px minmax(0,1fr) auto; gap:10px; align-items:center; padding:9px 12px; cursor:pointer}
+.act{display:flex; align-items:center; gap:6px; font-variant-numeric:tabular-nums; color:var(--ink2); font-size:13px}
+.act input{width:18px; height:18px; margin:0; cursor:pointer; accent-color:var(--accent)}
+details.cat summary{list-style:none; display:grid; grid-template-columns:62px minmax(0,1fr) auto; gap:10px; align-items:center; padding:10px 14px; cursor:pointer}
 details.cat summary::-webkit-details-marker{display:none}
+details.cat summary:hover{background:var(--sunk)}
 details.cat[open] summary{background:var(--sunk)}
 .prio{font-family:var(--mono); font-size:12px; color:var(--ink2); text-align:right}
 .cname{display:flex; flex-direction:column; min-width:0}
-.cname b{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.cname b{font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .cname i{font-style:normal; font-family:var(--mono); font-size:11.5px; color:var(--ink2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .pills{display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end}
-.pill{font-family:var(--mono); font-size:11px; padding:1px 7px; border-radius:10px; background:var(--chip); color:var(--ink2); white-space:nowrap}
-.pill.a{background:var(--accent-soft); color:var(--ink)} .pill.w{background:var(--warn-soft); color:var(--warn)}
-.cbody{padding:12px 12px 16px 56px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px}
+.pill{font-size:11.5px; font-weight:600; padding:2px 9px; border-radius:20px; background:var(--chip); color:var(--ink2); white-space:nowrap}
+.pill.a{background:var(--accent-soft); color:var(--accent)} .pill.w{background:var(--warn-soft); color:var(--warn)} .pill.b{background:var(--bad-soft); color:var(--bad)} .pill.g{background:var(--ok-soft); color:var(--ok)}
+.cbody{padding:12px 14px 16px 60px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px}
 .cbody .full{grid-column:1/-1}
 .chips{display:flex; flex-wrap:wrap; gap:5px}
-.chip{font-family:var(--mono); font-size:11.5px; border:1px dashed var(--line); background:transparent; border-radius:10px; padding:1px 8px; cursor:pointer; color:var(--ink2)}
+.chip{font-family:var(--mono); font-size:11.5px; border:1px dashed var(--line2); background:transparent; border-radius:20px; padding:1px 9px; cursor:pointer; color:var(--ink2)}
 .chip:hover{border-color:var(--accent); color:var(--ink)}
-.progress{height:8px; background:var(--sunk); border-radius:4px; overflow:hidden}
+/* resultados */
+.progress{height:8px; background:var(--chip); border-radius:6px; overflow:hidden}
 .progress>div{height:100%; width:0; background:var(--accent); transition:width .2s}
-.tbl{overflow-x:auto; border:1px solid var(--line); border-radius:6px; background:var(--surface)}
-table{border-collapse:collapse; width:100%; font-size:12.5px}
-th,td{padding:6px 9px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top}
-th{font-weight:600; background:var(--sunk); position:sticky; top:0; white-space:nowrap}
+.tbl{overflow-x:auto; border:1px solid var(--line); border-radius:12px; background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-size:13px}
+th,td{padding:8px 11px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top}
+th{font-weight:700; font-size:12px; color:var(--ink2); background:var(--sunk); position:sticky; top:0; white-space:nowrap; text-transform:uppercase; letter-spacing:.04em}
 td.num,th.num{text-align:right; font-variant-numeric:tabular-nums; font-family:var(--mono)}
 td.mono{font-family:var(--mono); font-size:12px; white-space:nowrap}
 td.alert{color:var(--warn); font-size:12px}
-.sum{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px}
-.kpi{background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:10px 12px}
-.kpi b{display:block; font-family:var(--display); font-size:22px; font-variant-numeric:tabular-nums}
-.kpi span{font-size:12px; color:var(--ink2)}
+.sum{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px}
+.kpi{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px 14px}
+.kpi b{display:block; font-family:var(--display); font-weight:800; font-size:24px; font-variant-numeric:tabular-nums}
+.kpi span{font-size:12.5px; color:var(--ink2)}
 .row2{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px}
-.switch{display:flex; gap:8px; align-items:center; font-size:13px}
-.hidden{display:none}
-@media (max-width:640px){ .cbody{padding-left:12px; grid-template-columns:1fr} .row2{grid-template-columns:1fr} details.cat summary{grid-template-columns:52px minmax(0,1fr)} .pills{grid-column:2; justify-content:flex-start} h1{font-size:24px} }
-@media (prefers-reduced-motion: reduce){ .progress>div{transition:none} }
+.switch{display:flex; gap:10px; align-items:flex-start; font-size:13.5px}
+.switch input{margin-top:3px; accent-color:var(--accent)}
+.hidden{display:none !important}
+@media (max-width:720px){
+  form.quick{grid-template-columns:1fr} .quick-res{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cbody{padding-left:14px; grid-template-columns:1fr} .row2{grid-template-columns:1fr}
+  details.cat summary{grid-template-columns:52px minmax(0,1fr)} .pills{grid-column:2; justify-content:flex-start}
+  h1{font-size:24px} .card-h{padding:16px} .card-b{padding:0 16px 16px} section.step{padding:16px} .step-f{padding:12px 16px}
+}
+@media (prefers-reduced-motion: reduce){ .progress>div{transition:none} .drop{transition:none} }
 </style>
 
 <div class="wrap">
   <header class="top">
     <div>
-      <h1><small>Categoria · Marca · Fabricante · Conteúdo · Descritivo</small>Classificador de Backlog</h1>
-      <p class="lead">Envie o backlog e o dicionário, ajuste as regras de cada categoria e baixe a planilha classificada com a aba de revisão.</p>
+      <h1>Classificador de Backlog — Farmácia</h1>
+      <p class="lead">Categoria ATC, marca, fabricante, conteúdo e descritivo padronizado. Consulte um SKU na hora ou siga as etapas para classificar um arquivo inteiro.</p>
     </div>
-    <div class="bar"><span class="pill a" id="cfgNamePill">Exemplo carregado</span></div>
+    <div class="bar"><span class="pill a" id="cfgNamePill">Exemplo carregado</span><button class="pri" type="button" id="goRun"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>Ir para classificar</button></div>
   </header>
 
-  <!-- 1 -->
-  <section class="step" aria-labelledby="s1">
-    <div class="step-h"><span class="n">1</span><h2 id="s1">Arquivos</h2>
-      <p>O backlog precisa das colunas barcode, descriptions e, se tiver, CATEGORIA / MARCA / FABRICANTE / QUANTIDADE SUGERIDA. O dicionário pode ser .csv (inclusive UTF-16) ou .xlsx. Os arquivos são lidos só no seu navegador.</p></div>
-    <div class="grid3">
-      <div class="drop" id="dropBacklog"><span class="req">Obrigatório</span><h3>Backlog</h3><div class="st" id="stBacklog">Arraste o .xlsx ou clique para escolher</div><input type="file" id="fBacklog" accept=".xlsx,.xls,.csv"></div>
-      <div class="drop" id="dropDict"><span class="req">Obrigatório para marca</span><h3>Dicionário de marcas</h3><div class="st" id="stDict">Arraste o .csv ou .xlsx</div><input type="file" id="fDict" accept=".csv,.txt,.xlsx,.xls"></div>
-      <div class="drop" id="dropLojas"><span class="req">Opcional</span><h3>Descrições das lojas</h3><div class="st" id="stLojas">Arquivo com SKU e a descrição de cada loja (ex.: Desc. SKU Min.). Para cada SKU o app usa a descrição mais completa (quantidade, dosagem, forma, marca). Sem backlog, ele vira o backlog.</div><input type="file" id="fLojas" accept=".csv,.txt,.xlsx,.xls"></div>
-      <div class="drop" id="dropCats"><span class="req">Opcional</span><h3>Planilha de categorias</h3><div class="st" id="stCats">Colunas CATEGORIAS e INICIO DO DESCRITIVO. Categorias novas entram no fim da lista.</div><input type="file" id="fCats" accept=".xlsx,.xls,.csv"></div>
+  <!-- consulta de 1 SKU -->
+  <section class="card" aria-labelledby="qT">
+    <div class="card-h">
+      <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></div>
+      <div><h2 id="qT">Consulta rápida</h2><p>Cole a descrição de um SKU e veja a classificação aqui mesmo, sem planilha. O código é opcional: se você já anexou o backlog ou o arquivo das lojas, as descrições dele também entram.</p></div>
+    </div>
+    <div class="card-b">
+      <form class="quick" id="qForm" autocomplete="off">
+        <label class="f">SKU / código de barras<input type="text" id="qSku" inputmode="numeric" placeholder="Opcional"></label>
+        <label class="f">Descrição<input type="text" id="qDesc" value="DIPIRONA SODICA 500MG C/10 CPR EMS" placeholder="Ex.: DIPIRONA SODICA 500MG C/10 CPR EMS"></label>
+        <button class="pri" type="submit" id="qBtn">Classificar</button>
+      </form>
+      <div id="qOut" class="hidden" aria-live="polite" style="display:flex;flex-direction:column;gap:10px">
+        <div class="quick-res" id="qRes"></div>
+        <div class="quick-al" id="qAl"></div>
+      </div>
     </div>
   </section>
 
-  <!-- 2 -->
-  <section class="step" aria-labelledby="s2">
-    <div class="step-h"><span class="n">2</span><h2 id="s2">Categorias e regras</h2>
-      <p>Cada descrição é testada de cima para baixo e fica na primeira categoria que servir. Deixe as mais específicas no topo. Termos em maiúsculas sem acento, separados por vírgula; <code>*</code> no fim vale como curinga (CHOC* pega CHOC, CHOCOLATE, CHOCOLATES).</p></div>
+  <!-- etapas -->
+  <section class="card" aria-label="Classificar um arquivo">
+    <nav class="stepper" id="stepper" aria-label="Etapas"></nav>
 
-    <div class="panel">
-      <div class="row2">
-        <label class="f">Nome desta configuração<input type="text" id="cfgName"></label>
-        <div class="bar" style="align-self:end">
-          <button id="btnSave">Salvar</button>
-          <select id="selLoad" aria-label="Configurações salvas" style="width:auto"><option value="">Carregar salva…</option></select>
-          <button id="btnExport" class="ghost">Exportar .json</button>
-          <label class="btn ghost" style="position:relative">Importar .json<input type="file" id="fImport" accept=".json" style="position:absolute;inset:0;opacity:0;cursor:pointer"></label>
+    <!-- 1 backlog -->
+    <section class="step" data-step="1" data-nome="Backlog" data-sub="obrigatório*">
+      <div class="step-h"><span class="eyebrow">Etapa 1 de 6</span><h2>Envie o backlog</h2>
+        <p>Colunas <code>barcode</code> e <code>descriptions</code>; se tiver, também CATEGORIA, MARCA, FABRICANTE e QUANTIDADE. Pode pular se for usar só o arquivo das lojas na próxima etapa. Os arquivos são lidos só no seu navegador.</p></div>
+      <div class="grid3">
+        <div class="drop" id="dropBacklog"><span class="req">Backlog</span><h3>Arraste o arquivo aqui</h3><div class="st" id="stBacklog">ou clique para escolher (.xlsx ou .csv)</div><input type="file" id="fBacklog" accept=".xlsx,.xls,.csv"></div>
+      </div>
+    </section>
+
+    <!-- 2 lojas -->
+    <section class="step hidden" data-step="2" data-nome="Descrições das lojas" data-sub="opcional">
+      <div class="step-h"><span class="eyebrow">Etapa 2 de 6</span><h2>Descrições das lojas</h2>
+        <p>Arquivo com SKU e a descrição de cada loja (ex.: Desc. SKU Min.). Para cada SKU o app usa a descrição mais completa, com quantidade, dosagem, forma e laboratório. É o que evita o 1UN quando o backlog só traz o nome. Sem backlog, este arquivo vira o backlog.</p></div>
+      <div class="grid3">
+        <div class="drop" id="dropLojas"><span class="req">Lojas</span><h3>Arraste o arquivo aqui</h3><div class="st" id="stLojas">ou clique para escolher (.csv ou .xlsx)</div><input type="file" id="fLojas" accept=".csv,.txt,.xlsx,.xls"></div>
+      </div>
+    </section>
+
+    <!-- 3 dicionário -->
+    <section class="step hidden" data-step="3" data-nome="Dicionário de marcas" data-sub="opcional">
+      <div class="step-h"><span class="eyebrow">Etapa 3 de 6</span><h2>Dicionário de marcas</h2>
+        <p>A base DIMA já vem embutida e é usada primeiro. O dicionário enviado aqui só entra quando a DIMA não acha a marca. Pode ser .csv (inclusive UTF-16) ou .xlsx.</p></div>
+      <div class="grid3">
+        <div class="drop" id="dropDict"><span class="req">Dicionário</span><h3>Arraste o arquivo aqui</h3><div class="st" id="stDict">ou clique para escolher (.csv ou .xlsx)</div><input type="file" id="fDict" accept=".csv,.txt,.xlsx,.xls"></div>
+      </div>
+    </section>
+
+    <!-- 4 categorias -->
+    <section class="step hidden" data-step="4" data-nome="Categorias e regras" data-sub="opcional">
+      <div class="step-h"><span class="eyebrow">Etapa 4 de 6</span><h2>Categorias e regras</h2>
+        <p>As categorias de Farmácia já vêm ativas. Mexa aqui só se quiser ajustar: cada descrição é testada de cima para baixo e fica na primeira categoria que servir. Termos em maiúsculas sem acento, separados por vírgula; <code>*</code> no fim vale como curinga.</p></div>
+
+      <div class="bar">
+        <input type="text" id="catSearch" placeholder="Buscar categoria por nome ou cesta…" style="max-width:320px">
+        <select id="cestaSel" style="width:auto" aria-label="Cesta"><option value="">Cesta…</option></select>
+        <button id="btnCestaOn" class="ghost">Ativar cesta</button>
+        <label class="switch"><input type="checkbox" id="showOff"> Mostrar as desativadas</label>
+        <span class="note" id="catsCount"></span>
+      </div>
+      <div class="cats" id="cats"></div>
+      <p class="note" style="margin:0">A biblioteca guarda todas as categorias com as regras aprendidas. Nada é apagado: cada trabalho só marca as que vai usar (caixinha ao lado do número). <span id="libState"></span></p>
+
+      <details class="adv"><summary>Mais opções de categorias</summary><div>
+        <div class="bar">
+          <button id="btnAddFromBacklog">Adicionar categorias sugeridas no backlog</button>
+          <button id="btnNewCat" class="ghost">Nova categoria</button>
+          <button id="btnAllOff" class="ghost">Desativar todas</button>
+          <button id="btnAllOn" class="ghost">Ativar todas</button>
         </div>
-      </div>
-      <div class="msg hidden" id="cfgMsg"></div>
-    </div>
+        <div class="grid3">
+          <div class="drop" id="dropCats"><span class="req">Planilha de categorias</span><h3>Colunas CATEGORIAS e INICIO DO DESCRITIVO</h3><div class="st" id="stCats">Categorias novas entram no fim da lista.</div><input type="file" id="fCats" accept=".xlsx,.xls,.csv"></div>
+        </div>
+        <label class="f">Regras em texto, do jeito que você escreveria para uma pessoa
+          <span class="h">O Claude lê o texto e transforma em termos de incluir / excluir nas categorias. Só funciona com a página aberta no Claude.</span>
+          <textarea id="rulesText" rows="5"></textarea></label>
+        <div class="bar"><button id="btnRules" class="pri">Aplicar regras com Claude</button><button id="btnStop" class="ghost hidden">Parar</button><span class="note" id="rulesState"></span></div>
+        <div class="msg hidden" id="rulesMsg"></div>
+        <div class="row2">
+          <label class="f">Nome desta configuração<input type="text" id="cfgName"></label>
+          <div class="bar" style="align-self:end">
+            <button id="btnSave">Salvar</button>
+            <select id="selLoad" aria-label="Configurações salvas" style="width:auto"><option value="">Carregar salva…</option></select>
+            <button id="btnExport" class="ghost">Exportar .json</button>
+            <label class="btn ghost" style="position:relative">Importar .json<input type="file" id="fImport" accept=".json" style="position:absolute;inset:0;opacity:0;cursor:pointer"></label>
+          </div>
+        </div>
+        <div class="msg hidden" id="cfgMsg"></div>
+      </div></details>
+    </section>
 
-    <div class="panel">
-      <label class="f">Regras em texto, do jeito que você escreveria para uma pessoa
-        <span class="h">O Claude lê o texto e transforma em termos de incluir / excluir / % mínimo nas categorias acima. Revise o resultado antes de classificar.</span>
-        <textarea id="rulesText" rows="6"></textarea></label>
-      <div class="bar"><button id="btnRules" class="pri">Aplicar regras com Claude</button><button id="btnStop" class="ghost hidden">Parar</button><span class="note" id="rulesState"></span></div>
-      <div class="msg hidden" id="rulesMsg"></div>
-    </div>
-
-    <div class="bar">
-      <button id="btnAddFromBacklog">Adicionar categorias sugeridas no backlog</button>
-      <button id="btnNewCat" class="ghost">Nova categoria</button>
-      <button id="btnAllOff" class="ghost">Desativar todas</button>
-      <button id="btnAllOn" class="ghost">Ativar todas</button>
-      <label class="switch"><input type="checkbox" id="showOff"> Mostrar as desativadas</label>
-      <input type="text" id="catSearch" placeholder="Buscar por nome ou cesta…" style="max-width:220px">
-      <select id="cestaSel" style="width:auto"><option value="">Cesta…</option></select>
-      <button id="btnCestaOn" class="ghost">Ativar cesta</button>
-      <span class="note" id="catsCount"></span>
-    </div>
-    <p class="note" style="margin:0">A biblioteca guarda todas as categorias que você já criou, com as regras aprendidas. Nada é apagado quando você aplica regras novas: cada trabalho só marca as categorias que vai usar (caixinha ao lado do número). <span id="libState"></span></p>
-    <div class="cats" id="cats"></div>
-  </section>
-
-  <!-- 3 -->
-  <section class="step" aria-labelledby="s3">
-    <div class="step-h"><span class="n">3</span><h2 id="s3">Marcas e exceções</h2>
-      <p>A marca só é aceita se existir no dicionário. As falsas marcas e as palavras genéricas nunca são usadas como marca. Sem marca, fica OUTRA MARCA e OUTRO FABRICANTE.</p></div>
-    <div class="row2">
-      <label class="f">Falsas marcas (nunca são marca)<textarea id="blackText" rows="5"></textarea></label>
-      <label class="f">Termos que sempre mandam para OUTRA CATEGORIA<span class="h">Vale antes de qualquer categoria. Cada termo fica ligado às categorias ativas quando foi criado, então a lista de alimentos não atrapalha um trabalho de shampoo, por exemplo. Termos que estejam em "Incluir" de uma categoria ativa são ignorados aqui.</span><textarea id="outraText" rows="5"></textarea><button type="button" class="sm ghost" id="btnClearOutra" style="align-self:flex-start">Limpar lista</button></label>
-    </div>
-    <label class="f" style="max-width:420px">Categoria padrão (quando nada na descrição indicar a categoria)<select id="defCat"></select></label>
-    <label class="switch"><input type="checkbox" id="useSug"> Quando nenhuma descrição indicar categoria, usar a CATEGORIA SUGERIDA em vez de OUTRA CATEGORIA</label>
-    <label class="switch"><input type="checkbox" id="prioArq"> Priorizar os dados do arquivo (categoria, marca, fabricante e conteúdo): só trocar o que estiver bem fora do comum, com alerta. O descritivo é sempre padronizado</label>
-  </section>
-
-  <!-- 4 -->
-  <section class="step" aria-labelledby="s4">
-    <div class="step-h"><span class="n">4</span><h2 id="s4">Classificar</h2>
-      <p>Categoria por votação entre as descrições de cada código (as primeiras pesam mais; a sugerida desempata). Conteúdo em g ou ml, packs somados. Descritivo = início + marca + complementos + quantidade.</p></div>
-    <div class="bar"><button class="pri" id="btnRun" disabled>Classificar</button><button id="btnDownload" disabled>Baixar planilha .xlsx</button><span class="note" id="runState">Envie o backlog para começar.</span></div>
-    <div class="progress" aria-hidden="true"><div id="prog"></div></div>
-    <div id="results" class="hidden" style="display:flex;flex-direction:column;gap:14px">
-      <div class="sum" id="kpis"></div>
+    <!-- 5 marcas -->
+    <section class="step hidden" data-step="5" data-nome="Marcas e exceções" data-sub="opcional">
+      <div class="step-h"><span class="eyebrow">Etapa 5 de 6</span><h2>Marcas e exceções</h2>
+        <p>Palavras que nunca são marca e termos que sempre vão para OUTRA CATEGORIA. O padrão já serve para a maioria dos casos.</p></div>
+      <label class="switch"><input type="checkbox" id="prioArq"> Priorizar os dados do arquivo (categoria, marca, fabricante e conteúdo): só trocar o que estiver bem fora do comum, com alerta. O descritivo é sempre padronizado.</label>
+      <label class="switch"><input type="checkbox" id="useSug"> Quando nenhuma descrição indicar categoria, usar a CATEGORIA SUGERIDA do arquivo em vez de OUTRA CATEGORIA.</label>
+      <label class="f" style="max-width:460px">Categoria padrão (quando nada na descrição indicar a categoria)<select id="defCat"></select></label>
       <div class="row2">
-        <label class="f">Filtrar categoria<select id="fltCat"></select></label>
-        <label class="f">Mostrar<select id="fltMode"><option value="all">Todos os itens</option><option value="alert">Só itens com alerta</option></select></label>
+        <label class="f">Falsas marcas (nunca são marca)<textarea id="blackText" rows="5"></textarea></label>
+        <label class="f">Termos que sempre mandam para OUTRA CATEGORIA<span class="h">Termos que estejam em "Incluir" de uma categoria ativa são ignorados aqui.</span><textarea id="outraText" rows="5"></textarea><button type="button" class="sm ghost" id="btnClearOutra" style="align-self:flex-start">Limpar lista</button></label>
       </div>
-      <div class="tbl" style="max-height:520px"><table id="prev"><thead><tr><th>Código</th><th>Categoria</th><th>Marca</th><th>Fabricante</th><th class="num">Conteúdo</th><th>Descritivo</th><th>Alerta</th><th>1ª descrição</th></tr></thead><tbody></tbody></table></div>
-      <p class="note" id="prevNote"></p>
-      <div class="tbl"><table id="catTbl"><thead><tr><th>Categoria</th><th class="num">Itens</th><th class="num">Sem marca</th><th class="num">Sem conteúdo</th><th class="num">Com alerta</th></tr></thead><tbody></tbody></table></div>
+    </section>
+
+    <!-- 6 classificar -->
+    <section class="step hidden" data-step="6" data-nome="Classificar" data-sub="resultado">
+      <div class="step-h"><span class="eyebrow">Etapa 6 de 6</span><h2>Classificar e baixar</h2>
+        <p>Categoria por votação entre as descrições de cada código. A planilha sai com a aba principal, a aba REVISAO (itens com alerta, descrição da loja usada) e o resumo.</p></div>
+      <div class="bar"><button class="pri" id="btnRun" disabled>Classificar</button><button id="btnDownload" disabled>Baixar planilha .xlsx</button><span class="note" id="runState">Envie o backlog ou o arquivo das lojas para começar.</span></div>
+      <div class="progress" aria-hidden="true"><div id="prog"></div></div>
+      <div id="results" class="hidden" style="display:flex;flex-direction:column;gap:14px">
+        <div class="sum" id="kpis"></div>
+        <div class="row2">
+          <label class="f">Filtrar categoria<select id="fltCat"></select></label>
+          <label class="f">Mostrar<select id="fltMode"><option value="all">Todos os itens</option><option value="alert">Só itens com alerta</option></select></label>
+        </div>
+        <div class="tbl" style="max-height:520px"><table id="prev"><thead><tr><th>Código</th><th>Categoria</th><th>Marca</th><th>Fabricante</th><th class="num">Conteúdo</th><th>Descritivo</th><th>Alerta</th><th>1ª descrição</th></tr></thead><tbody></tbody></table></div>
+        <p class="note" id="prevNote"></p>
+        <div class="tbl"><table id="catTbl"><thead><tr><th>Categoria</th><th class="num">Itens</th><th class="num">Sem marca</th><th class="num">Sem conteúdo</th><th class="num">Com alerta</th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <div class="step-f">
+      <button class="link" type="button" id="stepBack">← Voltar</button>
+      <div class="r"><button class="ghost" type="button" id="stepSkip">Pular esta etapa</button><button class="pri" type="button" id="stepNext">Continuar →</button></div>
     </div>
   </section>
 </div>
@@ -401,10 +507,13 @@ function aplicaLojas() {
     data.items = [...data.lojas.values()].map(e => ({ barcode: e.bc, D: [], T: [], main: false, sugCatRaw: '', sugCat: '', sugMarca: '', sugFab: '', sugQt: null }));
     data.semBacklog = true;
   }
-  for (const it of data.items) {
+  for (const it of data.items) lojasNoItem(it);
+}
+function lojasNoItem(it) {
+  {
     if (!it.D0) it.D0 = it.D.slice();
-    const e = data.lojas.get(skuKey(it.barcode));
-    if (!e) { it.D = it.D0.slice(); it.T = it.D.map(N); it.lojaUsada = ''; continue; }
+    const e = data.lojas && data.lojas.get(skuKey(it.barcode));
+    if (!e) { it.D = it.D0.slice(); it.T = it.D.map(N); it.lojaUsada = ''; return; }
     const L = [...e.ds].map(([d, c]) => ({ d, c, t: N(d) })).map(x => ({ ...x, v: notaDesc(x.t, x.c) })).sort((a, b) => b.v - a.v || b.c - a.c);
     const vistos = new Set(); const D = [];
     for (const d of [L[0].d, ...it.D0, ...L.slice(1).map(x => x.d)]) { const k = N(d); if (!k || vistos.has(k)) continue; vistos.add(k); D.push(d); }
@@ -1122,12 +1231,13 @@ function vendidoPorUnidade(cc, T, C) {
   const hp = T.length ? headPos(T[0], C.headIdx) : null;
   return !!hp && OBJETO_TIPO.has(hp.w);
 }
-async function runAll() {
+async function runAll(opts = {}) {
   await loadDima();
-  aplicaLojas();
-  const C = compile(); autoSegments(); const res = []; const items = data.items; const t0 = performance.now();
+  if (!opts.items) aplicaLojas();
+  const quiet = !!opts.silent;
+  const C = compile(); autoSegments(); const res = []; const items = opts.items || data.items; const t0 = performance.now();
   const byName = new Map(cfg.categorias.map(c => [c.nome, c]));
-  $('#runState').textContent = 'Classificando categorias…'; await new Promise(r => setTimeout(r, 0));
+  if (!quiet) { $('#runState').textContent = 'Classificando categorias…'; await new Promise(r => setTimeout(r, 0)); }
   const AGG = items.map(it => categoriaArquivo(it, aggregate(it.T, it.sugCat, C, it.main), byName));
   const segOf = segmentosEstMer6(AGG, items, byName, C);
   for (let i = 0; i < items.length; i++) {
@@ -1269,13 +1379,14 @@ async function runAll() {
     else if (q.flag === 'QTD_DIV') alerts.push('Quantidades diferentes entre descrições');
     const pri = alerts.some(x => /^(Nenhuma|Descrições|Sem evidência|Arquivo: categoria)/.test(x)) ? 1 : alerts.some(x => !/^Categoria pel[oa] (princípio ativo|marca|DIMA)[ :]/.test(x) || /\((base pede validação|destino corrigido em relação à base|marca em \d+ categorias; usada a de maior venda|subcategoria escolhida; revisar)\)$/.test(x)) ? 2 : 0;
     res.push({ it, cat: a.cat, marca, fab, qt: q.tot, qbase: q.base, desc, alerts, pri });
-    if (i % 250 === 0) { $('#prog').style.width = (100 * i / items.length).toFixed(1) + '%'; $('#runState').textContent = `Classificando ${i.toLocaleString('pt-BR')} de ${items.length.toLocaleString('pt-BR')}…`; await new Promise(r => setTimeout(r, 0)); }
+    if (!quiet && i % 250 === 0) { $('#prog').style.width = (100 * i / items.length).toFixed(1) + '%'; $('#runState').textContent = `Classificando ${i.toLocaleString('pt-BR')} de ${items.length.toLocaleString('pt-BR')}…`; await new Promise(r => setTimeout(r, 0)); }
   }
-  $('#prog').style.width = '100%';
+  if (!quiet) $('#prog').style.width = '100%';
   // conteúdo em peso/volume muito fora do típico da categoria (>20x ou <1/20 da mediana): só avisa, não troca
   { const med = new Map(); for (const r of res) { const b = r.qbase; if (r.qt && (b === 'G' || b === 'ML')) { const k = r.cat + '|' + b; if (!med.has(k)) med.set(k, []); med.get(k).push(r.qt); } }
     for (const [k, v] of med) { v.sort((x, y) => x - y); med.set(k, v.length >= 5 ? v[Math.floor(v.length / 2)] : null); }
     for (const r of res) { const m = med.get(r.cat + '|' + r.qbase); if (m && r.qt && (r.qt > 20 * m || r.qt < m / 20)) { r.alerts.push(`Conteúdo fora do comum para a categoria (típico ${fmtUnit(m, r.qbase)})`); r.pri = r.pri || 2; } } }
+  if (quiet) return res;
   data.results = res;
   const secs = ((performance.now() - t0) / 1000).toFixed(1);
   $('#runState').textContent = `${res.length.toLocaleString('pt-BR')} itens classificados em ${secs}s.`;
@@ -1727,4 +1838,86 @@ function migrarCategorias() {
 }
 migrarCategorias();
 renderCats();
+
+/* ------------------------------------------------------------------ etapas: pular ou preencher */
+// tema fixo pelo link (#claro / #escuro), útil quando a página fica embutida em outro sistema
+if (/claro/.test(location.hash)) document.documentElement.dataset.theme = 'light';
+else if (/escuro/.test(location.hash)) document.documentElement.dataset.theme = 'dark';
+const ETAPAS = [...document.querySelectorAll('section.step[data-step]')];
+const etapaPulada = {}; let etapaAtual = 1;
+function etapaFeita(n) {
+  if (n === 1) return !!(data.items && !data.semBacklog);
+  if (n === 2) return !!data.lojas;
+  if (n === 3) return !!data.dict;
+  if (n === 6) return !!data.results;
+  return false;
+}
+function renderStepper() {
+  const nav = $('#stepper'); nav.innerHTML = '';
+  for (const sec of ETAPAS) {
+    const n = +sec.dataset.step, st = etapaFeita(n) ? 'feito' : etapaPulada[n] ? 'pulado' : '';
+    const b = el('button', { type: 'button', 'data-st': st, onclick: () => irEtapa(n) },
+      el('span', { class: 'dot', 'aria-hidden': 'true' }, st === 'feito' ? '✓' : String(n)),
+      el('span', {}, sec.dataset.nome, el('small', {}, st === 'feito' ? 'preenchida' : st === 'pulado' ? 'pulada' : sec.dataset.sub)));
+    if (n === etapaAtual) b.setAttribute('aria-current', 'step');
+    nav.append(b);
+  }
+  const ultima = etapaAtual === ETAPAS.length;
+  $('#stepBack').disabled = etapaAtual === 1;
+  $('#stepSkip').classList.toggle('hidden', ultima || etapaFeita(etapaAtual));
+  $('#stepNext').classList.toggle('hidden', ultima);
+  $('#stepNext').textContent = etapaFeita(etapaAtual) || etapaAtual >= 4 ? 'Continuar →' : 'Preencher depois →';
+}
+function irEtapa(n) {
+  etapaAtual = Math.max(1, Math.min(ETAPAS.length, n));
+  for (const sec of ETAPAS) sec.classList.toggle('hidden', +sec.dataset.step !== etapaAtual);
+  renderStepper();
+}
+$('#stepNext').addEventListener('click', () => irEtapa(etapaAtual + 1));
+$('#stepSkip').addEventListener('click', () => { etapaPulada[etapaAtual] = true; irEtapa(etapaAtual + 1); });
+$('#stepBack').addEventListener('click', () => irEtapa(etapaAtual - 1));
+$('#goRun').addEventListener('click', () => { irEtapa(ETAPAS.length); $('#btnRun').focus(); });
+// arquivo carregado ou resultado pronto: atualiza as etapas
+new MutationObserver(renderStepper).observe(document.querySelector('.wrap'), { subtree: true, attributes: true, attributeFilter: ['class'] });
+irEtapa(1);
+
+/* ------------------------------------------------------------------ consulta rápida (1 SKU, sem planilha) */
+function qTile(rot, val, extra, wide) { return el('div', { class: 'qv' + (wide ? ' wide' : '') }, el('span', {}, rot), el('b', {}, val || '—'), extra ? el('i', {}, extra) : ''); }
+// abre com o exemplo já classificado (a descrição de exemplo fica no campo; é só trocar)
+(async () => { try { await loadDima(); if ($('#qDesc').value && $('#qOut').classList.contains('hidden')) $('#qForm').requestSubmit(); } catch (_) {} })();
+$('#qForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const sku = $('#qSku').value.trim(), desc = $('#qDesc').value.trim();
+  const out = $('#qOut'), res = $('#qRes'), al = $('#qAl'), btn = $('#qBtn');
+  const aviso = t => { res.innerHTML = ''; al.innerHTML = ''; al.append(el('div', { class: 'msg warn' }, t)); out.classList.remove('hidden'); };
+  if (!sku && !desc) { aviso('Cole a descrição do produto (o código é opcional).'); $('#qDesc').focus(); return; }
+  btn.disabled = true; btn.textContent = 'Classificando…';
+  try {
+    await loadDima();
+    const k = skuKey(sku);
+    const doArq = k && data.items ? data.items.find(x => skuKey(x.barcode) === k) : null; // SKU que já está no backlog
+    const D = [...(desc ? [desgruda(desc)] : []), ...(doArq ? (doArq.D0 || doArq.D) : [])];
+    const it = { barcode: sku || 'CONSULTA', D, T: D.map(N), main: !!desc, sugCatRaw: doArq ? doArq.sugCatRaw : '', sugCat: doArq ? doArq.sugCat : '',
+      sugMarca: doArq ? doArq.sugMarca : '', sugFab: doArq ? doArq.sugFab : '', sugQt: doArq ? doArq.sugQt : null };
+    if (k && data.lojas) {
+      lojasNoItem(it);
+      if (desc) { const d0 = desgruda(desc); it.D = [d0, ...it.D.filter(d => N(d) !== N(d0))]; it.T = it.D.map(N); } // a descrição digitada vem primeiro
+    }
+    if (!it.D.length) { aviso('Não achei esse código no backlog nem no arquivo das lojas. Cole a descrição do produto.'); return; }
+    const [r] = await runAll({ items: [it], silent: true });
+    const cc = cfg.categorias.find(c => c.nome === r.cat);
+    res.innerHTML = ''; al.innerHTML = '';
+    res.append(
+      qTile('Categoria', nomeOf(r.cat), cc && cc.cesta ? 'cesta ' + cc.cesta : ''),
+      qTile('Marca', r.marca),
+      qTile('Fabricante', r.fab),
+      qTile('Conteúdo', r.qt === null ? '' : fmtUnit(r.qt, r.qbase)),
+      qTile('Descritivo padronizado', r.desc, it.lojaUsada ? 'descrição da loja usada: ' + it.lojaUsada : doArq ? 'descrições do backlog usadas também' : '', true));
+    if (r.cat === OUT) al.append(el('span', { class: 'pill b' }, 'Nenhuma categoria reconhecida'));
+    for (const a of r.alerts) al.append(el('span', { class: 'pill ' + (/^Categoria pel/.test(a) && !/revisar|validação|corrigido/.test(a) ? 'a' : 'w') }, a));
+    if (!r.alerts.length && r.cat !== OUT) al.append(el('span', { class: 'pill g' }, 'Sem alertas'));
+    out.classList.remove('hidden');
+  } catch (err) { aviso('Não consegui classificar: ' + err.message); }
+  finally { btn.disabled = false; btn.textContent = 'Classificar'; }
+});
 </script>

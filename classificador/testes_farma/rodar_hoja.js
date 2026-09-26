@@ -13,7 +13,7 @@ const exp = fs.readFileSync(path.join(__dirname, 'hoja_marcas_esperado.tsv'), 'u
   await p.evaluate(() => { for (const c of cfg.categorias) c.ativa = true; renderCats(); });
   await p.setInputFiles('#fBacklog', path.join(__dirname, 'hoja_marcas.csv'));
   await p.waitForFunction(() => !document.querySelector('#btnRun').disabled, null, { timeout: 60000 });
-  await p.click('#btnRun');
+  await p.evaluate(() => { if (typeof irEtapa === 'function') irEtapa(6); }); await p.click('#btnRun');
   await p.waitForFunction(() => data.results && data.results.length, null, { timeout: 300000 });
   const r = await p.evaluate(exp => { const C = compile(); const m = new Map(data.results.map(x => [String(x.it.barcode), x]));
     return exp.map(([bc, mar, base, cod, fab]) => { const x = m.get(bc); const pa = C.pa && matchPA(N(base), C.pa);
