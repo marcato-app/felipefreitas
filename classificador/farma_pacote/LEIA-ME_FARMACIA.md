@@ -204,6 +204,13 @@ anti-inflamatórios "Por Defecto" (ibuprofeno, diclofenaco…) → ANTI REUMATIC
   registrados (DADOS_ABERTOS_MEDICAMENTOS.csv). Os registrados que não estão na lista de preços (~10,5 mil nomes) entram
   como nome → princípio ativo → categoria (dicionário do cliente, ou classe que a substância tem na CMED). Vêm depois da
   DIMA e só valem com sinal de remédio na descrição (dose, forma, laboratório). Alerta "Categoria pelo registro Anvisa".
+- `python3 cmed.py --historico` baixa as edições anteriores da lista PMC (68, desde 2021) e guarda um resumo em
+  `dados/cmed/historico/`. Códigos de barras que só existem em edição antiga (produto que saiu de linha, os "ZZ" das
+  lojas) também entram; a edição mais nova sempre vence. Alerta: "código de barras só na edição de dd/mm/aaaa".
+- DCB (Denominação Comum Brasileira, `dados/cmed/dcb_*.xlsx`, baixada pelo `--baixar`): substância oficial → classe que
+  ela tem na CMED → categoria (depois do dicionário do cliente, das regras e da CMED por produto; antes da DIMA);
+  genérico sem estar no dicionário do cliente também sai com marca = substância base (CLORIDRATO DE SERTRALINA →
+  SERTRALINA); os ~80 sais da DCB (CLORIDRATO, MESILATO, BESILATO…) nunca são marca e saem do descritivo do genérico.
 - Número solto (`ACEFLOR 24 REV CT BL AL PLAS OPC 100 MG`): em Farmácia, número sem unidade que não é dose e é tamanho de
   caixa comum (ou apresentação da CMED do produto) vira a contagem, com alerta.
 - Backlog só com o nome (`testes_farma/lojas_backlog_curto.csv`), sem arquivo das lojas: 1UN 65 → 1 e OUTRA CATEGORIA 5 → 0
