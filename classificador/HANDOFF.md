@@ -172,3 +172,11 @@ Pontos pra checar, em ordem:
 ## Opção "Sempre usar os dados do arquivo"
 
 - Checkbox `#sempreArq` (`cfg.sempreArquivo`), liga junto o "Priorizar os dados do arquivo". Categoria, marca, fabricante e conteúdo do arquivo são mantidos mesmo fora do comum; o app só avisa com "Arquivo (mantido): …" (categoria que não bate, marca que não aparece na descrição, fabricante que não é da marca na base, conteúdo muito diferente/objeto com peso/número > 1000) e completa apenas o que vier vazio. O descritivo continua sempre padronizado.
+
+## Modo "Só padronizar o descritivo"
+
+- Checkbox `#soDesc` (`cfg.soDescritivo`). Roda duas passadas (`runCore`): 1ª sem prioridade do arquivo = sugestão pura do app; 2ª com "sempre usar o arquivo" = descritivo padronizado com os dados do arquivo.
+- Planilha1: categoria, marca, fabricante e conteúdo exatamente como vieram no arquivo (vazio no arquivo → o do app) + coluna `STATUS SUGESTAO` ("ARQUIVO CONFIRMADO" / "SUGESTÃO DIFERENTE: marca, …" / "| ARQUIVO VAZIO: …").
+- Aba `SUGESTAO`: só os itens em que o app sugere diferente (arquivo x sugestão lado a lado). RESUMO conta os status.
+- RESUMO e tela também mostram "MARCA x ARQUIVO": por que a marca ficou diferente da do arquivo (arquivo sem marca, arquivo com OUTRA MARCA, marca não aparece na descrição…).
+- Correção: marca do arquivo escrita de outro jeito (abreviação da mesma marca na base) não é mais trocada.
