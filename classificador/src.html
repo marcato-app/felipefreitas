@@ -337,6 +337,14 @@ function splitCsvLine(line, d) { const out = []; let cur = '', q = false; for (l
 const normH = h => N(h).replace(/ /g, '');
 function findCol(hdr, tests) { const H = hdr.map(normH); for (const t of tests) { const i = H.findIndex(h => t(h)); if (i >= 0) return i; } return -1; }
 
+const SUG = h => /SUGERID|SUGEST|SUGGEST|RECOMEND/.test(h);
+const isCat = h => (h.includes('CATEGORIA') || h.includes('CATEGORY')) && !h.includes('SUBCATEGOR');
+const isMar = h => (h.includes('MARCA') || h.includes('BRAND')) && !h.includes('ALGORITMO') && !h.includes('PROPIA');
+const isFab = h => h.includes('FABRICANTE') || h.includes('MANUFACTURER') || h.includes('FABRICANT');
+const isQt = h => h.includes('QUANTIDADE') || h.includes('CONTENIDO') || h.includes('CONTEUDO') || h.includes('CONTENT') || h.includes('QUANTITY');
+// valores padrão/erro da base: nunca usar (tratados como vazio)
+const PADRAO_BASE = /^(POR DEFECTO|POR DEFAULT|DEFAULT|SIN FABRICANTE( ASOCIADO)?|SIN MARCA( ASOCIADA)?|SIN CATEGORIA( ASOCIADA)?|SEM FABRICANTE|SEM MARCA|SEM CATEGORIA|NAO DEFINIDO|NAO INFORMADO|PRODUTO SEM DESCRICAO|PRODUTO A SER AJUSTADO|NULL|NONE|N A|0)$/;
+const limpaArq = v => { if (v === null || v === undefined) return ''; const t = String(v).trim(); return PADRAO_BASE.test(N(t)) ? '' : t; };
 async function loadBacklog(file) {
   data.catAlias = null;
   const rows = await readTable(file); const hdr = rows[0] || [];
@@ -344,11 +352,12 @@ async function loadBacklog(file) {
     bc: findCol(hdr, [h => h === 'BARCODE', h => h.includes('CODIGOBARRAS'), h => h.includes('EAN'), h => h.includes('BARCODE')]),
     ds: findCol(hdr, [h => h === 'DESCRIPTIONS', h => h.includes('DESCRIPTION'), h => h.includes('DESCRI')]),
     // colunas em português ou inglês (category_sugerida, subcategory_sugerida, brand…); a subcategoria, quando preenchida, vale no lugar da categoria
-    sub: findCol(hdr, [h => h.includes('SUBCATEGOR')]),
-    cat: findCol(hdr, [h => h === 'CATEGORIA', h => (h.includes('CATEGORIA') || h.includes('CATEGORY')) && !h.includes('SUBCATEGOR')]),
-    mar: findCol(hdr, [h => h === 'MARCA', h => (h.includes('MARCA') || h.includes('BRAND')) && !h.includes('ALGORITMO') && !h.includes('PROPIA')]),
-    fab: findCol(hdr, [h => h === 'FABRICANTE', h => h.includes('FABRICANTE') || h.includes('MANUFACTURER') || h.includes('FABRICANT')]),
-    qt: findCol(hdr, [h => h.includes('QUANTIDADE') || h.includes('CONTENIDO') || h.includes('CONTEUDO') || h.includes('CONTENT') || h.includes('QUANTITY')]),
+    // colunas "sugerida" (o que o arquivo recomenda) vêm antes das colunas do cadastro atual (que trazem POR DEFECTO etc.)
+    sub: findCol(hdr, [h => h.includes('SUBCATEGOR') && SUG(h), h => h.includes('SUBCATEGOR')]),
+    cat: findCol(hdr, [h => isCat(h) && SUG(h), h => h === 'CATEGORIA', isCat]),
+    mar: findCol(hdr, [h => isMar(h) && SUG(h), h => h === 'MARCA', isMar]),
+    fab: findCol(hdr, [h => isFab(h) && SUG(h), h => h === 'FABRICANTE', isFab]),
+    qt: findCol(hdr, [h => isQt(h) && SUG(h), isQt]),
   };
   // descrição principal (a do cadastro do produto), se o arquivo tiver: vira a referência do tipo do item
   ci.main = findCol(hdr, [h => ['DESCRIPCION', 'DESCRICAO', 'DESCRITIVO', 'DESCRIPTION', 'DESCRICAOPRODUTO', 'DESCRITIVOATUAL', 'DESCRICAOPRINCIPAL'].includes(h)]);
@@ -360,9 +369,9 @@ async function loadBacklog(file) {
     const D = parseDescs(row[ci.ds]);
     const mainD = ci.main >= 0 && row[ci.main] ? String(row[ci.main]).trim() : '';
     if (mainD) { const k = D.findIndex(x => N(x) === N(mainD)); if (k >= 0) D.splice(k, 1); D.unshift(mainD); }
-    const subV = ci.sub >= 0 ? String(row[ci.sub] ?? '').trim() : '', catV = subV || (ci.cat >= 0 ? String(row[ci.cat] ?? '').trim() : '');
-    items.push({ barcode: row[ci.bc], D, T: D.map(N), main: !!mainD, sugCatRaw: catV, sugCat: catV ? catInterna(catV) : '', sugMarca: ci.mar >= 0 ? String(row[ci.mar] ?? '').trim() : '',
-      sugFab: ci.fab >= 0 ? String(row[ci.fab] ?? '').trim() : '', sugQt: ci.qt >= 0 ? row[ci.qt] : null });
+    const subV = ci.sub >= 0 ? limpaArq(row[ci.sub]) : '', catV = subV || (ci.cat >= 0 ? limpaArq(row[ci.cat]) : '');
+    items.push({ barcode: row[ci.bc], D, T: D.map(N), main: !!mainD, sugCatRaw: catV, sugCat: catV ? catInterna(catV) : '', sugMarca: ci.mar >= 0 ? limpaArq(row[ci.mar]) : '',
+      sugFab: ci.fab >= 0 ? limpaArq(row[ci.fab]) : '', sugQt: ci.qt >= 0 && limpaArq(row[ci.qt]) !== '' ? row[ci.qt] : null });
   }
   data.items = items; data.sugCounts = new Map();
   for (const it of items) data.sugCounts.set(it.sugCat, (data.sugCounts.get(it.sugCat) || 0) + 1);
