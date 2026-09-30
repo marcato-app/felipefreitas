@@ -180,3 +180,9 @@ Pontos pra checar, em ordem:
 - Aba `SUGESTAO`: só os itens em que o app sugere diferente (arquivo x sugestão lado a lado). RESUMO conta os status.
 - RESUMO e tela também mostram "MARCA x ARQUIVO": por que a marca ficou diferente da do arquivo (arquivo sem marca, arquivo com OUTRA MARCA, marca não aparece na descrição…).
 - Correção: marca do arquivo escrita de outro jeito (abreviação da mesma marca na base) não é mais trocada.
+
+## Categoria coerente -> mantém tudo do arquivo (2026-09-30)
+
+- `arqOk` (runCore): prioridade do arquivo ligada, categoria do arquivo existe e foi mantida (bate com a descrição) e não é Farmácia → `manter` = mesmo comportamento do "sempre usar": marca, fabricante e conteúdo do arquivo ficam, só com aviso "Arquivo (mantido): …". OUTRA MARCA do arquivo também fica. Só quando a categoria não bate (outra cesta, `arqTrocada`) o app ajusta tudo.
+- Modo só descritivo: 2ª passada agora é o "Priorizar" normal; itens com categoria errada (`catErrada`) saem com os valores do app e status "AJUSTADO PELO APP…"; os demais, exatamente como no arquivo.
+- Cores nunca são marca (`MARCA_NAO`: MARINHO, AZUL, TURQUESA, NEON, LILAS, AZUL MARINHO…).
