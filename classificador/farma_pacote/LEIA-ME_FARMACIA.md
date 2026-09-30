@@ -318,4 +318,8 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
 - Laboratório não é marca nem aparece no descritivo (TEUTO, EMS, CIMED, SANOFI...): marca vira o princípio ativo ou
   OUTRA MARCA; em suplemento a marca com nome do fabricante vale (NATURALHELF, FITOPLANT).
 - Quantidade no padrão Anvisa (CT BL ... X 30 no fim) ganha de número colado na marca (D 3CAPS ... X 8 = 8CPS).
+- Arquivo baixado: coluna **EST MER 7 CODIGO** (".3.12.11.1.1.1") ao lado de CATEGORIA, nas abas Planilha1 e REVISAO,
+  e na consulta rápida. Vem da planilha de padrões do cliente (`dados/padroes_descritivo.xlsx`, coluna Est_mer):
+  `python3 estmer.py` → `estMer7` (por nome oficial, nome do app ou código ATC). Categoria que não está na planilha
+  (ex. A11C2 VITAMINA D PURA, categorias de nível EST MER 6 criadas da DIMA) sai com a coluna vazia.
 

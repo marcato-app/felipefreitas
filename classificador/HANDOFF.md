@@ -254,5 +254,5 @@ Pontos pra checar, em ordem:
 - `siglas.py` (depois de dima.py, farma_marcas.py e vitaminas.py) → `farmaSiglas` + `dados/farma_siglas_laboratorios.xlsx`.
 - No app: `siglaDe`, `semSigla`, `ehLab`, `palavraLab`, `DESC_MAX` (60); bloco "Farmácia: laboratório não é marca" logo
   antes da quantidade no `runAll`; `RX_INVALIDO` (POR DEFECTO, SIN PROVEEDOR ASOCIADO, MARCA PROPRIA).
-- Ordem: dima.py → farma_pa.py → nomes_oficiais.py → farma_marcas.py → farma_dima.py → vitaminas.py → siglas.py → (cmed.py) → build.py.
-
+- Ordem: dima.py → farma_pa.py → nomes_oficiais.py → farma_marcas.py → farma_dima.py → vitaminas.py → siglas.py → estmer.py → (cmed.py) → build.py.
+- `estmer.py` → `estMer7` (código EST MER 7 da planilha de padrões) → coluna EST MER 7 CODIGO no `buildWorkbook`.

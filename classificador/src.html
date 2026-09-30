@@ -1757,16 +1757,18 @@ function buildWorkbook() {
   const R = data.results; const wb = XLSX.utils.book_new();
   const num = v => (v === null || v === undefined || isNaN(v)) ? null : (Math.abs(v - Math.round(v)) < 1e-9 ? Math.round(v) : v);
   const bc = v => { const s = String(v).trim(); return /^\d{1,15}$/.test(s) ? Number(s) : s; };
-  const main = [['CODIGO BARRAS', 'DESCRITIVO PADRONIZADO', 'FABRICANTE', 'MARCA', 'CONTENIDO', 'CATEGORIA', 'CODIGO INTERNO']];
-  for (const r of R) main.push([bc(r.it.barcode), r.desc, r.fab, r.marca, num(r.qt), nomeOf(r.cat), ciFlag(r.it.barcode)]);
-  const ws = XLSX.utils.aoa_to_sheet(main); ws['!cols'] = [{ wch: 16 }, { wch: 60 }, { wch: 28 }, { wch: 24 }, { wch: 11 }, { wch: 26 }, { wch: 22 }];
+  // EST MER 7 CODIGO: código da categoria na árvore do cliente (planilha de padrões -> estmer.py -> K.estMer7)
+  const em7 = cat => (K.estMer7 || {})[cat] || '';
+  const main = [['CODIGO BARRAS', 'DESCRITIVO PADRONIZADO', 'FABRICANTE', 'MARCA', 'CONTENIDO', 'CATEGORIA', 'EST MER 7 CODIGO', 'CODIGO INTERNO']];
+  for (const r of R) main.push([bc(r.it.barcode), r.desc, r.fab, r.marca, num(r.qt), nomeOf(r.cat), em7(r.cat), ciFlag(r.it.barcode)]);
+  const ws = XLSX.utils.aoa_to_sheet(main); ws['!cols'] = [{ wch: 16 }, { wch: 60 }, { wch: 28 }, { wch: 24 }, { wch: 11 }, { wch: 26 }, { wch: 18 }, { wch: 22 }];
   for (let i = 2; i <= main.length; i++) { const c = ws['A' + i]; if (c && c.t === 'n') c.z = '0'; }
   XLSX.utils.book_append_sheet(wb, ws, 'Planilha1');
-  const rv = [['CODIGO BARRAS', 'CODIGO INTERNO', 'CATEGORIA', 'CATEGORIA SUGERIDA', 'MARCA', 'MARCA SUGERIDA', 'FABRICANTE', 'FABRICANTE SUGERIDO', 'CONTENIDO', 'CONTENIDO SUGERIDO', 'DESCRITIVO PADRONIZADO', 'ALERTAS', 'DESCRICOES ORIGINAIS', 'PRIORIDADE', 'DESCRICAO DA LOJA USADA', 'LOJAS']];
+  const rv = [['CODIGO BARRAS', 'CODIGO INTERNO', 'CATEGORIA', 'EST MER 7 CODIGO', 'CATEGORIA SUGERIDA', 'MARCA', 'MARCA SUGERIDA', 'FABRICANTE', 'FABRICANTE SUGERIDO', 'CONTENIDO', 'CONTENIDO SUGERIDO', 'DESCRITIVO PADRONIZADO', 'ALERTAS', 'DESCRICOES ORIGINAIS', 'PRIORIDADE', 'DESCRICAO DA LOJA USADA', 'LOJAS']];
   for (const r of [...R].filter(r => r.pri).sort((a, b) => a.pri - b.pri || a.cat.localeCompare(b.cat)))
-    rv.push([bc(r.it.barcode), ciFlag(r.it.barcode), nomeOf(r.cat), r.it.sugCatRaw || r.it.sugCat, r.marca, r.it.sugMarca, r.fab, r.it.sugFab, num(r.qt), r.it.sugQt, r.desc, r.alerts.join('; '), r.it.D.slice(0, 4).join(' | ').slice(0, 500), r.pri, r.it.lojaUsada || '', r.it.nLojas || '']);
-  const ws2 = XLSX.utils.aoa_to_sheet(rv); ws2['!cols'] = [{ wch: 16 }, { wch: 22 }, { wch: 24 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 50 }, { wch: 55 }, { wch: 80 }, { wch: 10 }];
-  ws2['!autofilter'] = { ref: 'A1:M' + rv.length };
+    rv.push([bc(r.it.barcode), ciFlag(r.it.barcode), nomeOf(r.cat), em7(r.cat), r.it.sugCatRaw || r.it.sugCat, r.marca, r.it.sugMarca, r.fab, r.it.sugFab, num(r.qt), r.it.sugQt, r.desc, r.alerts.join('; '), r.it.D.slice(0, 4).join(' | ').slice(0, 500), r.pri, r.it.lojaUsada || '', r.it.nLojas || '']);
+  const ws2 = XLSX.utils.aoa_to_sheet(rv); ws2['!cols'] = [{ wch: 16 }, { wch: 22 }, { wch: 24 }, { wch: 18 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 50 }, { wch: 55 }, { wch: 80 }, { wch: 10 }];
+  ws2['!autofilter'] = { ref: 'A1:N' + rv.length };
   XLSX.utils.book_append_sheet(wb, ws2, 'REVISAO');
   const cnt = new Map(); for (const r of R) { const k = nomeOf(r.cat); if (!cnt.has(k)) cnt.set(k, [0, 0, 0]); const x = cnt.get(k); x[0]++; if (r.marca === 'OUTRA MARCA') x[1]++; if (r.qt === null) x[2]++; }
   const sm = [['CATEGORIA', 'QTD ITENS', 'SEM MARCA', 'SEM CONTENIDO']]; for (const [k, v] of [...cnt].sort((a, b) => b[1][0] - a[1][0])) sm.push([k, ...v]);
@@ -2255,7 +2257,7 @@ $('#qForm').addEventListener('submit', async e => {
     const cc = cfg.categorias.find(c => c.nome === r.cat);
     res.innerHTML = ''; al.innerHTML = '';
     res.append(
-      qTile('Categoria', nomeOf(r.cat), cc && cc.cesta ? 'cesta ' + cc.cesta : ''),
+      qTile('Categoria', nomeOf(r.cat), [cc && cc.cesta ? 'cesta ' + cc.cesta : '', (K.estMer7 || {})[r.cat] ? 'EST MER 7 ' + K.estMer7[r.cat] : ''].filter(Boolean).join(' · ')),
       qTile('Marca', r.marca),
       qTile('Fabricante', r.fab),
       qTile('Conteúdo', r.qt === null ? '' : fmtUnit(r.qt, r.qbase)),
