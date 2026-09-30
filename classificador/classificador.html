@@ -374,6 +374,8 @@ async function loadBacklog(file) {
     items.push({ barcode: row[ci.bc], D, T: D.map(N), main: !!mainD, sugCatRaw: catV, sugCat: catV ? catInterna(catV) : '', sugMarca: ci.mar >= 0 ? limpaArq(row[ci.mar]) : '',
       sugFab: ci.fab >= 0 ? limpaArq(row[ci.fab]) : '', sugQt: ci.qt >= 0 && limpaArq(row[ci.qt]) !== '' ? row[ci.qt] : null });
   }
+  const nomeCol = i => i >= 0 ? String(hdr[i]) : '—';
+  data.colunas = `Colunas lidas: categoria <b>${escH(nomeCol(ci.cat))}</b> · subcategoria <b>${escH(nomeCol(ci.sub))}</b> · marca <b>${escH(nomeCol(ci.mar))}</b> · fabricante <b>${escH(nomeCol(ci.fab))}</b> · conteúdo <b>${escH(nomeCol(ci.qt))}</b>`;
   data.items = items; data.sugCounts = new Map();
   for (const it of items) data.sugCounts.set(it.sugCat, (data.sugCounts.get(it.sugCat) || 0) + 1);
   computeWordSug();
@@ -1030,9 +1032,11 @@ async function runCore(pfx = '') {
     const arqAl = [];
     // categoria do arquivo coerente com a descrição -> mantém tudo do arquivo (marca, fabricante, conteúdo); só avisa
     const arqOk = prioArq() && !!it.sugCat && a.cat === it.sugCat && !a.arqAviso && !(cc && cc.cesta === 'FARMACIA');
-    const manter = sempreArq() || arqOk;
-    const sm = N(it.sugMarca), marcaArq = prioArq() && valido(it.sugMarca) && (!C.black.has(sm) || arqOk);
-    const outraArq = arqOk && sm === 'OUTRA MARCA';
+    // modo só descritivo: marca, fabricante e conteúdo do arquivo ficam sempre (mesmo quando a categoria é ajustada)
+    const soD = !!(passe && passe.soDesc) && !(cc && cc.cesta === 'FARMACIA');
+    const manter = sempreArq() || arqOk || soD;
+    const sm = N(it.sugMarca), marcaArq = prioArq() && valido(it.sugMarca) && (!C.black.has(sm) || arqOk || soD);
+    const outraArq = (arqOk || soD) && sm === 'OUTRA MARCA';
     let marca, fab;
     if (marcaArq && manter && !marcaNaDesc(sm, T)) arqAl.push(`Arquivo (mantido): marca ${it.sugMarca.trim()} não aparece na descrição`);
     if (marcaArq && !manter && !marcaNaDesc(sm, T)) { // marca do arquivo não aparece: troca só se a descrição trouxer outra marca da categoria
@@ -1167,8 +1171,8 @@ async function runAll() {
   if (cfg.soDescritivo) {
     try {
       passe = { prio: false, sempre: false }; const sug = await runCore('Passada 1/2 (sugestão do app) · ');
-      passe = { prio: true, sempre: false }; res = await runCore('Passada 2/2 (arquivo + descritivo) · ');
-      for (let i = 0; i < res.length; i++) { const r = res[i], g = sug[i]; r.sug = { cat: g.cat, marca: g.marca, fab: g.fab, qt: g.qt, qbase: g.qbase }; r.status = r.catErrada ? 'AJUSTADO PELO APP: categoria do arquivo não bate com a descrição' : statusSug(r.it, g); r.soDesc = true; }
+      passe = { prio: true, sempre: false, soDesc: true }; res = await runCore('Passada 2/2 (arquivo + descritivo) · ');
+      for (let i = 0; i < res.length; i++) { const r = res[i], g = sug[i]; r.sug = { cat: g.cat, marca: g.marca, fab: g.fab, qt: g.qt, qbase: g.qbase }; r.status = r.catErrada ? 'AJUSTADO PELO APP: categoria do arquivo não bate com a descrição (marca, fabricante e conteúdo do arquivo mantidos)' : statusSug(r.it, g); r.soDesc = true; }
     } finally { passe = null; }
   } else res = await runCore();
   data.results = res;
@@ -1210,8 +1214,8 @@ function buildWorkbook() {
   // modo só descritivo: categoria, marca, fabricante e conteúdo exatamente como vieram no arquivo (vazio no arquivo -> o do app)
   const arqOu = (v, app) => (v !== null && v !== undefined && String(v).trim() !== '') ? (typeof v === 'number' ? v : String(v).trim()) : app;
   // categoria do arquivo que não bate com a descrição (outra cesta, ex.: estojo como OVO): aí vale o que o app ajustou
-  for (const r of R) main.push(soD && !r.catErrada
-    ? [bc(r.it.barcode), r.desc, arqOu(r.it.sugFab, r.fab), arqOu(r.it.sugMarca, r.marca), arqOu(r.it.sugQt, num(r.qt)), arqOu(r.it.sugCatRaw, nomeOf(r.cat)), ciFlag(r.it.barcode), r.status]
+  for (const r of R) main.push(soD
+    ? [bc(r.it.barcode), r.desc, arqOu(r.it.sugFab, r.fab), arqOu(r.it.sugMarca, r.marca), arqOu(r.it.sugQt, num(r.qt)), r.catErrada ? nomeOf(r.cat) : arqOu(r.it.sugCatRaw, nomeOf(r.cat)), ciFlag(r.it.barcode), r.status]
     : [bc(r.it.barcode), r.desc, r.fab, r.marca, num(r.qt), nomeOf(r.cat), ciFlag(r.it.barcode), ...(soD ? [r.status] : [])]);
   const ws = XLSX.utils.aoa_to_sheet(main); ws['!cols'] = [{ wch: 16 }, { wch: 60 }, { wch: 28 }, { wch: 24 }, { wch: 11 }, { wch: 26 }, { wch: 22 }];
   for (let i = 2; i <= main.length; i++) { const c = ws['A' + i]; if (c && c.t === 'n') c.z = '0'; }
@@ -1351,7 +1355,7 @@ function status(id, html, ok) { const s = $(id); s.innerHTML = html; s.closest('
 const escH = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 setupDrop('#dropBacklog', '#fBacklog', async file => {
   status('#stBacklog', 'Lendo ' + escH(file.name) + '…');
-  try { const n = await loadBacklog(file); status('#stBacklog', `<b>${n.toLocaleString('pt-BR')}</b> itens · ${escH(file.name)}<br>${data.sugCounts.size} categorias sugeridas`, true); $('#btnRun').disabled = false; $('#runState').textContent = data.dict ? 'Pronto para classificar.' : 'Pronto. Sem o dicionário, a marca vem só da base DIMA embutida.'; autoSegments(); renderCats(); }
+  try { const n = await loadBacklog(file); status('#stBacklog', `<b>${n.toLocaleString('pt-BR')}</b> itens · ${escH(file.name)}<br>${data.sugCounts.size} categorias sugeridas<br>${data.colunas || ''}`, true); $('#btnRun').disabled = false; $('#runState').textContent = data.dict ? 'Pronto para classificar.' : 'Pronto. Sem o dicionário, a marca vem só da base DIMA embutida.'; autoSegments(); renderCats(); }
   catch (e) { status('#stBacklog', 'Não consegui ler: ' + escH(e.message)); }
 });
 setupDrop('#dropDict', '#fDict', async file => {
