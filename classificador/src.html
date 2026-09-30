@@ -1172,7 +1172,8 @@ function buildWorkbook() {
   sm.push([]); sm.push(['Configuração: ' + cfg.nome]); sm.push(['Gerado em ' + new Date().toLocaleString('pt-BR')]);
   const ws3 = XLSX.utils.aoa_to_sheet(sm); ws3['!cols'] = [{ wch: 36 }, { wch: 12 }, { wch: 12 }, { wch: 14 }];
   XLSX.utils.book_append_sheet(wb, ws3, 'RESUMO');
-  return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  // compressão: sem ela, backlogs grandes (200 mil itens) estouram o limite de memória ao montar o arquivo ("Invalid array length")
+  return XLSX.write(wb, { bookType: 'xlsx', type: 'array', compression: true });
 }
 
 /* ------------------------------------------------------------------ UI: categories */
@@ -1307,8 +1308,11 @@ async function salvarArquivo(filename, blob) {
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 $('#btnDownload').addEventListener('click', async () => {
+  const b = $('#btnDownload'); b.disabled = true;
+  $('#runState').textContent = `Gerando a planilha de ${data.results.length.toLocaleString('pt-BR')} itens… (backlogs grandes podem levar alguns minutos)`; await new Promise(r => setTimeout(r, 50));
   try { const buf = buildWorkbook(); await salvarArquivo('BACKLOG_CLASSIFICADO.xlsx', new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); $('#runState').textContent = 'Planilha salva.'; }
   catch (e) { $('#runState').textContent = e.code === 'declined' ? 'Download cancelado.' : 'Não consegui salvar a planilha (' + (e.code || e.message) + ').'; }
+  b.disabled = false;
 });
 $('#defCat').addEventListener('change', e => { cfg.categoriaPadrao = e.target.value; saveDraft(); });
 $('#btnAllOff').addEventListener('click', () => { for (const c of cfg.categorias) c.ativa = false; cfg.categoriaPadrao = ''; saveDraft(); $('#showOff').checked = true; renderCats(); cfgMsg('Todas desativadas (continuam salvas na biblioteca). Marque as que vai usar, ou escreva as regras e clique em "Aplicar regras com Claude".', 'ok'); });
