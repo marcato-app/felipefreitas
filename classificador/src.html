@@ -445,20 +445,29 @@ function findCol(hdr, tests) { const H = hdr.map(normH); for (const t of tests) 
 async function loadBacklog(file) {
   data.catAlias = null;
   const rows = await readTable(file); const hdr = rows[0] || [];
+  // coluna auxiliar nunca é a de marca/fabricante/conteúdo/categoria: "Algoritmo Marca Propia" (NAO E MARCA PROPRIA),
+  // MARCA_PRED, FABRICANTE_PRED_PREFIJO, CODIGO_BARRAS_CONTENIDO, UNIDADES_CONTENIDO, CATEGORIA_PRED (código .3.12...)
+  const aux = h => /PROPIA|PROPRIA|ALGORITMO|PRED|PREFIJO|RECLASIF|CODIGOBARRAS|UNIDADES|UNITARIO|CODIGO$/.test(h);
   const ci = {
-    bc: findCol(hdr, [h => h === 'BARCODE', h => h.includes('CODIGOBARRAS'), h => h.includes('EAN'), h => h.includes('BARCODE')]),
-    ds: findCol(hdr, [h => h === 'DESCRIPTIONS', h => h.includes('DESCRIPTION'), h => h.includes('DESCRI')]),
-    cat: findCol(hdr, [h => h.includes('CATEGORIA')]), mar: findCol(hdr, [h => h.includes('MARCA')]),
-    fab: findCol(hdr, [h => h.includes('FABRICANTE')]), qt: findCol(hdr, [h => h.includes('QUANTIDADE') || h.includes('CONTENIDO')]),
+    bc: findCol(hdr, [h => h === 'BARCODE', h => h === 'CODIGOBARRAS', h => h.includes('CODIGOBARRAS') && !h.includes('CONTENIDO'), h => h.includes('EAN'), h => h.includes('BARCODE')]),
+    ds: findCol(hdr, [h => h === 'DESCRIPTIONS', h => h.includes('DESCRIPTION'), h => h.includes('DESCRI') && !aux(h)]),
+    cat: findCol(hdr, [h => h === 'ESTMER7DESCRIPCION', h => h === 'CATEGORIA', h => h.includes('CATEGORIA') && !aux(h)]),
+    mar: findCol(hdr, [h => h === 'MARCA', h => h.includes('MARCA') && !aux(h)]),
+    fab: findCol(hdr, [h => h === 'FABRICANTE', h => h.includes('FABRICANTE') && !aux(h)]),
+    qt: findCol(hdr, [h => h === 'CONTENIDO' || h === 'QUANTIDADE' || h === 'CONTEUDO', h => (h.includes('QUANTIDADE') || h.includes('CONTENIDO')) && !aux(h)]),
   };
+  // outras descrições do produto no arquivo (TOP_DESCRIPCION, MAX_DESCRIPCION das lojas) entram como descrições extras
+  let extras; const extrasDe = () => hdr.map((h, i) => [normH(h), i]).filter(([h, i]) => h.includes('DESCRI') && !aux(h) && !/ESTMER|SEGMENTO|CATEGORIA|WORDS/.test(h) && i !== ci.ds && i !== ci.main).map(([, i]) => i);
   // descrição principal (a do cadastro do produto), se o arquivo tiver: vira a referência do tipo do item
   ci.main = findCol(hdr, [h => ['DESCRIPCION', 'DESCRICAO', 'DESCRITIVO', 'DESCRIPTION', 'DESCRICAOPRODUTO', 'DESCRITIVOATUAL', 'DESCRICAOPRINCIPAL'].includes(h)]);
   if (ci.main === ci.ds) ci.main = -1;
+  extras = extrasDe();
   if (ci.bc < 0 || ci.ds < 0) throw new Error('Não encontrei as colunas de código (barcode) e descrições (descriptions) no backlog.');
   const items = [];
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r]; if (!row || row[ci.bc] === null || row[ci.bc] === undefined || row[ci.bc] === '') continue;
     const D = parseDescs(row[ci.ds]).map(desgruda);
+    for (const i of extras) { const x = row[i] ? desgruda(String(row[i]).trim()) : ''; if (x && !D.some(y => N(y) === N(x))) D.push(x); }
     const mainD = ci.main >= 0 && row[ci.main] ? desgruda(String(row[ci.main]).trim()) : '';
     if (mainD) { const k = D.findIndex(x => N(x) === N(mainD)); if (k >= 0) D.splice(k, 1); D.unshift(mainD); }
     items.push({ barcode: row[ci.bc], D, T: D.map(N), main: !!mainD, sugCatRaw: ci.cat >= 0 ? String(row[ci.cat] ?? '').trim() : '', sugCat: ci.cat >= 0 ? catInterna(row[ci.cat]) : '', sugMarca: ci.mar >= 0 ? String(row[ci.mar] ?? '').trim() : '',
@@ -1077,7 +1086,9 @@ const RX_DZ = /(?<![A-Z0-9.])(?:(\d{1,2})\s*)?(MEIA\s+)?(?:DZ|DUZ|DUZIA|DUZIAS)(
 const RX_FORMA_CONTA = /(?<![A-Z])(COMP|COMPR|COMPRIMIDOS?|CPR|CPRS|CP|CAP|CAPS|CAPSULAS?|DRG|DRAG|DRAGEAS?|SACHES?|ENV|ENVELOPES?|AMP|AMPOLAS?|FLAC|FLACONETES?|ADES|ADESIVOS?|OVULOS?|SUPOS|SUPOSITORIOS?|PAST|PASTILHAS?|GOMAS?|TABLETES?|SER|SERINGAS?)(?![A-Z])/;
 const RX_X_QTD = /(?<![A-Z0-9.])X\s*(\d{1,4})(?![0-9.])(?!\s*(?:ML|G|GR|MG|MCG|L|LT|KG|CM|MM|M|UI|%|X)(?![A-Z]))/;
 function parseU(t) {
-  let m; if ((m = RX_UN_PACK.exec(t)) && +m[1] > 1 && +m[2] > 0) return +m[1] * +m[2];
+  let m; // padrão Anvisa com embalagem (CT BL ... X 30 no fim): a quantidade oficial ganha de número colado na marca (D 3CAPS)
+  if (RX_ANVISA.test(t) && RX_FORMA_CONTA.test(t) && (m = /(?<![A-Z0-9.])X\s*(\d{1,4})\s*$/.exec(t)) && +m[1] > 0) return +m[1];
+  if ((m = RX_UN_PACK.exec(t)) && +m[1] > 1 && +m[2] > 0) return +m[1] * +m[2];
   RX_UN.lastIndex = 0; if ((m = RX_UN.exec(t)) && +m[1] > 0) return +m[1];
   RX_CN.lastIndex = 0; if ((m = RX_CN.exec(t)) && +m[1] > 1) return +m[1];
   if ((m = RX_DZ.exec(t))) return m[2] ? 6 : 12 * (m[1] ? +m[1] : 1);
@@ -1225,7 +1236,7 @@ function segmentosEstMer6(AGG, items, byName, C) {
 /* ---- Farmácia: fabricante é sempre o laboratório escrito na descrição, conferido com o dicionário / DIMA ---- */
 const ATC_RX = /^[A-Z]\d\d[A-Z]?\d? /;
 const LAB_LIXO = new Set('LABORATORIO LABORATORIOS LAB LABS FARMACEUTICA FARMACEUTICOS FARMACEUTICO FARMA PHARMA PHARMACEUTICA IND INDUSTRIA COM COMERCIO SA S A LTDA ME EIRELI DO DA DE E BRASIL BR'.split(' '));
-const LAB_COD_NAO = new Set('MARCA OUTRA OUTRO COM SEM CPR COMP CAP CAPS DRG GTS SOL SUS XPE AMP INJ CRE POM GEL ADT INF PED UN UND CX FR MCG MG ML UI MEQ REV CT BL AL PLAS OPC GOT'.split(' '));
+const LAB_COD_NAO = new Set('MARCA OUTRA OUTRO COM SEM CPR COMP CAP CAPS DRG GTS SOL SUS XPE AMP INJ CRE POM GEL ADT INF PED UN UND CX FR MCG MG ML UI MEQ REV CT BL AL PLAS OPC GOT MET DUO FOR XR RET ORO'.split(' ')); // MET = metformina (NIMEGON MET)
 // nome do laboratório como aparece na descrição -> código de 3 letras da base (o fabricante vem do código)
 const LAB_ALIAS = { GERMED: 'GER', LEGRAND: 'LEG', 'NEO QUIMICA': 'NEO', NEOQUIMICA: 'NEO', 'NOVA QUIMICA': 'NVQ', NOVAQUIMICA: 'NVQ',
   PRATI: 'PRD', 'PRATI DONADUZZI': 'PRD', EURO: 'EUR', SANOFI: 'SNF', MULTILAB: 'MUL', MANTECORP: 'MAN', KLEY: 'KLE', 'KLEY HERTZ': 'KLE' };
@@ -1259,6 +1270,31 @@ function labAchado(T) {
   return null;
 }
 function labDaDescricao(T) { const l = labAchado(T); return l ? l.fab : null; }
+const DESC_MAX = 60;
+// sigla do laboratório (3 letras, siglas.py -> K.farmaSiglas): código/nome do laboratório na descrição (GERMED -> GER),
+// código da marca na DIMA ("DORFLEX (OPE)", "SUNDOWN NES"), senão a sigla padrão do fabricante
+const SIG = () => K.farmaSiglas || { codigos: {}, fab: {} };
+const ehSigla = x => /^[A-Z][A-Z0-9]{2}$/.test(x) && !!SIG().codigos[x];
+const codDe = m => { const x = /\(([A-Z0-9]{3})\)\s*$/.exec(String(m || '').toUpperCase()) || /\s([A-Z0-9]{3})$/.exec(N(m)); return x && ehSigla(x[1]) ? x[1] : ''; };
+function siglaDe(T, fab, canon, D) {
+  for (const d of D || []) { const x = /\(([A-Z][A-Z0-9]{2})\)\s*$/.exec(String(d).toUpperCase()); if (x && !LAB_COD_NAO.has(x[1])) return x[1]; } // o padrão do cliente já na descrição: "... (NES)"
+  for (const t of T) { const w = t.split(' '), l = w[w.length - 1]; if (w.length > 1 && ehSigla(l)) return l; }
+  const lab = labAchado(T);
+  if (lab) { if (ehSigla(lab.termo)) return lab.termo; if (LAB_ALIAS[lab.termo]) return LAB_ALIAS[lab.termo]; const s = SIG().fab[N(lab.fab)]; if (s) return s; }
+  return codDe(canon) || SIG().fab[N(fab)] || '';
+}
+// marca sem o código do laboratório no fim ("DORFLEX (OPE)" -> DORFLEX, "SUNDOWN NES" -> SUNDOWN)
+// (a sigla solta no fim só sai quando é a do laboratório do item: NIMEGON MET continua NIMEGON MET)
+const semSigla = (m, sigla, fab) => { const n = String(m).replace(/\s*\([A-Z0-9 ]{0,5}\)\s*$/, '').trim(); const c = codDe(n);
+  return c && N(n).split(' ').length > 1 && (c === sigla || N(SIG().codigos[c] || '') === N(fab || '')) ? n.replace(new RegExp('\\s+' + c + '$'), '') : n; };
+// laboratório não é marca: TEUTO, EMS, CIMED, GERMED...
+function ehLab(m) { const n = N(semSigla(m)); if (!n) return false; const L = labIndex();
+  if (L.codigo.has(n) || LAB_ALIAS[n]) return true;
+  if (!L.chave.has(n)) return false; // nome de laboratório de remédio com sigla nas bases (TEUTO, EMS, SANOFI); BIOSTEVI, SUPRAERVAS são marca
+  if (!SIG()._labs) SIG()._labs = new Set(Object.values(SIG().codigos).map(N));
+  return SIG()._labs.has(N(L.chave.get(n))); }
+// palavra que é laboratório (nome ou sigla) não entra no descritivo
+function palavraLab(w) { const L = labIndex(); return (w.length >= 3 && !LAB_COD_NAO.has(w) && (L.chave.has(w) || !!LAB_ALIAS[w] || ehSigla(w))); }
 /* ---- Farmácia: marca = nome comercial; genérico: marca = princípio ativo (fabricante = laboratório) ---- */
 const FARMA_NAO_MARCA = new Set(('GENERICO GENERICA GENERICOS SIMILAR MEDICAMENTO REFERENCIA INFANTIL ADULTO PEDIATRICO ' +
   'CLOR CLORID CLORIDR HCL SOD POT MAL MAG SUCC ACET SULF FOSF BESIL MESIL TART BROM BROMETO BUT BUTILBROMETO ' +
@@ -1276,7 +1312,7 @@ function farmaNaoMarca(m, C, paW) {
   const L = labIndex(); const P = C.pa;
   if (L.chave.has(n) || L.codigo.has(n) || LAB_ALIAS[n] || FARMA_NAO_MARCA.has(n)) return true; // laboratório (EMS, CIM, MEDLEY...) não é marca
   { const w = n.split(' '), l = w[w.length - 1]; // "ACECLOFENACO EMS": genérico gravado com o laboratório na DIMA
-    if (w.length > 1 && (L.codigo.has(l) || L.chave.has(l) || LAB_ALIAS[l] || (K.farmaCodLab || {})[l])) return true; }
+    if (w.length > 1 && !LAB_COD_NAO.has(l) && (L.codigo.has(l) || L.chave.has(l) || LAB_ALIAS[l] || (K.farmaCodLab || {})[l])) return true; } // NIMEGON MET é marca
   if (GROUP_TOK.FARMA[n]) return true;
   if (P) { P.rx.lastIndex = 0; if (P.rx.test(n)) return true; } // tem princípio ativo no nome (DIPIRONA, LOSARTANA POTASSICA)
   if (C.pb) { C.pb.rx.lastIndex = 0; if (C.pb.rx.test(n)) return true; } // substância oficial (DCB)
@@ -1317,13 +1353,15 @@ function dosagem(T) {
   }
   return '';
 }
-// forma que conta unidade: 10 comprimidos -> 10CPRS, 28 cápsulas -> 28CAPS, 30 drágeas -> 30DRGS
-const FORMA_UN = [[/(?<![A-Z])(COMPRIMIDOS?|COMPR|COMP|CPRS?|CPS|CP)(?![A-Z])/, 'CPRS', /^COMPRIMIDOS?$/],
-  [/(?<![A-Z])(CAPSULAS?|CAPS|CAP)(?![A-Z])/, 'CAPS', /^CAPSULAS?$/], [/(?<![A-Z])(DRAGEAS?|DRG)(?![A-Z])/, 'DRGS', /^DRAGEAS?$/]];
+// forma que conta unidade (padrão do cliente): 10 comprimidos/drágeas -> 10CPRS, 28 cápsulas -> 28CPS
+// padrão do cliente: CPRS comprimido (drágea também), CPS cápsula, ML, UN
+const FORMA_UN = [[/(?<![A-Z])(CAPSULAS?|CAPS|CAP|CPS)(?![A-Z])/, 'CPS', /^(CAPSULAS?|CAPS|CAP|CPS)$/],
+  [/(?<![A-Z])(COMPRIMIDOS?|COMPR|COMP|CPRS?|CP|DRAGEAS?|DRGS?)(?![A-Z])/, 'CPRS', /^(COMPRIMIDOS?|DRAGEAS?)$/]];
 function formaUn(T) { for (const t of T) { const x = prepQ(t).replace(RX_FORMA_COLADA, '$1 $2'); for (const f of FORMA_UN) if (f[0].test(x)) return f; } return null; }
 /* ---- prioridade do arquivo: o que veio no backlog vale; só troca o que estiver bem fora do comum ---- */
 const prioArq = () => cfg.priorizarArquivo !== false;
-const valido = v => { const n = N(v); return !!n && !/^(OUTRA MARCA|OUTRO FABRICANTE|OUTRA CATEGORIA|SEM MARCA|SEM FABRICANTE|NAO INFORMADO|N A|NA|0|NULL|NONE|-)$/.test(n); };
+const RX_INVALIDO = /^(OUTRA MARCA|OUTRO FABRICANTE|OUTRA CATEGORIA|SEM MARCA|SEM FABRICANTE|NAO INFORMADO|N A|NA|0|NULL|NONE|-|POR DEFECTO|POR DEFEITO|SIN PROVEEDOR( ASOCIADO)?|SEM FORNECEDOR( ASSOCIADO)?|(NAO E )?MARCA PROPRIA|(NO ES )?MARCA PROPIA)$/;
+const valido = v => { const n = N(v); return !!n && !RX_INVALIDO.test(n); }; // POR DEFECTO / SIN PROVEEDOR ASOCIADO nunca valem
 const rxCat = new Map();
 function bateCategoria(c, T) {
   if (!rxCat.has(c.nome)) rxCat.set(c.nome, [termRx(c.incluir), termRx(c.tipo)]);
@@ -1521,7 +1559,8 @@ async function runAll(opts = {}) {
     if (farma) { // marca = nome comercial; genérico: o princípio ativo (o fabricante vem do laboratório, logo abaixo)
       const pa = (C.pa ? T.map(t => matchPA(t, C.pa)).find(Boolean) : null) || T.map(t => matchPB(t, C)).find(Boolean) || null;
       let trocar = false;
-      if (marcaArq && farmaNaoMarca(marca, C) && !(pa && N(paIni(pa, T)) === N(marca))) { // marca do arquivo é laboratório/genérico: não é marca
+      const supl0 = !!it.vit || a.cat === 'VITAMINA OUTRO' || a.cat === 'MULTIVITAMINICO'; // suplemento: marca com nome do fabricante vale (NATURALHELF)
+      if (marcaArq && !(supl0 && valido(marca)) && farmaNaoMarca(marca, C) && !(pa && N(paIni(pa, T)) === N(marca))) { // marca do arquivo é laboratório/genérico: não é marca
         arqAl.push(`Arquivo: marca ${marca} é laboratório ou genérico; usada a marca comercial ou o princípio ativo`); trocar = true; }
       if (!marcaArq || trocar) {
         // ordem: DIMA > base de marcas de Farmácia do cliente > dicionário enviado > nome comercial da descrição > princípio ativo
@@ -1568,6 +1607,23 @@ async function runAll(opts = {}) {
         fab = lab;
       }
     }
+    // nunca, em nenhuma cesta: POR DEFECTO vira OUTRA MARCA e SIN PROVEEDOR ASOCIADO vira OUTRO FABRICANTE (e não vão no descritivo)
+    if (!valido(marca)) { marca = 'OUTRA MARCA'; bn = null; BD = null; }
+    if (!valido(fab)) fab = 'OUTRO FABRICANTE';
+    if (!farma && a.cat === OUT && marca !== 'OUTRA MARCA' && T.some(sinalFarma) && ehLab(marca)) { marca = 'OUTRA MARCA'; bn = null; BD = null; } // remédio sem categoria: laboratório não é marca
+    let sigla = '', generico = false;
+    if (farma) { // Farmácia: laboratório não é marca (TEUTO, EMS, CIMED); sigla do laboratório
+      const supl = !!it.vit || a.cat === 'VITAMINA OUTRO' || a.cat === 'MULTIVITAMINICO'; // suplemento com marca = nome do fabricante (FITOPLANT) é marca
+      if (marca !== 'OUTRA MARCA' && !supl && ehLab(marca)) {
+        const pa = (C.pa ? T.map(t => matchPA(t, C.pa)).find(Boolean) : null) || T.map(t => matchPB(t, C)).find(Boolean) || null;
+        alerts0.push(`Marca ${marca} é laboratório: usado ${pa ? 'o princípio ativo' : 'OUTRA MARCA'}`);
+        marca = pa ? paIni(pa, T) : 'OUTRA MARCA'; bn = marca === 'OUTRA MARCA' ? null : marca; BD = null;
+      }
+      sigla = siglaDe(T, fab, BD && bn && BD.map.get(bn) ? BD.map.get(bn).canon : (it.vit && it.vit.m ? it.vit.m.marca : (marcaArq ? marca : '')), it.D);
+      marca = semSigla(marca, sigla, fab); if (sigla && N(marca).endsWith(' ' + sigla)) marca = marca.slice(0, -(sigla.length + 1)).trim(); // PANTOVIN PAN -> PANTOVIN
+      generico = marca !== 'OUTRA MARCA' && N(marca).split(' ').every(w => CONNECT.has(w) || palavrasPA([N(marca)], C).has(w));
+      if (!sigla && fab !== 'OUTRO FABRICANTE') alerts0.push(`Sem sigla para o laboratório ${fab} (incluir no dicionário de siglas)`);
+    }
     const Tq = T.map(textoQtd);
     const soUN = vendidoPorUnidade(cc, T, C);
     let q = itemQty(Tq, it.sugQt);
@@ -1601,7 +1657,7 @@ async function runAll(opts = {}) {
     const ini = farmaLivre ? (bn ? '' : nounOutra(T, bn))
       : (cc && cc.dinamico) ? (tipoIni(T, a.per, a.cat, C) || nounOutra(T, bn)) : a.cat === OUT ? nounOutra(T, bn) : (cc.inicio || cc.nome);
     const keepT = T.filter((t, j) => a.per[j] === a.cat); const T2 = keepT.length ? keepT : T;
-    const brandTxt = bn ? cleanD(marca) : '';
+    const brandTxt = bn && valido(marca) ? cleanD(marca) : '';
     let comp = complement(T2, a.cat, ini, bn || '', groupOf(a.cat), cc);
     if (it.vit) { // sem palavra repetida (A Z A Z, POLIVITAMINICO POLIVITAM) nem conector sobrando no fim (MDK COM)
       const w = vitDec(complement(T2.map(vitTok), a.cat, ini, bn || '', groupOf(a.cat), cc)).split(' ').filter(x => x && !VIT_NAO.has(x));
@@ -1613,7 +1669,8 @@ async function runAll(opts = {}) {
     let qTxt = qtyText(q), dose = '';
     if (farma) { // Farmácia: sem laboratório no descritivo; dosagem (500MG) e a forma como unidade (10CPRS)
       const lab = labAchado(T2), fu = q.base === 'UN' && q.n === 1 ? formaUn(T2) : null;
-      comp = comp.split(' ').filter(w => !(lab && lab.termo.split(' ').includes(w)) && !(fu && fu[2].test(w)) && !/^\.*(MG|MCG|UG|UI|ML|G|DIA|GEN)$/.test(w) && !/^(CT|BL|AL|PLAS|PLAST|OPC|TRANS|INC|AMB|VD|X|STRIP|STR|CX|EMB|PVC|PVDC|PE|PP|PCTFE|PEAD|PEBD|CALEND|MOLE|DURA|SER|AGU|DIL|PREENC|FA|FAMP|CGT|BG|TB|ENV|DES|ACOMP|APLIC|COPO|MED|DOS|SIST|FRAC)$/.test(w)).join(' ');
+      const fw = new Set(N(fab).split(' ').filter(x => !LAB_LIXO.has(x) && x.length >= 3)); // nenhum laboratório no descritivo
+      comp = comp.split(' ').filter(w => !(lab && lab.termo.split(' ').includes(w)) && !fw.has(w) && !palavraLab(w) && !(fu && fu[2].test(w)) && !/^\.*(MG|MCG|UG|UI|ML|G|DIA|GEN)$/.test(w) && !/^(CT|BL|AL|PLAS|PLAST|OPC|TRANS|INC|AMB|VD|X|STRIP|STR|CX|EMB|PVC|PVDC|PE|PP|PCTFE|PEAD|PEBD|CALEND|MOLE|DURA|SER|AGU|DIL|PREENC|FA|FAMP|CGT|BG|TB|ENV|DES|ACOMP|APLIC|COPO|MED|DOS|SIST|FRAC)$/.test(w)).join(' ');
  // genérico: o sal não entra no descritivo (SERTRALINA, não SERTRALINA CLORIDRATO DE)
       if (bn && N(marca) === N(bn) && palavrasPA([N(marca)], C).size) { const w = comp.split(' ').filter(x => !SAIS_DCB.has(x)); while (w.length && CONNECT.has(w[0])) w.shift(); while (w.length && CONNECT.has(w[w.length - 1])) w.pop(); comp = w.join(' '); }
       if (fu) qTxt = fmtn(q.tot) + fu[1];
@@ -1621,7 +1678,15 @@ async function runAll(opts = {}) {
       dose = dosagemRaw(D2.length ? D2 : it.D) || dosagem(T2);
     }
     // o descritivo é sempre padronizado pelo app (já com a categoria, marca e conteúdo mantidos do arquivo)
-    const desc = cleanD([ini, brandTxt, comp].filter(Boolean).join(' ')) + (dose ? ' ' + dose : '') + (qTxt ? ' ' + qTxt : '');
+    // no máximo 60 caracteres com espaços: sai palavra do complemento (do fim) antes de mexer em marca, dose, quantidade e sigla
+    const cauda = (dose ? ' ' + dose : '') + (qTxt ? ' ' + qTxt : '') + (sigla ? ` (${sigla})` : '');
+    let cw = cleanD(comp).split(' ').filter(Boolean); const cab = cleanD([ini, brandTxt].filter(Boolean).join(' '));
+    const monta = () => cleanD([cab, cw.join(' ')].filter(Boolean).join(' '));
+    while (cw.length && monta().length + cauda.length > DESC_MAX) cw.pop();
+    while (cw.length && CONNECT.has(cw[cw.length - 1])) cw.pop();
+    let desc = monta() + cauda;
+    if (desc.length > DESC_MAX) desc = (monta().slice(0, Math.max(0, DESC_MAX - cauda.length)).replace(/\s+\S*$/, '') + cauda).trim();
+    if (farma && generico && sigla) marca = `${marca} ${sigla}`; // genérico: marca com a sigla do laboratório (NIMESULIDA GER)
     const alerts = [...alerts0];
     { const F0 = matchFM(T, C.fm); if (F0 && F0.cat === a.cat) alerts.push('Categoria pela marca ' + F0.nome + (F0.ncat > 1 ? ` (marca em ${F0.ncat} categorias; usada a de maior venda)` : ''));
       const C0 = !(F0 && F0.cat === a.cat) && C.pa && T.map(t => matchPA(t, C.pa)).find(p => p && p.cat === a.cat);

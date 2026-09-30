@@ -300,3 +300,22 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   regra de nutrientes decide, 81% igual à base (as 661 diferenças são, na amostra, a base fora da regra); conteúdo
   83% → 90%.
 
+### 3.5j Padrão de marca, fabricante e descritivo (regras do cliente)
+- POR DEFECTO nunca é marca (vira OUTRA MARCA) e SIN PROVEEDOR ASOCIADO nunca é fabricante (vira OUTRO FABRICANTE),
+  em qualquer cesta; nenhum dos dois vai no descritivo (`valido()`/`RX_INVALIDO` + trava antes do descritivo).
+- Arquivo no formato "Detalhe" (Scanntech): a marca vem da coluna **Marca** (não de "Algoritmo Marca Propia", que tem
+  NAO E MARCA PROPRIA), o conteúdo de **Contenido** (não CODIGO_BARRAS_CONTENIDO), a categoria de **Est Mer 7
+  Descripcion** (não CATEGORIA_PRED); TOP_DESCRIPCION e MAX_DESCRIPCION entram como descrições das lojas.
+- Descritivo com no máximo 60 caracteres (com espaços): sai palavra do complemento, nunca marca/dose/quantidade/sigla.
+- Formas: CPRS comprimido (e drágea), CPS cápsula, ML, UN.
+- Sigla do laboratório (3 letras) no fim de todo descritivo de Farmácia: `NIMESULIDA 100MG 12CPRS (GER)`.
+  Dicionário: `python3 siglas.py` → `farmaSiglas` (siglas das marcas da DIMA "NIMESULIDA GER"/"DORFLEX (OPE)", dos
+  códigos da base Hoja e da base de vitaminas, sem duplicar) + `dados/farma_siglas_laboratorios.xlsx` para revisar
+  (as GERADAS são de laboratório que não tinha sigla em nenhuma base). Ordem da sigla no item: "(XXX)" já escrito na
+  descrição → código/nome do laboratório na descrição (GERMED → GER, mesmo com fabricante EMS PHARMA) → código da
+  marca na DIMA → sigla padrão do fabricante.
+- Genérico: marca = princípio ativo + sigla (NIMESULIDA GER, OMEPRAZOL TEU), como a base Hoja escreve.
+- Laboratório não é marca nem aparece no descritivo (TEUTO, EMS, CIMED, SANOFI...): marca vira o princípio ativo ou
+  OUTRA MARCA; em suplemento a marca com nome do fabricante vale (NATURALHELF, FITOPLANT).
+- Quantidade no padrão Anvisa (CT BL ... X 30 no fim) ganha de número colado na marca (D 3CAPS ... X 8 = 8CPS).
+

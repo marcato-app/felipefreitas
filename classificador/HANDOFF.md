@@ -249,3 +249,10 @@ Pontos pra checar, em ordem:
 - Ordem: dima.py → farma_pa.py → nomes_oficiais.py → farma_marcas.py → farma_dima.py → vitaminas.py → (cmed.py) → build.py.
 - Testes: `testes_farma/rodar_vit.js` + `comparar_vit.py` (erros em `vitaminas_erros.txt`), `planilha_vit.py`.
 
+## Siglas, marca e descritivo (Farmácia)
+
+- `siglas.py` (depois de dima.py, farma_marcas.py e vitaminas.py) → `farmaSiglas` + `dados/farma_siglas_laboratorios.xlsx`.
+- No app: `siglaDe`, `semSigla`, `ehLab`, `palavraLab`, `DESC_MAX` (60); bloco "Farmácia: laboratório não é marca" logo
+  antes da quantidade no `runAll`; `RX_INVALIDO` (POR DEFECTO, SIN PROVEEDOR ASOCIADO, MARCA PROPRIA).
+- Ordem: dima.py → farma_pa.py → nomes_oficiais.py → farma_marcas.py → farma_dima.py → vitaminas.py → siglas.py → (cmed.py) → build.py.
+

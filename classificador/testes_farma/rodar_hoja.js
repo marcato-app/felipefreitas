@@ -1,5 +1,5 @@
 // Confere marca/fabricante de Farmácia contra dados/farma_marcas_fabricantes.tsv (Hoja 1 46, marca x fabricante).
-// Genérico (nome com princípio ativo): marca = princípio ativo, fabricante = laboratório; senão: marca = nome comercial.
+// Genérico (nome com princípio ativo): marca = princípio ativo + sigla do laboratório, fabricante = laboratório; senão: marca = nome comercial.
 // Uso: NODE_PATH=$(npm root -g) node testes_farma/rodar_hoja.js
 const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path');
@@ -22,8 +22,11 @@ const exp = fs.readFileSync(path.join(__dirname, 'hoja_marcas_esperado.tsv'), 'u
   const n = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim();
   let okM = 0, okF = 0, farma = 0; const erros = [];
   for (const x of r) {
-    const marcaEsp = x.generico ? x.pa : x.base;
-    const mOk = n(x.marca) === n(marcaEsp), fOk = n(x.fabR) === n(x.fab) || /OUTRO FABRICANTE|SIN PROVEEDOR/.test(x.fab);
+    // genérico: princípio ativo + sigla do laboratório, como a base escreve (ESOMEPRAZOL GER)
+    const sig = (/\s([A-Z0-9]{3})$/.exec(String(x.mar).replace(/[()]/g, '').trim()) || [])[1];
+    const marcaEsp = x.generico ? (sig ? `${x.pa} ${sig}` : x.pa) : x.base;
+    const semCod = String(x.base).replace(/\s*\([A-Z0-9 ]{0,5}\)\s*$/, '');
+    const mOk = [marcaEsp, semCod, sig ? `${semCod} ${sig}` : ''].some(e => e && n(x.marca) === n(e)), fOk = n(x.fabR) === n(x.fab) || /OUTRO FABRICANTE|SIN PROVEEDOR/.test(x.fab);
     okM += mOk; okF += fOk; farma += x.cesta === 'FARMACIA';
     if (!mOk || !fOk || x.cesta !== 'FARMACIA') erros.push(`${x.generico ? 'GEN' : 'COM'} ${x.mar.padEnd(28)} | marca ${String(x.marca).padEnd(22)} (esp. ${marcaEsp}) | fab ${String(x.fabR).padEnd(22)} (esp. ${x.fab}) | ${x.cat} | ${x.desc}`);
   }
