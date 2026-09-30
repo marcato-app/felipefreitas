@@ -162,3 +162,13 @@ Pontos pra checar, em ordem:
 ## Farmácia: agente próprio
 
 - A partir de 2026-09-25 a Farmácia é tratada por um agente separado (pacote em `farma_pacote/` / `farma_pacote.zip`). Neste fluxo o app continua com a lógica de Farmácia como está, mas **não se mexe mais nela aqui**; mudanças de Farmácia vêm do outro agente.
+
+## Descritivo com no máximo 60 caracteres
+
+- `DESC_MAX = 60`. Início (tipo/categoria), marca e conteúdo são **obrigatórios** e nunca são cortados.
+- Só o complemento (o que fica entre a marca e o conteúdo) se ajusta, nesta ordem: (1) abrevia palavras pela tabela `ABREV` (SORTIDO→SORT, PLASTICO→PLAST, AUTOMATICA→AUTOM, BLISTER→BLIS, POLIETILENO→POLIET, BIVOLT→BIV, PRETO→PTO…), da última para a primeira, só até caber; (2) se ainda passar, tira palavras do fim do complemento (alerta "Descritivo encurtado…"); (3) se só o obrigatório já passar, abrevia o início pela mesma tabela e, se nem assim couber, mantém tudo e alerta "revisar".
+- Testes: papelaria 38 e material 9 descritivos ficaram mais completos que no corte simples; nenhum passa de 60; categoria, marca, fabricante e conteúdo sem mudança; Farmácia idêntica a `farma_pacote/testes/resultados_esperados.txt`.
+
+## Opção "Sempre usar os dados do arquivo"
+
+- Checkbox `#sempreArq` (`cfg.sempreArquivo`), liga junto o "Priorizar os dados do arquivo". Categoria, marca, fabricante e conteúdo do arquivo são mantidos mesmo fora do comum; o app só avisa com "Arquivo (mantido): …" (categoria que não bate, marca que não aparece na descrição, fabricante que não é da marca na base, conteúdo muito diferente/objeto com peso/número > 1000) e completa apenas o que vier vazio. O descritivo continua sempre padronizado.
