@@ -1139,7 +1139,9 @@ function ciFlag(barcode) {
   return 'Sem indícios de CI';
 }
 // nome oficial da categoria (EST MER 7/6 com o código, ex.: "A02B1 ANTAGONISTAS H2"); o interno perdeu o código
-const nomeOf = cat => { const c = cfg.categorias.find(x => x.nome === cat); return (c && c.nomeOficial) || (K.nomesOficiais || {})[cat] || cat; };
+let nomeCache = null; // nome da categoria -> nome oficial (recriado a cada classificação/exportação)
+const nomeOf = cat => { if (!nomeCache) { nomeCache = new Map(); for (const c of cfg.categorias) if (!nomeCache.has(c.nome)) nomeCache.set(c.nome, c.nomeOficial || ''); }
+  return nomeCache.get(cat) || (K.nomesOficiais || {})[cat] || cat; };
 // coluna CATEGORIA do arquivo: aceita o nome oficial (com ou sem código) ou o interno
 function catInterna(v) {
   const raw = String(v || '').trim(); if (!raw) return raw;
@@ -1148,6 +1150,7 @@ function catInterna(v) {
   const n = N(raw); return data.catAlias.get(n) || data.catAlias.get(n.replace(/^[A-Z]\d{2}[A-Z]?\d?\s+/, '')) || raw;
 }
 function buildWorkbook() {
+  nomeCache = null;
   const R = data.results; const wb = XLSX.utils.book_new();
   const num = v => (v === null || v === undefined || isNaN(v)) ? null : (Math.abs(v - Math.round(v)) < 1e-9 ? Math.round(v) : v);
   const bc = v => { const s = String(v).trim(); return /^\d{1,15}$/.test(s) ? Number(s) : s; };
@@ -1243,6 +1246,7 @@ function renderCats() {
 
 /* ------------------------------------------------------------------ UI: results */
 function renderResults() {
+  nomeCache = null;
   const R = data.results; $('#results').classList.remove('hidden');
   const nOut = R.filter(r => r.cat === OUT).length, nOM = R.filter(r => r.marca === 'OUTRA MARCA').length, nQ = R.filter(r => r.qt === null).length, nA = R.filter(r => r.pri === 1).length;
   const k = (v, t) => el('div', { class: 'kpi' }, el('b', {}, v.toLocaleString('pt-BR')), el('span', {}, t));
