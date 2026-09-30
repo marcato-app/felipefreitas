@@ -992,7 +992,13 @@ async function runAll() {
   const C = compile(); autoSegments(); const res = []; const items = data.items; const t0 = performance.now();
   const byName = new Map(cfg.categorias.map(c => [c.nome, c]));
   $('#runState').textContent = 'Classificando categorias…'; await new Promise(r => setTimeout(r, 0));
-  const AGG = items.map(it => categoriaArquivo(it, aggregate(it.T, it.sugCat, C, it.main), byName));
+  // em blocos, para a tela não travar em backlogs grandes (200 mil itens ou mais)
+  const AGG = new Array(items.length);
+  for (let i = 0; i < items.length; i++) {
+    const it = items[i]; AGG[i] = categoriaArquivo(it, aggregate(it.T, it.sugCat, C, it.main), byName);
+    if (i % 1000 === 0) { $('#prog').style.width = (50 * i / items.length).toFixed(1) + '%'; $('#runState').textContent = `Classificando categorias: ${i.toLocaleString('pt-BR')} de ${items.length.toLocaleString('pt-BR')}…`; await new Promise(r => setTimeout(r, 0)); }
+  }
+  $('#runState').textContent = 'Aprendendo as EST MER 6 do backlog…'; await new Promise(r => setTimeout(r, 0));
   const segOf = segmentosEstMer6(AGG, items, byName, C);
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
@@ -1107,7 +1113,7 @@ async function runAll() {
     else if (q.flag === 'QTD_DIV') alerts.push('Quantidades diferentes entre descrições');
     const pri = alerts.some(x => /^(Nenhuma|Descrições|Sem evidência|Arquivo: categoria)/.test(x)) ? 1 : alerts.some(x => !x.startsWith('Categoria pelo princípio ativo') || /\((base pede validação|destino corrigido em relação à base)\)$/.test(x)) ? 2 : 0;
     res.push({ it, cat: a.cat, marca, fab, qt: q.tot, qbase: q.base, desc, alerts, pri });
-    if (i % 250 === 0) { $('#prog').style.width = (100 * i / items.length).toFixed(1) + '%'; $('#runState').textContent = `Classificando ${i.toLocaleString('pt-BR')} de ${items.length.toLocaleString('pt-BR')}…`; await new Promise(r => setTimeout(r, 0)); }
+    if (i % 250 === 0) { $('#prog').style.width = (50 + 50 * i / items.length).toFixed(1) + '%'; $('#runState').textContent = `Marca, conteúdo e descritivo: ${i.toLocaleString('pt-BR')} de ${items.length.toLocaleString('pt-BR')}…`; await new Promise(r => setTimeout(r, 0)); }
   }
   $('#prog').style.width = '100%';
   // conteúdo em peso/volume muito fora do típico da categoria (>20x ou <1/20 da mediana): só avisa, não troca
