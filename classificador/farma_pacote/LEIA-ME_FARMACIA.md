@@ -374,3 +374,13 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   não existe nas bases do cliente (Hoja, DIMA, VITAMINA E MINERAL); `SEM FABRICANTE` quando um item de Farmácia não tem
   fabricante identificado (e por isso fica sem sigla). Itens com STATUS também entram na aba REVISAO.
 
+### 3.5n Duas validações para vitamina/mineral (ADDERA D3 x ADDERA CALCIO)
+- Categoria pela marca da base Hoja (ADDERA = A12A CALCIO) x produto mais específico da CMED na descrição (ADDERA D3 =
+  A11C2): as duas passam pela **2ª validação dos nutrientes escritos** (`bateNutrientes`): o nutriente da categoria
+  tem de estar na descrição e categoria "PURA" não aceita outro nutriente junto. D3 sozinho -> VITAMINA D PURA;
+  CALCIO + D3 -> CALCIO; sem nutriente escrito (ADDERA 1000UI) fica a da marca.
+- Remédio registrado (não vira VITAMINA OUTRO): código de barras na CMED, marca da CMED (mesmo com "SUPL ALIM" no
+  texto) ou marca que a Hoja põe em categoria ATC **e** que existe como produto na CMED (ADDERA sim; SIDNEY OLIVEIRA,
+  LAVITAN não). Marca da Hoja/DIMA vence o nome longo da CMED (ADDERA MAN, não ADDERA D3 MAN).
+- Teste: `testes_farma/addera_validacao.csv`.
+

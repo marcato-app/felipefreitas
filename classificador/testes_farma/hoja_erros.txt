@@ -105,7 +105,7 @@ COM FITO                         | marca FITO                   (esp. FITO) | fa
 COM NEXTER INR                   | marca NEXTER INR             (esp. NEXTER) | fab ASSIFARMA              (esp. INTERCRON) | A07G REPOSITORES ELECTROLITICOS ORAIS | NEXTER 10MG 30CPRS (INR)
 COM DIMED DIM                    | marca OUTRA MARCA            (esp. DIMED) | fab DIMED                  (esp. DIMED) | OUTRA CATEGORIA | DIMED COMPOSTO DIM 30UN
 COM FORTLIFE                     | marca OUTRA MARCA            (esp. FORTLIFE) | fab FORTLIFE               (esp. FORTLIFE) | OUTRA CATEGORIA | FORTLIFE COMPOSTO 30UN
-COM FONT B12                     | marca FONT B12               (esp. FONT) | fab FONTANA S.A.           (esp. BIONATUS) | VITAMINA OUTRO | SUPL ALIM FONT B12 10MG 30CPRS (B12)
+COM FONT B12                     | marca FONT B12               (esp. FONT) | fab FONTANA S.A.           (esp. BIONATUS) | A11F VITAMINAS B12 PURA | FONT B12 10MG 30CPRS (B12)
 COM VITAFOR                      | marca OUTRA MARCA            (esp. VITAFOR) | fab VITAFOR                (esp. VITAFOR) | OUTRA CATEGORIA | VITAFOR COMPOSTO 30UN
 COM CALCIOVITAL D3               | marca CALCIOVITAL NAT        (esp. CALCIOVITAL) | fab NATULAB                (esp. NATURELIFE) | VITAMINA OUTRO | SUPL ALIM CALCIOVITAL D3 10MG 30CPRS (NAT)
 COM VITA PREMIUM                 | marca VITA VPR               (esp. VITA PREMIUM) | fab VITA PREMIUM           (esp. A2F LABORATORIO) | A12C2 OUTROS SUPLEMENTOS MINERAIS | VITA 10MG 30CPRS (VPR)

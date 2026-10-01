@@ -749,11 +749,23 @@ const semCodLab = (m, T) => String(m).replace(/\s*\([A-Z0-9 ]{0,5}\)\s*$/, '').r
 const RX_MULTI = /(?<![A-Z0-9])(A ?Z|POLIVITAMINICOS?|MULTIVITAMINICOS?|MULTIVITAMINAS|POLIVITAMINAS|POLIVIT|MULTIVIT|MULTI VITAMINICO|POLI VITAMINICO)(?![A-Z0-9])/;
 // vitaminas e minerais diferentes escritos nas descrições (VITAMINA D3 = D, B12, ZINCO, CALCIO...): cada um conta uma vez
 const NUTRI_W = { CALCIO: 'CA', CALCIUM: 'CA', MAGNESIO: 'MG', MAGNESIUM: 'MG', ZINCO: 'ZN', ZINC: 'ZN', SELENIO: 'SE', FERRO: 'FE',
-  CROMO: 'CR', POTASSIO: 'KP', IODO: 'I', COBRE: 'CU', MANGANES: 'MN', FOSFORO: 'P', BORO: 'BO', SILICIO: 'SI', BIOTINA: 'B7',
+  CAL: 'CA', CROMO: 'CR', POTASSIO: 'KP', IODO: 'I', COBRE: 'CU', MANGANES: 'MN', FOSFORO: 'P', BORO: 'BO', SILICIO: 'SI', BIOTINA: 'B7',
   NIACINA: 'B3', NICOTINAMIDA: 'B3', RIBOFLAVINA: 'B2', TIAMINA: 'B1', PIRIDOXINA: 'B6', CIANOCOBALAMINA: 'B12',
   METILCOBALAMINA: 'B12', COBALAMINA: 'B12', FOLICO: 'B9', FOLATO: 'B9', METILFOLATO: 'B9', COLECALCIFEROL: 'D',
   MENAQUINONA: 'K', RETINOL: 'A', TOCOFEROL: 'E', ASCORBICO: 'C' };
 const nutKey = x => /^[DK]\d*$/.test(x) ? x[0] : x === 'MK7' ? 'K' : x;
+// 2ª validação da categoria de vitamina/mineral: o nutriente da categoria tem de estar escrito, e categoria "PURA"
+// não aceita outro nutriente junto (ADDERA CALCIO + D3 não é VITAMINA D PURA)
+const CAT_NUTRI = [[/VITAMINA D|COLECALCIFEROL/, 'D'], [/VITAMINA C/, 'C'], [/B12/, 'B12'], [/VITAMINA A(?![A-Z])/, 'A'], [/VITAMINA B1(?!\d)/, 'B1'],
+  [/B6/, 'B6'], [/COMPLEXO B/, 'B'], [/VITAMINA E(?![A-Z])/, 'E'], [/VITAMINA K/, 'K'], [/CALCIO/, 'CA'], [/MAGNESIO/, 'MG'], [/FERRO/, 'FE']];
+function bateNutrientes(cat, T) {
+  const nut = nutrientes(T); if (!nut.size) return true; // sem nutriente escrito: não dá para validar
+  const n = N(nomeOf(cat)), k = (CAT_NUTRI.find(([rx]) => rx.test(n)) || [])[1];
+  if (!k) return true;
+  if (!nut.has(k)) return false;
+  if (/(?<![A-Z])PUR[AO]S?(?![A-Z])/.test(n) && nut.size > 1) return false;
+  return true;
+}
 function nutrientes(T) {
   const k = new Set();
   for (const t of T) {
@@ -767,8 +779,15 @@ function nutrientes(T) {
   return k;
 }
 // nome de remédio registrado que é marca (CITONEURIN, DEPURA, CALTRATE), não substância ou nutriente (VITAMINA C, COLECALCIFEROL)
-const regMarca = (g, C) => !!g && !!g.nome && !/(?<![A-Z])(VITAMINAS?|VIT|OMEGA|COMPLEXO|POLIVITAMINICO|MULTIVITAMINICO)(?![A-Z])/.test(g.nome)
+const regMarca = (g, C) => !!g && !!g.nome && !/(?<![A-Z])(VITAMINAS?|VIT|OMEGA|COMPLEXO|POLIVITAMINICO|MULTIVITAMINICO|DE|DA|DO|DAS|DOS|AMORA|MIURA|CASTANHA|GINKGO|ALCACHOFRA|MACA|CENTELLA|CAVALINHA|SPIRULINA|CHA|GUARANA|GENGIBRE|CURCUMA|PROPOLIS|BOLDO|HIBISCO|CHLORELLA|SENE|FENO)(?![A-Z])/.test(g.nome) // planta (CASTANHA DA INDIA, AMORA MIURA) não é marca
   && !g.nome.split(' ').some(w => NUTRI_W[w]) && !farmaNaoMarca(g.nome, C, new Set());
+// marca que a base de marcas de Farmácia do cliente (Hoja) põe numa categoria de remédio (ATC): ADDERA -> A12A CALCIO
+// - e também produto da lista CMED (2ª validação): marca de suplemento que a Hoja pôs em ATC (SIDNEY OLIVEIRA) não conta
+let CMED_MARCAS = null;
+const marcaCmed = nome => { if (!data.cmedProd) return false;
+  if (!CMED_MARCAS) { CMED_MARCAS = new Set(); for (const k of data.cmedProd.keys()) { const w = N(k).split(' '); for (let i = 1; i <= Math.min(3, w.length); i++) CMED_MARCAS.add(w.slice(0, i).join(' ')); } }
+  return CMED_MARCAS.has(N(nome)); };
+const hojaAtc = (T, C) => { const f = matchFM(T, C.fm); return !!(f && f.cat && /^[A-Z]\d\d[A-Z]/.test(nomeOf(f.cat)) && regMarca({ nome: f.nome }, C) && marcaCmed(f.nome)); };
 const catVitAtc = nome => /^A1[123][A-Z]/.test(nomeOf(nome)) || nome === 'VITAMINA OUTRO' || nome === 'MULTIVITAMINICO';
 // devolve { m: marca da base (ou null), cat: VITAMINA OUTRO | MULTIVITAMINICO } quando o item é suplemento de vitamina/mineral
 function vitDe(T, cat, farma, C) {
@@ -889,7 +908,13 @@ function classifyDesc(t, C) {
   // categoria de outra cesta que bateu pelas regras (shampoo com cetoconazol, bicarbonato culinário) continua valendo
   // marca comercial da base de Farmácia do cliente (EST MER 7 da marca) vem antes do princípio ativo
   if (!r || C.cesta.get(r) === 'FARMACIA' || (C.cesta.get(r) === 'PET' && !RX_PET.test(t))) {
-    const f = matchFM([t], C.fm); if (f && f.cat) return f.cat;
+    const f = matchFM([t], C.fm);
+    if (f && f.cat) { // produto da CMED mais específico da mesma marca (ADDERA D3) contra a categoria da marca (ADDERA = cálcio):
+      // as duas passam pela 2ª validação, os nutrientes escritos (D3 sozinho -> VITAMINA D PURA; CALCIO + D3 -> CALCIO)
+      const g = matchFC(t, C), cands = [];
+      if (g && g.cat && g.nome !== f.nome && g.nome.startsWith(f.nome + ' ')) cands.push(g.cat);
+      cands.push(f.cat);
+      return cands.find(c => bateNutrientes(c, [t])) || f.cat; }
     if (C.pa) { const p = matchPA(t, C.pa); if (p) return p.cat; }
     const g = C.cesta.get(r) !== 'FARMACIA' && (matchFC(t, C) || matchPB(t, C) || matchFD(t, C) || matchFR(t, C) || matchFS(t, C)); if (g) return g.cat; } // CMED (classe oficial) antes da DIMA // DIMA: só completa o que base do cliente, dicionário e regras do manual não sabem
   else {
@@ -1612,7 +1637,7 @@ async function runAll(opts = {}) {
     if (a.arqCat && !catVitAtc(a.cat)) return; // categoria do arquivo (DERMOCOSMETICO SOLAR) não vira suplemento
     // remédio registrado (código de barras na lista CMED, ou marca da lista CMED sem sinal de suplemento) fica na categoria
     // de remédio (A11/A12...); nome só no registro da Anvisa não basta (fitoterápico vendido como suplemento: CASTANHA DA INDIA)
-    if (cc && a.cat !== 'VITAMINA OUTRO' && a.cat !== 'MULTIVITAMINICO' && (it.cmed || (!TT.some(t => RX_SUPL.test(t)) && TT.some(t => regMarca(matchFC(t, C), C))))) { it.vitReg = true; return; }
+    if (cc && a.cat !== 'VITAMINA OUTRO' && a.cat !== 'MULTIVITAMINICO' && (it.cmed || TT.some(t => regMarca(matchFC(t, C), C)) || hojaAtc(TT, C))) { it.vitReg = true; return; } // ADDERA com "SUPL ALIM" no texto continua remédio
     const v = vitDe(TT, a.cat, !!cc || outraCesta, C); if (!v) return; it.vit = v;
     if (v.cat !== a.cat) AGG[i] = Object.assign({}, a, { cat: v.cat, vitTrocou: a.cat }); });
   // OUTRA CATEGORIA: 1º a categoria da marca na DIMA (PEDIGREE -> Pet), quando a marca é de uma categoria só (70%+);
@@ -1706,7 +1731,8 @@ async function runAll(opts = {}) {
     }
     if (farma && it.cmed && !marcaArq && !/GENERIC/.test(N(it.cmed.tipo))) { // produto de marca na CMED: o nome completo (DTN-FOL, não DTN)
       const pn = N(it.cmed.produto);
-      if (pn && !farmaNaoMarca(pn, C, palavrasPA(T, C)) && (!bn || marca === 'OUTRA MARCA' || (pn !== N(bn) && pn.startsWith(N(bn) + ' ')))) { bn = pn; marca = pn; BD = null; }
+      const conhecida = bn && ((K.farmaSiglas || {}).marcas || {})[N(bn)] || (bn && data.dima && data.dima.map.has(N(bn))); // ADDERA (Hoja/DIMA) vence ADDERA D3 (CMED)
+      if (pn && !farmaNaoMarca(pn, C, palavrasPA(T, C)) && (!bn || marca === 'OUTRA MARCA' || (!conhecida && pn !== N(bn) && pn.startsWith(N(bn) + ' ')))) { bn = pn; marca = pn; BD = null; }
     }
     if (farma && !(it.vit && it.vit.m && it.vit.m.fab && !marcaArq)) { // fabricante = laboratório da descrição; sem ele, o laboratório da CMED
       const lab = labDaDescricao(T) || (it.cmed && it.cmed.lab ? (labDaDescricao([N(it.cmed.lab)]) || N(it.cmed.lab).replace(/\b(LTDA|S A|SA|EIRELI|ME|INDUSTRIA|COMERCIO|IND|COM)\b/g, ' ').replace(/\s+/g, ' ').trim()) : null);
