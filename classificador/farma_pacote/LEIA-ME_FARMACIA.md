@@ -389,14 +389,23 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
 
 ### 3.5o Fabricante com nome único (sem CIMED A / CIMED B)
 - `siglas.py` monta `farmaFabs` = {chave: nome}: a chave é o nome sem razão social (LTDA, IND, COM, LABORATORIO, FARMACEUTICA,
-  GRUPO, IMPORTACAO, MEDICAMENTOS...). O nome escolhido é o mais usado nas bases do cliente (Hoja pesa mais, depois
-  VITAMINA E MINERAL e DIMA de Farmácia). Ex.: SANOFI FARMACEUTICA LTDA -> SANOFI FARMACEUTICA, LABORATORIO GROSS -> GROSS,
-  PANVEL -> GRUPO PANVEL.
-- Nome curto que é o começo de um só nome mais completo, e bem mais usado, também junta: FORHEALTH -> FORHEALTH NUTRICIONAL.
-  UNIAO, VITA e APIS não juntam, porque vários nomes começam assim.
+  GRUPO, IMPORTACAO, MEDICAMENTOS...).
+- Prioridade da grafia:
+  1. DIMA (mais confiável);
+  2. base Hoja (tem erros de digitação);
+  3. base VITAMINA E MINERAL.
+  Dentro da mesma base, vale a grafia mais usada. Ex.: SANOFI FARMACEUTICA LTDA -> SANOFI FARMACEUTICA,
+  LABORATORIO GROSS -> GROSS, PANVEL -> GRUPO PANVEL.
+- Erro de digitação da Hoja ou das vitaminas (uma letra ou um espaço a mais ou a menos que um nome da DIMA) vira o nome da DIMA:
+  FLORA VIDA -> FLORAVIDA, NATURALGREEN -> NATURAL GREEN, NAT USER -> NATUSER.
+  Letra trocada não conta (VILLAGE x SILLAGE são outros fabricantes).
+- Nome curto que é o começo de um nome mais completo que domina (80% dos usos) também junta:
+  UNIAO -> UNIAO QUIMICA, FORHEALTH -> FORHEALTH NUTRICIONAL.
+  VITA, APIS e DOCTOR (REDDYS, BERGER, DAY) não juntam, porque nenhum domina.
 - No app, `canonFab()` passa todo fabricante de Farmácia (do arquivo, da DIMA, da CMED, do código de barras) por esse mapa:
   - o nome da CMED com razão social cai no nome cadastrado (FARMA VISION IMPORTACAO E EXPORTACAO DE MEDICAMENTOS -> FARMA VISION);
-  - apelido: GLAXOSMITHKLINE -> GSK.
+  - apelido: GLAXOSMITHKLINE -> GSK;
+  - uma letra a mais ou a menos: o nome que já existe, se for um só.
 - Teste com 5 arquivos (DIMA, Hoja, final, 88 itens de balcão, lojas):
   - antes, 505 fabricantes na saída, 5 fora das bases;
   - depois, 498 fabricantes, 2 fora das bases (SPECIALTY GOIAS e ANTIBIOTICOS: STATUS CRIAR FABRICANTE).

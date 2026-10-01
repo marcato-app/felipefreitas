@@ -163,7 +163,7 @@ COM FORT VITAN                   | marca FORT VITAN SNC         (esp. FORT VITAN
 COM ALQUIMIA                     | marca ALQUIMIA               (esp. ALQUIMIA) | fab ALQUIMIA               (esp. ALQUIMIA) | OUTRA CATEGORIA | COMP ALQUIMIA COMPOSTO 30UN
 COM TROPICAL                     | marca OUTRA MARCA            (esp. TROPICAL) | fab OUTRO FABRICANTE       (esp. TROPICAL CONDIMENTOS) | OUTRA CATEGORIA | TROPICAL COMPOSTO 30UN
 COM CONLIFE FAC                  | marca OUTRA MARCA            (esp. CONLIFE) | fab FARMA CONDE            (esp. FARMA CONDE) | OUTRA CATEGORIA | CONLIFE COMPOSTO FAC 30UN
-COM UNIAO VEGETAL                | marca UNIAO UVG              (esp. UNIAO VEGETAL) | fab UNIAO                  (esp. UNIAO VEGETAL) | VITAMINA OUTRO | SUPL ALIM UNIAO 10MG 30CPRS (UVG)
+COM UNIAO VEGETAL                | marca UNIAO UVG              (esp. UNIAO VEGETAL) | fab UNIAO QUIMICA          (esp. UNIAO VEGETAL) | VITAMINA OUTRO | SUPL ALIM UNIAO 10MG 30CPRS (UVG)
 COM FAUNA E FLORA                | marca FAUNA E FLORA          (esp. FAUNA E FLORA) | fab FAUNA E FLORA          (esp. FAUNA E FLORA) | OUTRA CATEGORIA | COMP FAUNA E FLORA COMPOSTO 30UN
 COM WOLFS                        | marca WOLFS WOL              (esp. WOLFS) | fab WOLFS                  (esp. APISNUTRI) | VITAMINA OUTRO | SUPL ALIM WOLFS 10MG 30CPRS (WOL)
 COM INTEGRALMEDICA               | marca OUTRA MARCA            (esp. INTEGRALMEDICA) | fab INTEGRALMEDICA         (esp. INTEGRALMEDICA) | OUTRA CATEGORIA | INTEGRALMEDICA COMPOSTO 30UN

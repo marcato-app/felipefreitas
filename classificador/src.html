@@ -1337,7 +1337,7 @@ function paPorPrefixo(w) {
   const c = PA_PALAVRAS.filter(p => p.startsWith(w)); return c.length === 1 ? c[0] : null;
 }
 const DESC_MAX = 60;
-// nome único do fabricante (siglas.py -> K.farmaFabs): a grafia que já existe nas bases do cliente; LABORATORIO GROSS -> GROSS,
+// nome único do fabricante (siglas.py -> K.farmaFabs): a grafia que já existe, 1º a da DIMA, depois Hoja; LABORATORIO GROSS -> GROSS,
 // SANOFI FARMACEUTICA LTDA -> SANOFI FARMACEUTICA, nome da CMED com razão social -> o nome cadastrado
 const FAB_LIXO = new Set([...LAB_LIXO, ...'LABORATORIOS FARMACETICA FARMACEUTICAS IMPORTACAO EXPORTACAO IMP EXP MEDICAMENTOS DISTRIBUIDORA CIA GRUPO'.split(' ')]);
 const FAB_ALIAS = { GLAXOSMITHKLINE: 'GSK' };
@@ -1348,7 +1348,11 @@ function canonFab(f) {
   if (FAB_ALIAS[w[0]] && C[FAB_ALIAS[w[0]]]) return C[FAB_ALIAS[w[0]]];
   for (let n = w.length; n >= 1; n--) { const k = w.slice(0, n).join(' '); // nome da CMED mais comprido que o cadastrado
     if (C[k] && (n === w.length || n >= 2 || k.length >= 5)) return C[k]; }
-  return f;
+  // letra ou espaço a mais/a menos (PRATI DONADUZI, FLORA VIDA): o nome que já existe, se for um só
+  const k = w.join(' '); if (k.length < 6) return f;
+  const um = (x, y) => { if (Math.abs(x.length - y.length) !== 1) return false; let i = 0; while (i < x.length && x[i] === y[i]) i++; return x.slice(i) === y.slice(i + 1) || x.slice(i + 1) === y.slice(i); };
+  const c = [...new Set(Object.keys(C).filter(x => x.length >= 6 && um(k, x)).map(x => C[x]))];
+  return c.length === 1 ? c[0] : f;
 }
 // sigla do laboratório (3 letras, siglas.py -> K.farmaSiglas): código/nome do laboratório na descrição (GERMED -> GER),
 // código da marca na DIMA ("DORFLEX (OPE)", "SUNDOWN NES"), senão a sigla padrão do fabricante

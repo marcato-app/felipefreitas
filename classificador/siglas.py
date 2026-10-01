@@ -90,25 +90,44 @@ def main():
         print('Hoja:', e)
     marcas = {k: c.most_common(1)[0][0] for k, c in marcas.items()}
     # nome único de cada fabricante: grafias do mesmo fabricante (SANOFI FARMACEUTICA / SANOFI FARMACEUTICA LTDA,
-    # GROSS / LABORATORIO GROSS, PANVEL / GRUPO PANVEL) viram a mais usada nas bases do cliente (a base Hoja pesa mais)
-    peso = Counter()
-    for f, n in todos.items(): peso[f.strip()] += n
+    # GROSS / LABORATORIO GROSS) viram UM nome que já existe. Prioridade da grafia: 1º DIMA (mais confiável),
+    # 2º base Hoja (tem erros de digitação), 3º base VITAMINA E MINERAL; dentro da mesma base, a mais usada
+    fonte = [Counter(), Counter(), Counter()]
+    for k in range(0, len(r), 3):
+        f = d['fabs'][r[k + 2]]
+        if seg_farma(d['segs'][r[k + 1]]) and N(f) not in SEM: fonte[0][f.strip()] += 1
     for m in c.get('farmaMarcas', []):
-        if m[2] and N(m[2]) not in SEM: peso[m[2].strip()] += 50
-    canon = {}
-    for f, n in sorted(peso.items(), key=lambda x: (-x[1], len(x[0]))):
-        k = chave_fab(f)
-        if k and k not in canon: canon[k] = f
-    # nome curto que é começo de um só nome mais completo e bem mais usado (UNIAO -> UNIAO QUIMICA, FORHEALTH ->
-    # FORHEALTH NUTRICIONAL); VITA, APIS (vários nomes começam assim) não juntam
-    pk = Counter()
-    for f, n in peso.items(): pk[chave_fab(f)] += n
+        if m[2] and N(m[2]) not in SEM: fonte[1][m[2].strip()] += 1
+    for p in sorted((here / 'dados' / 'vitaminas').glob('*.tsv')):
+        for b in csv.DictReader(open(p, encoding='utf-8'), delimiter='\t'):
+            if N(b['Fabricante']) not in SEM: fonte[2][b['Fabricante'].strip()] += 1
+    canon, nivel, pk = {}, {}, Counter()
+    for i, fc in enumerate(fonte):
+        for f, n in sorted(fc.items(), key=lambda x: (-x[1], len(x[0]))):
+            k = chave_fab(f); pk[k] += n
+            if k and k not in canon: canon[k] = f; nivel[k] = i
+    # erro de digitação da Hoja/vitaminas (PRATI DONADUZI): 1 letra de diferença de um nome da DIMA -> o nome da DIMA
+    def lev1(x, y):
+        if abs(len(x) - len(y)) != 1: return False  # só letra/espaço a mais ou a menos (VILLAGE x SILLAGE é outro)
+        i = 0
+        while i < min(len(x), len(y)) and x[i] == y[i]: i += 1
+        return x[i:] == y[i + 1:] or x[i + 1:] == y[i:]
+    dk = [k for k in canon if nivel[k] == 0]
+    typo = []
+    for k in [k for k in canon if nivel[k] > 0 and len(k) >= 6]:
+        cand = [x for x in dk if len(x) >= 6 and not x.isdigit() and lev1(k, x)]
+        if len(cand) == 1: typo.append((canon[k], canon[cand[0]])); canon[k] = canon[cand[0]]
+    print('erros de digitação corrigidos pela DIMA:', typo[:15], len(typo))
+    # nome curto que é começo de nome mais completo: vai para o completo quando ele domina (UNIAO -> UNIAO QUIMICA,
+    # FORHEALTH -> FORHEALTH NUTRICIONAL); VITA, APIS (vários nomes começam assim, nenhum domina) não juntam
     juntou = []
     for k in list(canon):
         if ' ' in k or len(k) < 4 or N(canon[k]) != k: continue  # GLOBAL MEDICAMENTOS, SOUL BRASIL: a palavra que sumiu pode distinguir
-        longos = [x for x in canon if x.startswith(k + ' ')]
-        if len(longos) == 1 and pk[longos[0]] >= 3 * pk[k]:
-            juntou.append((canon[k], canon[longos[0]])); canon[k] = canon[longos[0]]
+        longos = sorted((x for x in canon if x.startswith(k + ' ')), key=lambda x: (nivel[x], -pk[x]))
+        if not longos: continue
+        top = max(longos, key=lambda x: pk[x]); tot = sum(pk[x] for x in longos)
+        if pk[top] >= 3 * pk[k] and pk[top] >= 0.8 * tot and nivel[top] <= nivel[k]:
+            juntou.append((canon[k], canon[top])); canon[k] = canon[top]
     print('juntados pelo começo do nome:', juntou)
     c['farmaFabs'] = canon
     c['farmaSiglas'] = {'codigos': codigos, 'fab': fab, 'marcas': marcas}
@@ -121,7 +140,7 @@ def main():
     for col, w in zip('ABCDE', [8, 45, 12, 28, 14]): ws.column_dimensions[col].width = w
     ws.auto_filter.ref = ws.dimensions; ws.freeze_panes = 'A2'
     wb.save(here / 'dados' / 'farma_siglas_laboratorios.xlsx')
-    print(f"{len(canon)} fabricantes (nome único; {sum(peso.values() and 1 for f in peso) - len(canon)} grafias juntadas)")
+    print(f"{len(canon)} fabricantes (nome único; {len(set().union(*fonte)) - len(set(canon.values()))} grafias juntadas)")
     print(f"{len(marcas)} marcas com sigla na Hoja; {len(codigos)} siglas das bases ({len(por_fab)} fabricantes), {len(geradas)} geradas; "
           f"ex.: EMS PHARMA={fab.get('EMS PHARMA')} HYPERA={fab.get('HYPERA PHARMA')} GER={codigos.get('GER')} -> dados/farma_siglas_laboratorios.xlsx")
 
