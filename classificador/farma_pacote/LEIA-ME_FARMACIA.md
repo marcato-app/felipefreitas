@@ -382,5 +382,7 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
 - Remédio registrado (não vira VITAMINA OUTRO): código de barras na CMED, marca da CMED (mesmo com "SUPL ALIM" no
   texto) ou marca que a Hoja põe em categoria ATC **e** que existe como produto na CMED (ADDERA sim; SIDNEY OLIVEIRA,
   LAVITAN não). Marca da Hoja/DIMA vence o nome longo da CMED (ADDERA MAN, não ADDERA D3 MAN).
-- Teste: `testes_farma/addera_validacao.csv`.
+- Arquivo com categoria sugerida VITAMINA OUTRO/MULTIVITAMINICO e item que é remédio registrado (marca da CMED, ou da
+  Hoja em ATC que existe na CMED): vale a categoria de remédio que passar nos nutrientes (alerta "Remédio registrado").
+- Teste: `testes_farma/addera_validacao.csv` e `addera_com_categoria_arquivo.csv`.
 

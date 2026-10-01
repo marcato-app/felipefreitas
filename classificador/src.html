@@ -1636,6 +1636,12 @@ async function runAll(opts = {}) {
     if (a.arqCat && !catVitAtc(a.cat)) return; // categoria do arquivo (DERMOCOSMETICO SOLAR) não vira suplemento
     // remédio registrado (código de barras na lista CMED, ou marca da lista CMED sem sinal de suplemento) fica na categoria
     // de remédio (A11/A12...); nome só no registro da Anvisa não basta (fitoterápico vendido como suplemento: CASTANHA DA INDIA)
+    // arquivo/regra disse VITAMINA OUTRO, mas é remédio registrado (marca da CMED, ou da Hoja em ATC que existe na CMED):
+    // vale a categoria de remédio da descrição que passar na validação dos nutrientes (ADDERA D3 -> A11C2)
+    if ((a.cat === 'VITAMINA OUTRO' || a.cat === 'MULTIVITAMINICO') && (TT.some(t => regMarca(matchFC(t, C), C)) || hojaAtc(TT, C))) {
+      const c2 = TT.map(t => classifyDesc(t, C)).find(c => c && c !== a.cat && /^[A-Z]\d\d[A-Z]/.test(nomeOf(c)) && bateNutrientes(c, TT));
+      if (c2 && byName.has(c2)) { it.vitReg = true; AGG[i] = Object.assign({}, a, { cat: c2, per: a.per.map(() => c2), regTrocou: a.cat }); return; }
+    }
     if (cc && a.cat !== 'VITAMINA OUTRO' && a.cat !== 'MULTIVITAMINICO' && (it.cmed || TT.some(t => regMarca(matchFC(t, C), C)) || hojaAtc(TT, C))) { it.vitReg = true; return; } // ADDERA com "SUPL ALIM" no texto continua remédio
     const v = vitDe(TT, a.cat, !!cc || outraCesta, C); if (!v) return; it.vit = v;
     if (v.cat !== a.cat) AGG[i] = Object.assign({}, a, { cat: v.cat, vitTrocou: a.cat }); });
@@ -1862,6 +1868,7 @@ async function runAll(opts = {}) {
       if (R0 && R0.cat === a.cat) alerts.push(`Categoria pelo registro Anvisa: ${R0.nome} (${R0.seg.replace('registro Anvisa: ', '')})` + (R0.esc ? ' (classe pela substância; revisar)' : ''));
       if (D0 && D0.cat === a.cat) alerts.push(`Categoria pela DIMA: ${D0.nome} em ${D0.seg}` + (D0.esc ? ' (subcategoria escolhida; revisar)' : ''));
       if (C0) alerts.push('Categoria pelo princípio ativo ' + C0.pa + (C0.corrigido ? ' (destino corrigido em relação à base)' : C0.validar ? ' (base pede validação)' : '')); }
+    if (a.regTrocou) alerts.push(`Remédio registrado: ${nomeOf(a.cat)} (o arquivo/regra dizia ${nomeOf(a.regTrocou)})`);
     if (it.cmed) alerts.push(`Categoria pela CMED: ${it.cmed.classe || it.cmed.produto}` + (a.cmedTrocou ? ` (antes ${nomeOf(a.cmedTrocou)})` : '') + (it.cmed.ed ? ` (código de barras só na edição de ${it.cmed.ed.slice(6)}/${it.cmed.ed.slice(4, 6)}/${it.cmed.ed.slice(0, 4)})` : ''));
     if (a.arqTrocada) alerts.push(`Arquivo: categoria ${a.arqTrocada} não bate com a descrição (outra cesta); usada ${a.cat}`);
     alerts.push(...arqAl);
