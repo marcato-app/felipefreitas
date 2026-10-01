@@ -423,3 +423,27 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   BALA GOMA FRUTA VERMELHA continua BALA. ADDERA D3 em comprimido continua A11C2.
 - Outras cestas: "AZ" sozinho não é polivitamínico (REGISTRADOR AZ CVISOR saiu de MULTIVITAMINICO).
 - Teste: testes_farma/adderitos_gomas.csv.
+
+### 3.5q ALTHAIA ALT -> VITAMINA D3 ALT (7901062405525)
+- O arquivo trazia Marca = ALTHAIA (a base do cliente grava o nome do fabricante como marca). Para suplemento, o app mantinha a
+  marca do arquivo (regra MASSIME/NATURALHELF) e somava a sigla: ALTHAIA ALT, com ALTHAIA também no descritivo.
+- Agora: laboratório de remédio com sigla (ALTHAIA, EMS...) não fica como marca de suplemento quando a descrição traz o
+  produto (nome genérico de vitamina ou princípio ativo) -> VITAMINA D3 ALT.
+  Fabricante com marca própria (NATURALHELF, MASSIME) continua igual.
+- Nome genérico mais completo da mesma família ganha: VITAMINA D3 ganha de VITAMINA D. Só quando um é extensão do outro
+  (SUPRA UP não vira MELATONINA).
+- Nome genérico (VITAMINA D3, BIOTINA):
+  - não puxa o fabricante de uma marca da Hoja com o mesmo nome (VITAMINA D3 BIO = BIOLAB);
+  - nem a sigla da base de vitaminas (VITAMINA D3 EUR);
+  - o fabricante vem 1º do código de barras, depois da marca na DIMA;
+  - a sigla vem do fabricante.
+- Código de barras -> fabricante:
+  - `vitaminas.py` também aprende prefixos 790 (7901062 = ALTHAIA), além dos 789;
+  - para suplemento, a base do cliente vem antes da lista CMED.
+- `siglas.py`: marca da Hoja com mais de uma sigla (VITAMINA D3 BIO / UNI) não tem sigla fixa.
+- Resultados:
+  - base de vitaminas: fabricante 6.970 -> 7.023, marca igual;
+  - DIMA: igual;
+  - Hoja: -1 marca e -1 fabricante, pelos códigos de barras falsos do arquivo de teste;
+  - outras cestas: sem mudança.
+- Testes: testes_farma/althaia_arquivo.csv, testes_farma/althaia_descricoes.csv.

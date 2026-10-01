@@ -88,7 +88,8 @@ def main():
                 if x and re.fullmatch(r'(?=.*[A-Z])[A-Z0-9]{3}', x.group(2)): marcas.setdefault(N(x.group(1)), Counter())[x.group(2)] += (v or 1)
     except Exception as e:
         print('Hoja:', e)
-    marcas = {k: c.most_common(1)[0][0] for k, c in marcas.items()}
+    # nome genérico com vários laboratórios (VITAMINA D3 BIO / UNI): sem sigla fixa, vale a do fabricante do produto
+    marcas = {k: cn.most_common(1)[0][0] for k, cn in marcas.items() if len(cn) == 1}
     # nome único de cada fabricante: grafias do mesmo fabricante (SANOFI FARMACEUTICA / SANOFI FARMACEUTICA LTDA,
     # GROSS / LABORATORIO GROSS) viram UM nome que já existe. Prioridade da grafia: 1º DIMA (mais confiável),
     # 2º base Hoja (tem erros de digitação), 3º base VITAMINA E MINERAL; dentro da mesma base, a mais usada
