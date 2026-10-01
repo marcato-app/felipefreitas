@@ -1279,14 +1279,20 @@ const DESC_MAX = 60;
 // sigla do laboratório (3 letras, siglas.py -> K.farmaSiglas): código/nome do laboratório na descrição (GERMED -> GER),
 // código da marca na DIMA ("DORFLEX (OPE)", "SUNDOWN NES"), senão a sigla padrão do fabricante
 const SIG = () => K.farmaSiglas || { codigos: {}, fab: {} };
-const ehSigla = x => /^[A-Z][A-Z0-9]{2}$/.test(x) && !!SIG().codigos[x];
+const ehSigla = x => /^(?=.*[A-Z])[A-Z0-9]{3}$/.test(x) && !!SIG().codigos[x]; // 1FA (1FARMA) também
 const codDe = m => { const x = /\(([A-Z0-9]{3})\)\s*$/.exec(String(m || '').toUpperCase()) || /\s([A-Z0-9]{3})$/.exec(N(m)); return x && ehSigla(x[1]) ? x[1] : ''; };
 function siglaDe(T, fab, canon, D) {
-  for (const d of D || []) { const x = /\(([A-Z][A-Z0-9]{2})\)\s*$/.exec(String(d).toUpperCase()); if (x && !LAB_COD_NAO.has(x[1])) return x[1]; } // o padrão do cliente já na descrição: "... (NES)"
+  for (const d of D || []) { const x = /\(((?=[A-Z0-9]*[A-Z])[A-Z0-9]{3})\)\s*$/.exec(String(d).toUpperCase()); if (x && !LAB_COD_NAO.has(x[1])) return x[1]; } // o padrão do cliente já na descrição: "... (NES)"
   for (const t of T) { const w = t.split(' '), l = w[w.length - 1]; if (w.length > 1 && ehSigla(l)) return l; }
   const lab = labAchado(T);
   if (lab) { if (ehSigla(lab.termo)) return lab.termo; if (LAB_ALIAS[lab.termo]) return LAB_ALIAS[lab.termo]; const s = SIG().fab[N(lab.fab)]; if (s) return s; }
-  return codDe(canon) || SIG().fab[N(fab)] || '';
+  return codDe(canon) || SIG().fab[N(fab)] || siglaGerada(fab);
+}
+// laboratório fora do dicionário: sigla das 3 primeiras letras/dígitos do nome (sem LTDA, FARMA, LAB...) - nunca sem sigla
+function siglaGerada(fab) {
+  const n = N(fab); if (!n || !valido(n)) return '';
+  const w = n.split(' ').filter(x => !LAB_LIXO.has(x)).join('') || n.replace(/ /g, '');
+  return w.length >= 3 ? w.slice(0, 3) : '';
 }
 // marca sem o código do laboratório no fim ("DORFLEX (OPE)" -> DORFLEX, "SUNDOWN NES" -> SUNDOWN)
 // (a sigla solta no fim só sai quando é a do laboratório do item: NIMEGON MET continua NIMEGON MET)
@@ -1361,7 +1367,7 @@ function dosagem(T) {
 // forma que conta unidade (padrão do cliente): 10 comprimidos/drágeas -> 10CPRS, 28 cápsulas -> 28CPS
 // padrão do cliente: CPRS comprimido (drágea também), CPS cápsula, ML, UN
 const FORMA_UN = [[/(?<![A-Z])(CAPSULAS?|CAPS|CAP|CPS)(?![A-Z])/, 'CPS', /^(CAPSULAS?|CAPS|CAP|CPS)$/],
-  [/(?<![A-Z])(COMPRIMIDOS?|COMPR|COMP|CPRS?|CP|DRAGEAS?|DRGS?)(?![A-Z])/, 'CPRS', /^(COMPRIMIDOS?|DRAGEAS?)$/]];
+  [/(?<![A-Z])(COMPRIMIDOS?|COMPR|COMP|CPRS?|CP|DRAGEAS?|DRGS?)(?![A-Z])/, 'CPRS', /^(COMPRIMIDOS?|COMPR|COMP|CPRS?|CP|DRAGEAS?|DRGS?)$/]];
 function formaUn(T) { for (const t of T) { const x = prepQ(t).replace(RX_FORMA_COLADA, '$1 $2'); for (const f of FORMA_UN) if (f[0].test(x)) return f; } return null; }
 /* ---- prioridade do arquivo: o que veio no backlog vale; só troca o que estiver bem fora do comum ---- */
 const prioArq = () => cfg.priorizarArquivo !== false;
@@ -1650,7 +1656,8 @@ async function runAll(opts = {}) {
       sigla = siglaDe(T, fab, BD && bn && BD.map.get(bn) ? BD.map.get(bn).canon : (it.vit && it.vit.m ? it.vit.m.marca : (marcaArq ? marca : '')), it.D);
       marca = semSigla(marca, sigla, fab); if (sigla && N(marca).endsWith(' ' + sigla)) marca = marca.slice(0, -(sigla.length + 1)).trim(); // PANTOVIN PAN -> PANTOVIN
       generico = marca !== 'OUTRA MARCA' && N(marca).split(' ').every(w => CONNECT.has(w) || palavrasPA([N(marca)], C).has(w));
-      if (!sigla && fab !== 'OUTRO FABRICANTE') alerts0.push(`Sem sigla para o laboratório ${fab} (incluir no dicionário de siglas)`);
+      if (sigla && !ehSigla(sigla) && !Object.values(SIG().fab).includes(sigla) && fab !== 'OUTRO FABRICANTE') alerts0.push(`Sigla ${sigla} gerada do nome do laboratório ${fab} (incluir no dicionário de siglas)`);
+      if (!sigla && generico) alerts0.push('Genérico sem laboratório na descrição nem no arquivo: marca e descritivo sem sigla (revisar)');
     }
     const Tq = T.map(textoQtd);
     const soUN = vendidoPorUnidade(cc, T, C);
@@ -1698,7 +1705,7 @@ async function runAll(opts = {}) {
     if (farma) { // Farmácia: sem laboratório no descritivo; dosagem (500MG) e a forma como unidade (10CPRS)
       const lab = labAchado(T2), fu = q.base === 'UN' && q.n === 1 ? formaUn(T2) : null;
       const fw = new Set(N(fab).split(' ').filter(x => !LAB_LIXO.has(x) && x.length >= 3)); // nenhum laboratório no descritivo
-      comp = comp.split(' ').filter(w => !(lab && lab.termo.split(' ').includes(w)) && !fw.has(w) && !palavraLab(w) && !(fu && fu[2].test(w)) && !/^\.*(MG|MCG|UG|UI|ML|G|DIA|GEN)$/.test(w) && !/^(CT|BL|AL|PLAS|PLAST|OPC|TRANS|INC|AMB|VD|X|STRIP|STR|CX|EMB|PVC|PVDC|PE|PP|PCTFE|PEAD|PEBD|CALEND|MOLE|DURA|SER|AGU|DIL|PREENC|FA|FAMP|CGT|BG|TB|ENV|DES|ACOMP|APLIC|COPO|MED|DOS|SIST|FRAC)$/.test(w)).join(' ');
+      comp = comp.split(' ').filter(w => !(lab && lab.termo.split(' ').includes(w)) && !fw.has(w) && !palavraLab(w) && !(LAB_LIXO.has(w) && w.length >= 3) && !(fu && fu[2].test(w)) && !/^\.*(MG|MCG|UG|UI|ML|G|DIA|GEN)$/.test(w) && !/^(CT|BL|AL|PLAS|PLAST|OPC|TRANS|INC|AMB|VD|X|STRIP|STR|CX|EMB|PVC|PVDC|PE|PP|PCTFE|PEAD|PEBD|CALEND|MOLE|DURA|SER|AGU|DIL|PREENC|FA|FAMP|CGT|BG|TB|ENV|DES|ACOMP|APLIC|COPO|MED|DOS|SIST|FRAC)$/.test(w)).join(' ');
  // genérico: o sal não entra no descritivo (SERTRALINA, não SERTRALINA CLORIDRATO DE)
       if (bn && N(marca) === N(bn) && palavrasPA([N(marca)], C).size) { const w = comp.split(' ').filter(x => !SAIS_DCB.has(x)); while (w.length && CONNECT.has(w[0])) w.shift(); while (w.length && CONNECT.has(w[w.length - 1])) w.pop(); comp = w.join(' '); }
       if (fu) qTxt = fmtn(q.tot) + fu[1];

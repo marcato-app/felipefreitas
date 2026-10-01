@@ -21,7 +21,7 @@ LIXO = set('LABORATORIO LABORATORIOS LAB LABS FARMACEUTICA FARMACEUTICOS FARMACE
            'INDUSTRIA COM COMERCIO SA S A LTDA ME EIRELI DO DA DE E BRASIL BR CIA GRUPO'.split())
 NAO_SIGLA = set('MARCA OUTRA OUTRO COM SEM CPR COMP CAP CAPS CPS DRG GTS SOL SUS XPE AMP INJ CRE POM GEL ADT INF PED UND '
                 'MCG MEQ REV OPC GOT KIT MAX PRO NEW ONE DAY MIX FIT TOP KID VIT MAG ZERO SUN MET DUO FOR XR RET ORO ZIN CAL FER OMG'.split())  # palavra de produto (MET = metformina)
-ok_sigla = lambda s: bool(re.fullmatch(r'[A-Z][A-Z0-9]{2}', s)) and s not in NAO_SIGLA
+ok_sigla = lambda s: bool(re.fullmatch(r'(?=.*[A-Z])[A-Z0-9]{3}', s)) and s not in NAO_SIGLA  # 1FA (1FARMA) também vale
 
 
 def main():

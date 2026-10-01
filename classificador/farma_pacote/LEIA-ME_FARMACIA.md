@@ -314,7 +314,9 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   (as GERADAS são de laboratório que não tinha sigla em nenhuma base). Ordem da sigla no item: "(XXX)" já escrito na
   descrição → código/nome do laboratório na descrição (GERMED → GER, mesmo com fabricante EMS PHARMA) → código da
   marca na DIMA → sigla padrão do fabricante.
-- Genérico: marca = princípio ativo + sigla (NIMESULIDA GER, OMEPRAZOL TEU), como a base Hoja escreve.
+- Genérico: marca = princípio ativo + sigla (NIMESULIDA GER, OMEPRAZOL TEU, METFORMINA 1FA), como a base Hoja escreve;
+  nunca só o princípio ativo: laboratório fora do dicionário ganha sigla gerada do nome (alerta para incluir no
+  dicionário). Sigla com número vale (1FA = 1FARMA).
 - Laboratório não é marca nem aparece no descritivo (TEUTO, EMS, CIMED, SANOFI...): marca vira o princípio ativo ou
   OUTRA MARCA; em suplemento a marca com nome do fabricante vale (NATURALHELF, FITOPLANT).
 - Quantidade no padrão Anvisa (CT BL ... X 30 no fim) ganha de número colado na marca (D 3CAPS ... X 8 = 8CPS).

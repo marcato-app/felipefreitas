@@ -109,14 +109,14 @@ COM SENE HERBARIUM HER           | marca OUTRA MARCA            (esp. SENE HERBA
 COM GEOLAB GEO                   | marca OUTRA MARCA            (esp. GEOLAB) | fab GEOLAB                 (esp. GEOLAB) | OUTRA CATEGORIA | GEOLAB COMPOSTO GEO 30UN
 COM FIGON                        | marca FIGON                  (esp. FIGON) | fab AURAQUIMICA            (esp. AROMA BEM ESTAR IND E COM DE PROD NATURAIS) | A05B PRODUTOS PARA DOENCAS DO FIGADO HEPATOPROTETORES | FIGON 10MG 30CPRS (SNC)
 COM BIOLAB                       | marca OUTRA MARCA            (esp. BIOLAB) | fab BIOLAB                 (esp. BIOLAB) | OUTRA CATEGORIA | BIOLAB COMPOSTO 30UN
-COM CITROCAL                     | marca CITROCAL               (esp. CITROCAL) | fab CITROCAL ALIMENTOS     (esp. GOMES SUPLEMENTOS ALIMENTARES LTDA) | VITAMINA OUTRO | SUPL ALIM CITROCAL 10MG 30CPRS
+COM CITROCAL                     | marca CITROCAL               (esp. CITROCAL) | fab CITROCAL ALIMENTOS     (esp. GOMES SUPLEMENTOS ALIMENTARES LTDA) | VITAMINA OUTRO | SUPL ALIM CITROCAL 10MG 30CPRS (CIT)
 COM PROWIN                       | marca OUTRA MARCA            (esp. PROWIN) | fab PROWIN                 (esp. PROWIN) | A11B4 OUTROS POLIVITAMINICOS PUROS | PROWIN 10MG 30CPRS (PWN)
 COM NEOPURE                      | marca OUTRA MARCA            (esp. NEOPURE) | fab NEOPURE                (esp. NEOPURE) | A12C2 OUTROS SUPLEMENTOS MINERAIS | NEOPURE 10MG 30CPRS (NOO)
 COM FITO                         | marca FITO                   (esp. FITO) | fab FITO ALIM.             (esp. FITO ESSENCIA) | OUTRA CATEGORIA | COMP FITO COMPOSTO 30UN
 COM NEXTER INR                   | marca NEXTER                 (esp. NEXTER) | fab ASSIFARMA              (esp. INTERCRON) | A07G REPOSITORES ELECTROLITICOS ORAIS | NEXTER 10MG 30CPRS (INR)
 COM DIMED DIM                    | marca OUTRA MARCA            (esp. DIMED) | fab DIMED                  (esp. DIMED) | OUTRA CATEGORIA | DIMED COMPOSTO DIM 30UN
 COM FORTLIFE                     | marca OUTRA MARCA            (esp. FORTLIFE) | fab FORTLIFE               (esp. FORTLIFE) | OUTRA CATEGORIA | FORTLIFE COMPOSTO 30UN
-COM FONT B12                     | marca FONT                   (esp. FONT) | fab FONTANA S.A.           (esp. BIONATUS) | VITAMINA OUTRO | SUPL ALIM FONT B12 10MG 30CPRS
+COM FONT B12                     | marca FONT                   (esp. FONT) | fab FONTANA S.A.           (esp. BIONATUS) | VITAMINA OUTRO | SUPL ALIM FONT B12 10MG 30CPRS (FON)
 COM VITAFOR                      | marca OUTRA MARCA            (esp. VITAFOR) | fab VITAFOR                (esp. VITAFOR) | OUTRA CATEGORIA | VITAFOR COMPOSTO 30UN
 COM CALCIOVITAL D3               | marca CALCIOVITAL            (esp. CALCIOVITAL) | fab NATULAB                (esp. NATURELIFE) | VITAMINA OUTRO | SUPL ALIM CALCIOVITAL D3 10MG 30CPRS (NAT)
 COM VITA PREMIUM                 | marca VITA                   (esp. VITA PREMIUM) | fab VITA PREMIUM           (esp. A2F LABORATORIO) | A12C2 OUTROS SUPLEMENTOS MINERAIS | VITA 10MG 30CPRS (VPR)
@@ -138,7 +138,7 @@ COM BOE                          | marca OUTRA MARCA            (esp. BOE) | fab
 COM GUAMAX MUNE                  | marca OUTRA MARCA            (esp. GUAMAX) | fab OUTRO FABRICANTE       (esp. AROMA BEM ESTAR IND E COM DE PROD NATURAIS) | OUTRA CATEGORIA | GUAMAX COMPOSTO MUNE 30UN
 COM BEM NUTRIR                   | marca OUTRA MARCA            (esp. BEM NUTRIR) | fab BEM NUTRIR             (esp. BEM NUTRIR) | OUTRA CATEGORIA | BEM NUTRIR COMPOSTO 30UN
 COM E CLER                       | marca OUTRA MARCA            (esp. E) | fab OUTRO FABRICANTE       (esp. BIOFHITUS) | OUTRA CATEGORIA | COMP COMPOSTO CLER 30UN
-COM BUONA VITA                   | marca BUONA                  (esp. BUONA) | fab MASSAS BUONA           (esp. AGUA MINERAL LEVE LTDA) | G03J MODULAD SELETIVOS DOS RECEPT DO ESTROGENIO | BUONA VITA 10MG 30CPRS
+COM BUONA VITA                   | marca BUONA                  (esp. BUONA) | fab MASSAS BUONA           (esp. AGUA MINERAL LEVE LTDA) | G03J MODULAD SELETIVOS DOS RECEPT DO ESTROGENIO | BUONA VITA 10MG 30CPRS (MAS)
 COM FITOWAY FIW                  | marca OUTRA MARCA            (esp. FITOWAY) | fab FITOWAY                (esp. FITOWAY) | A12A CALCIO | FITOWAY 10MG 30CPRS (FIW)
 COM BEAUTY DRINK                 | marca BEAUTY DRINK           (esp. BEAUTY DRINK) | fab BEAUTY IN CIA          (esp. BEAUTY IN CIA) | DRINKS | DRINKS BEAUTY DRINK COMPOSTO 30UN
 COM ATLHETICA NUTRITION          | marca OUTRA MARCA            (esp. ATLHETICA NUTRITION) | fab ATLHETICA NUTRITION    (esp. ATLHETICA NUTRITION) | OUTRA CATEGORIA | ATLHETICA NUTRITION COMPOSTO 30UN
@@ -146,7 +146,7 @@ COM UNILIFE UNL                  | marca OUTRA MARCA            (esp. UNILIFE) |
 COM HEPANEW                      | marca OUTRA MARCA            (esp. HEPANEW) | fab HEPANEW                (esp. HEPANEW) | A05B PRODUTOS PARA DOENCAS DO FIGADO HEPATOPROTETORES | HEPANEW 10MG 30CPRS (HEP)
 COM NUTRAFOL                     | marca OUTRA MARCA            (esp. NUTRAFOL) | fab NUTRAFOL               (esp. NUTRAFOL) | A12C2 OUTROS SUPLEMENTOS MINERAIS | NUTRAFOL 10MG 30CPRS (NUR)
 COM FASHION FAS                  | marca FASHION                (esp. FASHION) | fab FASHION COSMETICOS     (esp. FASHION COSMETICOS) | OUTRA CATEGORIA | COMP FASHION COMPOSTO FAS 30UN
-COM FLORA VIDA                   | marca FLORA                  (esp. FLORA) | fab FLORA PROD NATURAIS    (esp. FLORA VIDA) | A07F MICROORGANISMOS ANTIDIARREICOS | FLORA VIDA 10MG 30CPRS
+COM FLORA VIDA                   | marca FLORA                  (esp. FLORA) | fab FLORA PROD NATURAIS    (esp. FLORA VIDA) | A07F MICROORGANISMOS ANTIDIARREICOS | FLORA VIDA 10MG 30CPRS (FLO)
 COM VECTOR NUTRI                 | marca OUTRA MARCA            (esp. VECTOR NUTRI) | fab VECTOR NUTRI           (esp. VECTOR NUTRI) | OUTRA CATEGORIA | VECTOR NUTRI COMPOSTO 30UN
 COM MUCK FORT                    | marca OUTRA MARCA            (esp. MUCK) | fab OUTRO FABRICANTE       (esp. NASCILAB) | OUTRA CATEGORIA | MUCK COMPOSTO FORT 30UN
 COM CITRATO CALCIO FDC           | marca OUTRA MARCA            (esp. CITRATO CALCIO) | fab FDC VITAMINAS          (esp. SIN PROVEEDOR ASOCIADO) | VITAMINA OUTRO | SUPL ALIM CITRATO CALCIO 10MG 30CPRS (FDC)
@@ -176,7 +176,7 @@ COM TROPICAL                     | marca OUTRA MARCA            (esp. TROPICAL) 
 COM CONLIFE FAC                  | marca OUTRA MARCA            (esp. CONLIFE) | fab FARMA CONDE            (esp. FARMA CONDE) | OUTRA CATEGORIA | CONLIFE COMPOSTO FAC 30UN
 COM UNIAO VEGETAL                | marca UNIAO                  (esp. UNIAO VEGETAL) | fab UNIAO                  (esp. UNIAO VEGETAL) | VITAMINA OUTRO | SUPL ALIM UNIAO 10MG 30CPRS (UVG)
 COM FAUNA E FLORA                | marca FAUNA E FLORA          (esp. FAUNA E FLORA) | fab FAUNA E FLORA          (esp. FAUNA E FLORA) | OUTRA CATEGORIA | COMP FAUNA E FLORA COMPOSTO 30UN
-COM WOLFS                        | marca WOLFS                  (esp. WOLFS) | fab WOLFS                  (esp. APISNUTRI) | VITAMINA OUTRO | SUPL ALIM WOLFS 10MG 30CPRS
+COM WOLFS                        | marca WOLFS                  (esp. WOLFS) | fab WOLFS                  (esp. APISNUTRI) | VITAMINA OUTRO | SUPL ALIM WOLFS 10MG 30CPRS (WOL)
 COM INTEGRALMEDICA               | marca OUTRA MARCA            (esp. INTEGRALMEDICA) | fab INTEGRALMEDICA         (esp. INTEGRALMEDICA) | OUTRA CATEGORIA | INTEGRALMEDICA COMPOSTO 30UN
 COM MEGALABS MEG                 | marca OUTRA MARCA            (esp. MEGALABS) | fab MEGALABS               (esp. MEGALABS) | DERMOCOSMETICO CAPILAR | MEGALABS 10MG 30CPRS (MEG)
 COM UP RISE                      | marca RISE                   (esp. UP) | fab OUTRO FABRICANTE       (esp. SIN PROVEEDOR ASOCIADO) | OUTRA CATEGORIA | COMP RISE COMPOSTO 30UN
