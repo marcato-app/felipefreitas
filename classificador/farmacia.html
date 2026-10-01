@@ -856,8 +856,34 @@ function compileFC(active, P) {
 }
 function matchFC(t, C) { const g = matchFM([t], C.fc); if (!g) return null; if (g.nome.includes(' ') || t.startsWith(g.nome + ' ') || t === g.nome || sinalFarma(t)) return g; return null; }
 function matchFM(T, F) { if (!F) return null; for (const t of T) { const m = t.match(F.rx); if (m) return F.map.get(m[0]); } return null; }
+// produtos de balcão / fitoterápicos / correlatos sem princípio ativo do dicionário: termo forte -> categoria
+// (ganha de palavra de sabor ou de outra cesta: NATULAX LARANJA não é fruta, LUFTGAS GOTAS CEREJA não é cereja)
+const OTC = [
+  [/(?<![A-Z])(SIMETICONA|LUFTAL|LUFTGAS|LUFSIM|SIMFLUZ|GASLEV|ANTIGASES?|DIMETICONA)(?![A-Z])/, 'ANTIFISETICOS PUROS'],
+  [/(?<![A-Z])(LACTULOSE|LACTULONA|LACTU[A-Z]+|LACTBEN)(?![A-Z])/, 'LAXANTES OSMOTICOS'],
+  [/(?<![A-Z])(PSYLLIUM|PSILIO|FIBRAS? .*CONST\w*|CONSTLIVRE)(?![A-Z])/, 'INCREMENTADORES DO BOLO INTESTINAL'],
+  [/(?<![A-Z])(LAX|LAXANTE|LAXATIVO|NATULAX|LAXTRINE|TAMARION|TAMARINDO .*LAX\w*)(?![A-Z])/, 'OUTRAS DROGAS PARA A CONSTIPACAO'],
+  [/(?<![A-Z])(SILIMARINA?|SILIMARIN|HEPATON|BIOHEPATON|ALCACHOFRA .*(CAPS|COMP|CAPSULA))(?![A-Z])/, 'PRODUTOS PARA DOENCAS DO FIGADO HEPATOPROTETORES'],
+  [/(?<![A-Z])(PROBIOTICOS?|LACTOBACIL\w*|BIFIDO\w*|SACCHAROMYCES|BILHOES|BILHAO|SANAFLORA|FLORADIA|DESILAC)(?![A-Z])/, 'MICROORGANISMOS ANTIDIARREICOS'],
+  [/(?<![A-Z])(VALERIANA|VALSED|VALERINATI|PASSIFLORA|PASSIFLORINE|CALMOPLANTAS|MULUNGU|MELISSA .*(CAPS|COMP))(?![A-Z])/, 'SEDANTES HIPNOTICOS'],
+  [/(?<![A-Z])(GINGIVAL|PERIO[A-Z]*|CLOREXIDINA .*BUCAL|BUCAL .*CLOREXIDINA)(?![A-Z])/, 'ESTOMATOLOGICOS'],
+  [/(?<![A-Z])((SOLUCAO|ENXAGUANTE|LIQUIDO|ANTISSEPTICO) .*BUCAL|BUCAL .*(SOLUCAO|ENXAGUANTE)|BUCALTRAT)(?![A-Z])/, 'ANTISSEPTICO BUCAL'],
+  [/(?<![A-Z])(VARILESS|VARIZES|VENO[A-Z]*|VARICALM)(?![A-Z]).*(?<![A-Z])(COMP|COMPRIMIDOS?|CAPS|CAPSULAS?|DRG)(?![A-Z])|(?<![A-Z])(COMP|COMPRIMIDOS?|CAPS|CAPSULAS?|DRG)(?![A-Z]).*(?<![A-Z])(VARILESS|VARIZES|VENO[A-Z]*|VARICALM)(?![A-Z])/, 'TERAPIA VARICOSA SISTEMICA'],
+  [/(?<![A-Z])(PERNAS? .*(CANSAD\w*|CREME|LOCAO|GEL)|(CREME|LOCAO|GEL) .*PERNAS?|VARIZES|VARICALM|VARILESS|VENO[A-Z]+|CIDRALIVIO|VENALEGS)(?![A-Z])/, 'TERAPIA VARICOSA TOPICA'],
+  [/(?<![A-Z])(CALICIDA|VERRUG\w*|VERRUGAN|KALONAT|CALOS? .*(SOLUCAO|LIQUIDO|POMADA))(?![A-Z])/, 'OUTRAS PREPARACOES DERMATOLOGICAS INCL XAMPUS MED'],
+  [/(?<![A-Z])(ARNICA|MASSAGEADOR|GEL (DE )?MASSAGEM|DORES? MUSCULAR\w*|FISIOTRAUMA|ARNIVIOL|FLEXOGEL|GEL .*ICE|ICE .*GEL)(?![A-Z])/, 'ANTIREUMATICOS TOPICOS COM ANALGESICOS'],
+  [/(?<![A-Z])OFTALM\w*(?![A-Z]).*(?<![A-Z])(LUBRIF\w*|LAGRIMA\w*|MOISTURE|DRY|HIDRAT\w*|OLHO SECO)(?![A-Z])|(?<![A-Z])(LACRIFRESH|LACRIFILM|SYSTANE|HYABAK|LACRIL)(?![A-Z])/, 'LAGRIMAS ARTIFICIAIS E LUBRIFICANTES OCULARES'],
+  [/(?<![A-Z])(XAROPE|XPE)(?![A-Z]).*(?<![A-Z])(TOSSE|TOSS\w*|GUACO|AGRIAO|IMUNO|PEITORAL|EXPECTOR\w*|HEDERA|MUKEMEL)(?![A-Z])|(?<![A-Z])(MUKEMEL|VITATOSS)(?![A-Z])/, 'EXPECTORANTES'],
+  [/(?<![A-Z])(GASTRIVAL|DIGEFLEX|DIGESTIVO|DIGESTIVA|DIGESTAO)(?![A-Z])/, 'DIGESTIVOS INCLUIDO ENZIMAS'],
+  [/(?<![A-Z])(LEITE (DE )?MAGNESIA|MAGNESIA .*(LEITE|SUSPENSAO|SUSP)|MAGNESIA BISURADA)(?![A-Z])/, 'ANTIACIDOS PUROS'],
+  [/(?<![A-Z])(ADESIVO .*(DENTADURA|DENTAL|PROTESE)|FIXODENT|COREGA|DENTALFIX)(?![A-Z])/, 'ACESSORIO HIGIENE DENTAL'],
+  [/(?<![A-Z])((PROTETOR|PROTETORA|PROT|BLOQUEADOR|BLOQUEADORA|LOCAO) .*(SOLAR|FPS|SUN)|(SOLAR|SUN) .*(BLOQUEAD\w*|PROTET\w*)|BLOQUEADORA?|FPS ?\d+|ANASOL)(?![A-Z])/, 'DERMOCOSMETICO SOLAR'],
+];
+function otcCat(t, C) { if (/(?<![A-Z])(LABIAL|LABIOS)(?![A-Z])/.test(t) && !/FPS/.test(t)) return null;
+  for (const [rx, cat] of OTC) if (rx.test(t) && C.cesta.has(cat)) return cat; return null; }
 function classifyDesc(t, C) {
-  const r = classifyRules(t, C);
+  let r = classifyRules(t, C);
+  { const o = otcCat(t, C); if (o && (!r || r === OUT || C.cesta.get(r) !== 'FARMACIA')) return o; } // termo de balcão ganha de sabor/outra cesta
   if (r === OUT && C.sempre && C.sempre.test(t)) return r;
   // princípio ativo decide dentro de Farmácia (e ganha da cesta PET quando a descrição não fala de animal);
   // categoria de outra cesta que bateu pelas regras (shampoo com cetoconazol, bicarbonato culinário) continua valendo
@@ -1246,6 +1272,8 @@ const LAB_COD_NAO = new Set('MARCA OUTRA OUTRO COM SEM CPR COMP CAP CAPS DRG GTS
 // nome do laboratório como aparece na descrição -> código de 3 letras da base (o fabricante vem do código)
 const LAB_ALIAS = { GERMED: 'GER', LEGRAND: 'LEG', 'NEO QUIMICA': 'NEO', NEOQUIMICA: 'NEO', 'NOVA QUIMICA': 'NVQ', NOVAQUIMICA: 'NVQ',
   PRATI: 'PRD', 'PRATI DONADUZZI': 'PRD', EURO: 'EUR', SANOFI: 'SNF', MULTILAB: 'MUL', MANTECORP: 'MAN', KLEY: 'KLE', 'KLEY HERTZ': 'KLE' };
+// nome de laboratório que é palavra comum na descrição (NIVEA SUN não é SUN FARMACEUTICA)
+const LAB_NOME_NAO = new Set('SUN GOLD BLUE LIGHT ICE TOQUE HOUSE CARE BEM VIDA NATURAL NATURE LIFE PLUS MAX PRO DRY FORTE'.split(' '));
 let LABS = null;
 function labIndex() {
   if (LABS) return LABS;
@@ -1261,7 +1289,7 @@ function labIndex() {
   for (const [c, f] of Object.entries(K.farmaCodLab || {})) if (!codigo.has(c) && !LAB_COD_NAO.has(c)) codigo.set(c, f); // base de marcas do cliente depois da DIMA
   const chave = new Map(); // termo que pode aparecer em qualquer lugar da descrição -> fabricante
   for (const [k, f] of nomes) { const w = k.split(' ').filter(x => !LAB_LIXO.has(x)); if (!w.length) continue;
-    const full = w.join(' '); if (full.length >= 3 && !GENERIC.has(full) && !LAB_COD_NAO.has(full)) chave.set(full, f); } // nome completo (sem LTDA, FARMA...), nunca só a 1ª palavra
+    const full = w.join(' '); if (full.length >= 3 && !GENERIC.has(full) && !LAB_COD_NAO.has(full) && !LAB_NOME_NAO.has(full)) chave.set(full, f); } // nome completo (sem LTDA, FARMA...), nunca só a 1ª palavra
   for (const [a, c] of Object.entries(LAB_ALIAS)) if (codigo.has(c)) chave.set(a, codigo.get(c));
   const termos = [...chave.keys()].sort((a, b) => b.length - a.length);
   LABS = { chave, codigo, rx: termos.length ? new RegExp('(?<![A-Z0-9])(?:' + termos.map(escRx).join('|') + ')(?![A-Z0-9])') : null };
@@ -1317,6 +1345,8 @@ function ehLab(m) { const n = N(semSigla(m)); if (!n) return false; const L = la
 function palavraLab(w) { const L = labIndex(); return (w.length >= 3 && !LAB_COD_NAO.has(w) && (L.chave.has(w) || !!LAB_ALIAS[w] || ehSigla(w))); }
 /* ---- Farmácia: marca = nome comercial; genérico: marca = princípio ativo (fabricante = laboratório) ---- */
 const FARMA_NAO_MARCA = new Set(('GENERICO GENERICA GENERICOS SIMILAR MEDICAMENTO REFERENCIA INFANTIL ADULTO PEDIATRICO ' +
+  'SOLUCAO POMADA CREME GEL LOCAO SPRAY XAROPE GOTAS CAPSULA CAPSULAS LIQUIDO PLANTAR SUSPENSAO DRAGEAS FLACONETES ' +
+  'SUN DRY PROT TOQUE DOUTOR MASSAGEM LIGHT ICE BLUE PES PERNAS ORAL ' + // palavra comum que é marca solta na DIMA (NIVEA SUN não é SUN)
   'CLOR CLORID CLORIDR HCL SOD POT MAL MAG SUCC ACET SULF FOSF BESIL MESIL TART BROM BROMETO BUT BUTILBROMETO ' +
   'CLORIDRATO DICLORIDRATO BROMIDRATO MALEATO SUCCINATO TARTARATO SULFATO ACETATO BESILATO MESILATO CITRATO FOSFATO FUMARATO HEMIFUMARATO ' +
   'LACTATO NITRATO VALERATO PROPIONATO DIPROPIONATO ESTOLATO CLORETO ACIDO SODIO SODICO SODICA POTASSIO POTASSICO POTASSICA CALCIO CALCICO MAGNESIO ' +
@@ -1332,7 +1362,9 @@ function farmaNaoMarca(m, C, paW) {
   const L = labIndex(); const P = C.pa;
   if (L.chave.has(n) || L.codigo.has(n) || LAB_ALIAS[n] || FARMA_NAO_MARCA.has(n)) return true; // laboratório (EMS, CIM, MEDLEY...) não é marca
   { const w = n.split(' '), l = w[w.length - 1]; // "ACECLOFENACO EMS": genérico gravado com o laboratório na DIMA
-    if (w.length > 1 && !LAB_COD_NAO.has(l) && (L.codigo.has(l) || L.chave.has(l) || LAB_ALIAS[l] || (K.farmaCodLab || {})[l])) return true; } // NIMEGON MET é marca
+    const antes = w.slice(0, -1).join(' '); // NIVEA SUN: NIVEA é marca da DIMA, SUN não é laboratório aqui
+    if (w.length > 1 && !LAB_COD_NAO.has(l) && (L.codigo.has(l) || L.chave.has(l) || LAB_ALIAS[l] || (K.farmaCodLab || {})[l])
+      && !(data.dima && data.dima.map.has(antes) && !(paW && antes.split(' ').every(x => paW.has(x))))) return true; } // NIMEGON MET é marca
   if (GROUP_TOK.FARMA[n]) return true;
   if (P) { P.rx.lastIndex = 0; if (P.rx.test(n)) return true; } // tem princípio ativo no nome (DIPIRONA, LOSARTANA POTASSICA)
   if (C.pb) { C.pb.rx.lastIndex = 0; if (C.pb.rx.test(n)) return true; } // substância oficial (DCB)
@@ -1523,7 +1555,10 @@ function catCmed(classe, subst, produto) {
     const f = filhos.find(nm => { const c = cfg.categorias.find(x => x.nome === nm); return c && (c.incluir || []).some(t => { const n = N(String(t).replace(/\*/g, '')); return alvo.some(a => a === n || a.endsWith(' ' + n)); }); });
     if (f) return f;
   }
-  const nome = catInterna(String(classe).replace(/^[^-]*-\s*/, '')); return cfg.categorias.some(c => c.nome === nome) ? nome : (data.cmedCod.get(k4) || [''])[0];
+  const nome = catInterna(String(classe).replace(/^[^-]*-\s*/, '')); if (cfg.categorias.some(c => c.nome === nome)) return nome;
+  if (data.cmedCod.get(k4)) return data.cmedCod.get(k4)[0];
+  if (filhos.length) { const o = filhos.find(nm => /OUTR/.test(nm)); return o || filhos[filhos.length - 1]; } // N05B5 herbáceos -> N05B2
+  return '';
 }
 function cmedNoItem(it) {
   const e = data.cmed && data.cmed.get(skuKey(it.barcode)); it.cmed = e || null; it.cmedCat = '';
@@ -1665,6 +1700,12 @@ async function runAll(opts = {}) {
         fab = lab;
       }
     }
+    if (farma && !valido(fab) && valido(marca) && data.dima) { // marca da DIMA sem fabricante na categoria: o mais comum da marca
+      let f = null; // NIVEA SUN sem fabricante na DIMA -> NIVEA (BEIERSDORF)
+      for (const k of [N(bn || ''), N(marca), N(marca).split(' ')[0]]) { const b = data.dima.map.get(k); let v = 0;
+        if (b && b.fabAll) for (const [ff, vv] of b.fabAll) if (valido(ff) && vv > v) { v = vv; f = ff; }
+        if (f) break; }
+      if (f) fab = f; }
     if (farma && !valido(fab)) { const l = labPorEAN(it.barcode); if (l) { fab = l; alerts0.push(`Fabricante pelo código de barras (prefixo da empresa na lista CMED): ${l}`); } } // remédio sempre tem fabricante
     // Farmácia que não é remédio (dermocosmético, correlato, suplemento): marca própria do fabricante vale (MASSIME, NATURALHELF);
     // fabricante conhecido sem marca não deve acontecer: marca da DIMA na descrição, senão o nome do fabricante escrito nela

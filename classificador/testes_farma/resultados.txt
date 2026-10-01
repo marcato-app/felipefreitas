@@ -18,17 +18,17 @@
                                                    IBUPROFENO 600MG 20CPRS (NES) | IBUPROFENO NES | NESTLE CIA
                                                    ["Fabricante pelo código de barras (prefixo da empresa na lista CMED): NESTLE CIA","Categoria pelo princípio ativo Ibuprofeno (base pede validação)"] pri=2
                                                  => N02B NAO NARCOTICOS ANTIPIRETICOS
-                                                   PARACETAMOL 750MG 20CPRS (NES) | PARACETAMOL NES | NESTLE CIA
-                                                   ["Fabricante pelo código de barras (prefixo da empresa na lista CMED): NESTLE CIA","Categoria pelo princípio ativo Paracetamol (Acetaminofeno)"] pri=2
+                                                   PARACETAMOL 750MG 20CPRS (PRD) | PARACETAMOL PRD | PRATI DONADUZZI
+                                                   ["Categoria pelo princípio ativo Paracetamol (Acetaminofeno)"] pri=0
                                                  => D01A1 ANTIFUNGICOS DERMATOLOGICOS TOPICOS
-                                                   CETOCONAZOL CREME 30G (NES) | CETOCONAZOL NES | NESTLE CIA
-                                                   ["Fabricante pelo código de barras (prefixo da empresa na lista CMED): NESTLE CIA","Categoria pelo princípio ativo Cetoconazol tópico"] pri=2
+                                                   CETOCONAZOL CREME 30G (IBA) | CETOCONAZOL IBA | IBASA
+                                                   ["Sigla IBA gerada do nome do laboratório IBASA (incluir no dicionário de siglas)","Categoria pelo princípio ativo Cetoconazol tópico"] pri=2
                                                  => J02A AGENTES ANTIMICOTICOS SISTEMICOS EXCLUINDO GRISEOF
-                                                   CETOCONAZOL 200MG 10CPRS (NES) | CETOCONAZOL NES | NESTLE CIA
-                                                   ["Fabricante pelo código de barras (prefixo da empresa na lista CMED): NESTLE CIA","Categoria pelo princípio ativo Cetoconazol (base pede validação)"] pri=2
+                                                   CETOCONAZOL 200MG 10CPRS (IBA) | CETOCONAZOL IBA | IBASA
+                                                   ["Sigla IBA gerada do nome do laboratório IBASA (incluir no dicionário de siglas)","Categoria pelo princípio ativo Cetoconazol (base pede validação)"] pri=2
                                                  => VITAMINA OUTRO
-                                                   SUPL ALIM VITAMINA D 2000UI 30CPS (NES) | VITAMINA D NES | NESTLE CIA
-                                                   ["Fabricante pelo código de barras (prefixo da empresa na lista CMED): NESTLE CIA","Categoria pela DIMA: VITAMINA D em VITAMINA E MINERAL (subcategoria escolhida; revisar)"] pri=2
+                                                   SUPL ALIM VITAMINA D 2000UI 30CPS (FRH) | VITAMINA D FRH | FORHEALTH NUTRICIONAL
+                                                   ["Categoria pela DIMA: VITAMINA D em VITAMINA E MINERAL (subcategoria escolhida; revisar)"] pri=2
                                                  => SHAMPOO LIQUIDO
                                                    SH CETOCONAZOL SHAMPOO ANTICASPA 100ML | CETOCONAZOL | AVVIO PHARMA
                                                    [] pri=0

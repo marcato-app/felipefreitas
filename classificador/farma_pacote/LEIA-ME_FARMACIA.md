@@ -348,3 +348,16 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   da DIMA no começo; e o nome comercial do começo da descrição vale mesmo em SUPL ALIM (BIO-C, STRESSVAN, NATIBEM).
   "Laboratório não é marca" (TEUTO, EMS, CIMED) só em remédio (categoria com código ATC).
 
+### 3.5l Produtos de balcão, fitoterápicos e correlatos sem princípio ativo do dicionário (`OTC` no app)
+- Termo forte -> categoria, ganhando de palavra de sabor/outra cesta (NATULAX LARANJA não é fruta; LUFTGAS CEREJA não é
+  cereja): simeticona/LUFTGAS -> A02A2; LAX/lactulose -> A06A9/A06A6; fibras -> A06A3; silimarina/hepato -> A05B;
+  probiótico/BILHOES -> A07F; valeriana/passiflora -> N05B2; GINGIVAL/PERIO/clorexidina bucal -> A01A; enxaguante bucal
+  -> ANTISSEPTICO BUCAL; pernas cansadas/varizes -> C05B (comprimido -> C05C); calicida/verruga -> D11A; arnica/
+  massageador -> M02A; colírio lubrificante -> S01K1; xarope de tosse/guaco/agrião -> R05C; GASTRIVAL/digestivo -> A09A;
+  leite de magnésia -> A02A1; adesivo de dentadura -> ACESSORIO HIGIENE DENTAL; protetor solar/BLOQUEADORA/FPS ->
+  DERMOCOSMETICO SOLAR. Teste: `testes_farma/balcao_outra_categoria.csv` (88 itens: 83 com categoria).
+- Classe da CMED que o app não tem (N5B5 sedativos herbáceos) -> irmã do mesmo grupo (N05B2).
+- Palavra de forma ou comum nunca é marca (SOLUCAO, POMADA, SUN, DRY, PROT...), nem nome de laboratório comum
+  (SUN = Sun Farmacêutica só por nome não). Marca da DIMA + sigla no fim (NIVEA SUN) continua marca.
+- Marca da DIMA sem fabricante na categoria: o fabricante mais comum da marca (NIVEA SUN -> BEIERSDORF).
+
