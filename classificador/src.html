@@ -372,6 +372,7 @@ async function loadBacklog(file) {
     // formato Scanntech: quantity_sugerida = total (g, ml ou unidades), measurement_sugerido = UN/G/KG/ML/L, unit_content_sugerido = unidades no pack
     me: findCol(hdr, [h => h.includes('MEASUREMENT') && SUG(h), h => h.includes('MEASUREMENT')]),
     uc: findCol(hdr, [h => h.includes('UNITCONTENT') && SUG(h), h => h.includes('UNITCONTENT')]),
+    an: findCol(hdr, [h => h === 'ANALISTA', h => h.includes('ANALISTA')]), // só repassado para a planilha
   };
   // descrição principal (a do cadastro do produto), se o arquivo tiver: vira a referência do tipo do item
   ci.main = findCol(hdr, [h => ['DESCRIPCION', 'DESCRICAO', 'DESCRITIVO', 'DESCRIPTION', 'DESCRICAOPRODUTO', 'DESCRITIVOATUAL', 'DESCRICAOPRINCIPAL'].includes(h)]);
@@ -385,7 +386,7 @@ async function loadBacklog(file) {
     if (mainD) { const k = D.findIndex(x => N(x) === N(mainD)); if (k >= 0) D.splice(k, 1); D.unshift(mainD); }
     const subV = ci.sub >= 0 ? limpaArq(row[ci.sub]) : '', catV = subV || (ci.cat >= 0 ? limpaArq(row[ci.cat]) : '');
     items.push({ barcode: row[ci.bc], D, T: D.map(N), main: !!mainD, sugCatRaw: catV, sugCat: catV ? catInterna(catV) : '', sugMarca: ci.mar >= 0 ? limpaArq(row[ci.mar]) : '',
-      sugFab: ci.fab >= 0 ? limpaArq(row[ci.fab]) : '', ...qtdColunas(row, ci) });
+      sugFab: ci.fab >= 0 ? limpaArq(row[ci.fab]) : '', ...qtdColunas(row, ci), analista: ci.an >= 0 ? String(row[ci.an] ?? '').trim() : '' });
   }
   const nomeCol = i => i >= 0 ? String(hdr[i]) : '—';
   data.colunas = `Colunas lidas: categoria <b>${escH(nomeCol(ci.cat))}</b> · subcategoria <b>${escH(nomeCol(ci.sub))}</b> · marca <b>${escH(nomeCol(ci.mar))}</b> · fabricante <b>${escH(nomeCol(ci.fab))}</b> · conteúdo <b>${escH(nomeCol(ci.qt))}</b>${ci.me >= 0 ? ` + medida <b>${escH(nomeCol(ci.me))}</b>` : ''}${ci.uc >= 0 ? ` + unidades <b>${escH(nomeCol(ci.uc))}</b>` : ''}`;
@@ -1225,20 +1226,22 @@ function buildWorkbook() {
   const bc = v => { const s = String(v).trim(); return /^\d{1,15}$/.test(s) ? Number(s) : s; };
   const main = [['CODIGO BARRAS', 'DESCRITIVO PADRONIZADO', 'FABRICANTE', 'MARCA', 'CONTENIDO', 'CATEGORIA', 'CODIGO INTERNO']];
   const soD = R.length && R[0].soDesc; if (soD) main[0].push('STATUS SUGESTAO', 'CATEGORIA SUGERIDA APP');
+  const temAn = R.some(r => r.it.analista); if (temAn) main[0].push('ANALISTA');
   // modo só descritivo: categoria, marca, fabricante e conteúdo exatamente como vieram no arquivo (vazio no arquivo -> o do app)
   const arqOu = (v, app) => (v !== null && v !== undefined && String(v).trim() !== '') ? (typeof v === 'number' ? v : String(v).trim()) : app;
   // categoria do arquivo que não bate com a descrição (outra cesta, ex.: estojo como OVO): aí vale o que o app ajustou
   for (const r of R) main.push(soD
     ? [bc(r.it.barcode), r.desc, arqOu(r.it.sugFab, r.fab), arqOu(r.it.sugMarca, r.marca), arqOu(r.it.sugQtOut ?? r.it.sugQt, num(r.qt)), arqOu(r.it.sugCatRaw, nomeOf(r.cat)), ciFlag(r.it.barcode), r.status, r.sugCatApp || '']
-    : [bc(r.it.barcode), r.desc, r.fab, r.marca, num(r.qt), nomeOf(r.cat), ciFlag(r.it.barcode), ...(soD ? [r.status] : [])]);
+    : [bc(r.it.barcode), r.desc, r.fab, r.marca, num(r.qt), nomeOf(r.cat), ciFlag(r.it.barcode), ...(soD ? [r.status, ''] : [])]);
+  if (temAn) for (let i = 0; i < R.length; i++) main[i + 1].push(R[i].it.analista);
   const ws = XLSX.utils.aoa_to_sheet(main); ws['!cols'] = [{ wch: 16 }, { wch: 60 }, { wch: 28 }, { wch: 24 }, { wch: 11 }, { wch: 26 }, { wch: 22 }];
   for (let i = 2; i <= main.length; i++) { const c = ws['A' + i]; if (c && c.t === 'n') c.z = '0'; }
   XLSX.utils.book_append_sheet(wb, ws, 'Planilha1');
   if (soD) { // sugestão do app só onde difere do arquivo
-    const sg = [['CODIGO BARRAS', 'STATUS SUGESTAO', 'CATEGORIA ARQUIVO', 'CATEGORIA SUGERIDA APP', 'MARCA ARQUIVO', 'MARCA SUGERIDA APP', 'FABRICANTE ARQUIVO', 'FABRICANTE SUGERIDO APP', 'CONTENIDO ARQUIVO', 'CONTENIDO SUGERIDO APP', 'DESCRITIVO PADRONIZADO', 'DESCRICAO ORIGINAL']];
-    for (const r of R) if (r.status !== 'ARQUIVO CONFIRMADO') sg.push([bc(r.it.barcode), r.status, r.it.sugCatRaw, nomeOf(r.sug.cat), r.it.sugMarca, r.sug.marca, r.it.sugFab, r.sug.fab, r.it.sugQt, r.sug.qt === null ? '' : fmtUnit(r.sug.qt, r.sug.qbase), r.desc, (r.it.D[0] || '').slice(0, 200)]);
+    const sg = [['CODIGO BARRAS', 'STATUS SUGESTAO', 'CATEGORIA ARQUIVO', 'CATEGORIA SUGERIDA APP', 'MARCA ARQUIVO', 'MARCA SUGERIDA APP', 'FABRICANTE ARQUIVO', 'FABRICANTE SUGERIDO APP', 'CONTENIDO ARQUIVO', 'CONTENIDO SUGERIDO APP', 'DESCRITIVO PADRONIZADO', 'DESCRICAO ORIGINAL', 'ANALISTA']];
+    for (const r of R) if (r.status !== 'ARQUIVO CONFIRMADO') sg.push([bc(r.it.barcode), r.status, r.it.sugCatRaw, nomeOf(r.sug.cat), r.it.sugMarca, r.sug.marca, r.it.sugFab, r.sug.fab, r.it.sugQt, r.sug.qt === null ? '' : fmtUnit(r.sug.qt, r.sug.qbase), r.desc, (r.it.D[0] || '').slice(0, 200), r.it.analista || '']);
     const wsg = XLSX.utils.aoa_to_sheet(sg); wsg['!cols'] = [{ wch: 16 }, { wch: 40 }, { wch: 26 }, { wch: 26 }, { wch: 20 }, { wch: 20 }, { wch: 24 }, { wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 60 }, { wch: 60 }];
-    wsg['!autofilter'] = { ref: 'A1:L' + sg.length }; XLSX.utils.book_append_sheet(wb, wsg, 'SUGESTAO');
+    wsg['!autofilter'] = { ref: 'A1:M' + sg.length }; XLSX.utils.book_append_sheet(wb, wsg, 'SUGESTAO');
   }
   const rv = [['CODIGO BARRAS', 'CODIGO INTERNO', 'CATEGORIA', 'CATEGORIA SUGERIDA', 'MARCA', 'MARCA SUGERIDA', 'FABRICANTE', 'FABRICANTE SUGERIDO', 'CONTENIDO', 'CONTENIDO SUGERIDO', 'DESCRITIVO PADRONIZADO', 'ALERTAS', 'DESCRICOES ORIGINAIS', 'PRIORIDADE']];
   for (const r of [...R].filter(r => r.pri).sort((a, b) => a.pri - b.pri || a.cat.localeCompare(b.cat)))
