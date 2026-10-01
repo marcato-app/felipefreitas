@@ -1275,6 +1275,14 @@ function labAchado(T) {
   return null;
 }
 function labDaDescricao(T) { const l = labAchado(T); return l ? l.fab : null; }
+// abreviação de princípio ativo (METFORM, LOSART, OMEPRA): prefixo de 5+ letras de um princípio ativo só do dicionário
+let PA_PALAVRAS = null;
+function paPorPrefixo(w) {
+  if (!w || w.length < 5 || /\d/.test(w)) return null;
+  if (!PA_PALAVRAS) PA_PALAVRAS = [...new Set((K.farmaPA || []).flatMap(r => r.partes.flatMap(p => p.split('|'))).map(N).filter(x => x && !x.includes(' ')))];
+  if (PA_PALAVRAS.includes(w)) return null;
+  const c = PA_PALAVRAS.filter(p => p.startsWith(w)); return c.length === 1 ? c[0] : null;
+}
 const DESC_MAX = 60;
 // sigla do laboratório (3 letras, siglas.py -> K.farmaSiglas): código/nome do laboratório na descrição (GERMED -> GER),
 // código da marca na DIMA ("DORFLEX (OPE)", "SUNDOWN NES"), senão a sigla padrão do fabricante
@@ -1460,7 +1468,22 @@ async function loadCmed(file) {
     { subst: txt(r, iS), lab: txt(r, iL), produto: txt(r, iP), apres: txt(r, iA), classe: txt(r, iC), tipo: txt(r, iT) }]);
   const res = montaCmed(L); data.cmedArquivo = file.name; return res;
 }
+// prefixo da empresa no código de barras (789 + 4 a 6 dígitos) -> laboratório da CMED (>= 80% dos códigos daquele prefixo)
+const labCurto = l => N(l).split(' ').filter(w => !LAB_LIXO.has(w) && !/^(INDUSTRIA|INDUSTRIAL|LTDA|EIRELI|S|A|SA|ME|COMERCIO|DO|DA|DE)$/.test(w)).join(' ');
+function montaPrefixos(L) {
+  const pre = new Map();
+  for (const [eans, e] of L) { if (!e.lab) continue; const k = labCurto(e.lab); if (!k) continue;
+    for (const x of eans) { const sk = String(x).replace(/\D/g, '').replace(/^0+/, ''); if (sk.length !== 13 || !sk.startsWith('789')) continue;
+      for (const n of [7, 8, 9]) { const p = sk.slice(0, n); if (!pre.has(p)) pre.set(p, new Map()); const mm = pre.get(p); mm.set(k, (mm.get(k) || 0) + 1); } } }
+  const out = new Map(); for (const [p, mm] of pre) { let t = 0, b = null, v = 0; for (const [k, x] of mm) { t += x; if (x > v) { v = x; b = k; } } if (t >= 3 && v / t >= 0.8) out.set(p, b); }
+  data.cmedPref = out;
+}
+function labPorEAN(bc) { const sk = String(bc || '').replace(/\D/g, '').replace(/^0+/, ''); if (sk.length !== 13) return null; data.cmedPref = data.cmedPref || new Map();
+  for (const n of [9, 8, 7]) { const l = data.cmedPref.get(sk.slice(0, n)); if (l) return labDaDescricao([l]) || l; }
+  const vp = (K.farmaVit || {}).pref || {}; for (const n of [9, 8, 7]) if (vp[sk.slice(0, n)]) return vp[sk.slice(0, n)]; // suplemento: base VITAMINA E MINERAL
+  return null; }
 function montaCmed(L) {
+  montaPrefixos(L);
   const m = new Map(), prod = new Map(), cls = new Map(), psub = new Map();
   for (const [eans, e] of L) {
     if (!psub.has(N(e.produto))) psub.set(N(e.produto), e.subst);
@@ -1641,6 +1664,7 @@ async function runAll(opts = {}) {
         fab = lab;
       }
     }
+    if (farma && !valido(fab)) { const l = labPorEAN(it.barcode); if (l) { fab = l; alerts0.push(`Fabricante pelo código de barras (prefixo da empresa na lista CMED): ${l}`); } } // remédio sempre tem fabricante
     // nunca, em nenhuma cesta: POR DEFECTO vira OUTRA MARCA e SIN PROVEEDOR ASOCIADO vira OUTRO FABRICANTE (e não vão no descritivo)
     if (!valido(marca)) { marca = 'OUTRA MARCA'; bn = null; BD = null; }
     if (!valido(fab)) fab = 'OUTRO FABRICANTE';
@@ -1653,6 +1677,8 @@ async function runAll(opts = {}) {
         alerts0.push(`Marca ${marca} é laboratório: usado ${pa ? 'o princípio ativo' : 'OUTRA MARCA'}`);
         marca = pa ? paIni(pa, T) : 'OUTRA MARCA'; bn = marca === 'OUTRA MARCA' ? null : marca; BD = null;
       }
+      { const pz = marca !== 'OUTRA MARCA' && !marca.includes(' ') && !BD && !fmHit && !(it.vit && it.vit.m) ? paPorPrefixo(N(marca)) : null;
+        if (pz) { alerts0.push(`${marca} é abreviação de ${pz}: genérico`); marca = pz; bn = pz; } }
       sigla = siglaDe(T, fab, BD && bn && BD.map.get(bn) ? BD.map.get(bn).canon : (it.vit && it.vit.m ? it.vit.m.marca : (marcaArq ? marca : '')), it.D);
       marca = semSigla(marca, sigla, fab); if (sigla && N(marca).endsWith(' ' + sigla)) marca = marca.slice(0, -(sigla.length + 1)).trim(); // PANTOVIN PAN -> PANTOVIN
       generico = marca !== 'OUTRA MARCA' && N(marca).split(' ').every(w => CONNECT.has(w) || palavrasPA([N(marca)], C).has(w));

@@ -40,6 +40,7 @@ PRIMARIA = {
 # Erros evidentes da base (destino que não bate com o princípio ativo, mesmo quando a base marca como "Texto").
 # Sobrescrevem a planilha; a coluna "corrigido" do farmaPA marca esses casos. Revisar com o cliente.
 CORRECOES = {
+    'METFORMINA': 'BIGUANIDA SOLA A DIABETICOS',  # metformina sozinha (o dicionário do cliente apontava para SGLT2 + biguanida)
     'VITAMINA A': 'VITAMINA A PURA', 'VITAMINA D': 'VITAMINA D PURA', 'VITAMINA K': 'VITAMINA K', 'VITAMINA E': 'VITAMINA OUTRO',
     'CETOROLACO COLIRIO': 'ANTIINFLAMATORIOS OFTALMOLOGICOS NAO ESTEROIDES',
     'LOPINAVIR/RITONAVIR': 'OUTROS ANTIVIRAIS', 'ANFETAMINAS': 'PSICOESTIMULANTES', 'LIDOCAINA': 'ANESTESICOS LOCAIS TOPICOS',

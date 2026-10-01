@@ -120,7 +120,15 @@ def main():
             o = of.get(x['nome'], '')
             if x.get('cesta') == 'FARMACIA' and x.get('inicio') and re.match(r'^(A1[123]|B02B)', o) and pad.get(N(o), 'FARMA') in ('FARMA', ''):
                 x['inicio'] = ''
-    cj['farmaVit'] = {'marcas': marcas, 'pesos': pesos, 'prior': prior, 'fora': trava}
+    # prefixo da empresa no código de barras (789 + 4 a 6 dígitos) -> fabricante (>= 80% dos SKUs, 3+ SKUs): suplemento
+    # sem fabricante na descrição ganha o do dono do código de barras
+    pre = defaultdict(Counter)
+    for b in base:
+        e = re.sub(r'\D', '', b['Codigo Barras']).lstrip('0')
+        if len(e) == 13 and e.startswith('789') and N(b['Fabricante']) not in SEM:
+            for k in (7, 8, 9): pre[e[:k]][b['Fabricante'].strip()] += 1
+    pref = {p: c.most_common(1)[0][0] for p, c in pre.items() if sum(c.values()) >= 3 and c.most_common(1)[0][1] / sum(c.values()) >= 0.8}
+    cj['farmaVit'] = {'marcas': marcas, 'pesos': pesos, 'prior': prior, 'fora': trava, 'pref': pref}
     (here / 'consts.json').write_text(json.dumps(cj, ensure_ascii=False), encoding='utf-8')
     # acerto do modelo MULTI x OUTRO na própria base (só as palavras, sem a marca)
     ok = 0

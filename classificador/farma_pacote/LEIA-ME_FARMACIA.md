@@ -336,4 +336,11 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
 - Arquivo sugere Farmácia e a descrição tem sinal de remédio (XAROPE, MG, CAPS): vale o arquivo (NOVOLACT XAROPE AMEIXA
   não é fruta). Categoria vinda do arquivo não vira suplemento; marca de rede sozinha (SAO JOAO) não tira luva/correlato
   para VITAMINA OUTRO (precisa forma/dose); suplemento forte sai de outra cesta (sabor LARANJA, KIDS, cão e gato não).
+- Fabricante de remédio nunca fica vazio: sem laboratório na descrição/arquivo, vale o dono do **prefixo do código de
+  barras** (789 + 4 a 6 dígitos; `montaPrefixos`/`labPorEAN`): aprendido da lista CMED (7897076 = RANBAXY,
+  7898100 = BRASTERAPICA) e, para suplemento, da base VITAMINA E MINERAL (`farmaVit.pref`). Alerta "Fabricante pelo
+  código de barras".
+- Abreviação de princípio ativo na marca (METFORM -> METFORMINA): prefixo de 5+ letras de um princípio ativo só
+  (`paPorPrefixo`) -> genérico com sigla (METFORMINA BRS).
+- Dicionário de princípios ativos: METFORMINA sozinha = A10J1 BIGUANIDA SOLA (o do cliente apontava para SGLT2 + biguanida).
 
