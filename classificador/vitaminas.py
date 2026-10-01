@@ -95,6 +95,20 @@ def main():
         w = m[0].split()
         if len(w) > 1 and not m[5] and prim[w[0]] == 1 and len(w[0]) >= 5 and w[0] not in COMUM | NUTRI and w[0] not in ja and w[0] not in fora:
             marcas.append([w[0]] + m[1:]); ja.add(w[0])
+    # nome de linha que a loja escreve no lugar da marca (ADDERITOS = ADDERA, linha infantil): 1ª palavra da descrição da
+    # loja que começa com o nome da marca (5+ letras iguais) -> mesma marca
+    por_t = {m[0]: m for m in marcas}; lin = defaultdict(Counter)
+    for b in base:
+        ts = [t for t in termo(b['Marca']) if t in por_t and not por_t[t][5]]
+        if not ts: continue
+        t = ts[-1]
+        for col in ('TOP_DESCRIPCION', 'MAX_DESCRIPCION', 'Descripcion'):
+            w = (N(b[col]).split() or [''])[0]
+            if len(w) > len(t.split()[0]) >= 5 and len(w) >= 6 and w.startswith(t.split()[0][:max(5, len(t.split()[0]) - 1)]) and w not in COMUM | NUTRI: lin[w][t] += 1
+    for w, cn in lin.items():
+        t, v = cn.most_common(1)[0]
+        if w not in ja and w not in fora and v / sum(cn.values()) >= 0.8: marcas.append([w] + por_t[t][1:]); ja.add(w)
+    print('linhas da marca:', sorted((w, cn.most_common(1)[0][0]) for w, cn in lin.items() if w in ja)[:20])
     # naive Bayes MULTIVITAMINICO x VITAMINA OUTRO nas palavras das descrições
     cnt = {True: Counter(), False: Counter()}; tot = Counter()
     for b in base:

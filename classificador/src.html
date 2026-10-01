@@ -725,7 +725,7 @@ function compileFD(active) {
 // VITAMINA E MINERAL (vitaminas.py -> K.farmaVit, aprendido com a base do cliente): na base todo suplemento de vitamina/
 // mineral fica em VITAMINA OUTRO ou MULTIVITAMINICO (até os com registro de remédio: CITONEURIN, DEPURA, CALTRATE)
 const RX_SUPL = /(?<![A-Z])(SUPL|SUPLEM|SUPLEMENTO|SUPLEMENTOS|NUTRACEUTICO|NUTRACEUTICA|POLIVITAMINICO|MULTIVITAMINICO|POLIVIT|MULTIVIT|A ?Z|A-Z)(?![A-Z])/;
-const RX_FORMA_SUPL = /(?<![A-Z])(\d+\s*(CAPS?|CPS|CPR|CPRS|COMP|CP|CAPSULAS?|COMPRIMIDOS?|SOFTGELS?|GOMAS?|TABS?|TABLETES?)|\d+(\.\d+)?\s*(MG|MCG|UI|IU))(?![A-Z])/;
+const RX_FORMA_SUPL = /(?<![A-Z])(\d+\s*(CAPS?|CPS|CPR|CPRS|COMP|CP|CAPSULAS?|COMPRIMIDOS?|SOFTGELS?|GOMAS?|TABS?|TABLETES?)|\d+(\.\d+)?\s*(MG|MCG|UI|IU)|GOMAS|GOMINHAS?|GUMMY|GUMMIES|SOFTGELS?)(?![A-Z])/; // GOMAS 30UN (forma sem número antes)
 function compileVit(active, C) {
   const V = K.farmaVit; if (!V || !active.has('VITAMINA OUTRO') || !active.has('MULTIVITAMINICO')) return null;
   // marca com princípio ativo de remédio (DICLOR DE FLUNARIZINA) não é marca de vitamina; nome genérico (ZINCO) fica
@@ -796,7 +796,7 @@ function vitDe(T, cat, farma, C) {
   for (const t of T) for (const x of t.matchAll(V.rx)) { const e = V.map.get(x[0]); if (!m || (m.gen && !e.gen)) m = e; if (!m.gen) break; }
   const supl = T.some(t => RX_SUPL.test(t)), forma = T.some(t => RX_FORMA_SUPL.test(t));
   // marca sozinha só tira de outra categoria de Farmácia com forma/dose de suplemento (marca de rede: SAO JOAO tem luva)
-  const ok = catVitAtc(cat) || (farma && (supl || (m && !m.gen && forma))) || (cat === OUT && (supl || m) && (forma || supl)); // nome genérico (ZINCO) não tira de outra categoria de Farmácia
+  const ok = catVitAtc(cat) || (farma && (supl || (m && !m.gen && forma))) || (cat === OUT && (supl || m) && (forma || T.some(t => RX_SUPL.test(t.replace(/(?<![A-Z])A ?-?Z(?![A-Z])/g, ' '))))); // "AZ" sozinho (REGISTRADOR AZ) não é polivitamínico // nome genérico (ZINCO) não tira de outra categoria de Farmácia
   if (!ok) return null;
   // regra do cliente: A-Z / polivitamínico ou 3+ vitaminas/minerais -> MULTIVITAMINICO; 1 ou 2 -> VITAMINA OUTRO;
   // sem nutriente escrito (só marca): pela marca na base e pelas palavras (naive Bayes)
@@ -1659,7 +1659,7 @@ async function runAll(opts = {}) {
       const c2 = TT.map(t => classifyDesc(t, C)).find(c => c && c !== a.cat && /^[A-Z]\d\d[A-Z]/.test(nomeOf(c)) && bateNutrientes(c, TT));
       if (c2 && byName.has(c2)) { it.vitReg = true; AGG[i] = Object.assign({}, a, { cat: c2, per: a.per.map(() => c2), regTrocou: a.cat }); return; }
     }
-    if (cc && a.cat !== 'VITAMINA OUTRO' && a.cat !== 'MULTIVITAMINICO' && (it.cmed || TT.some(t => regMarca(matchFC(t, C), C)) || hojaAtc(TT, C))) { it.vitReg = true; return; } // ADDERA com "SUPL ALIM" no texto continua remédio
+    if (cc && !outraCesta && a.cat !== 'VITAMINA OUTRO' && a.cat !== 'MULTIVITAMINICO' && (it.cmed || TT.some(t => regMarca(matchFC(t, C), C)) || hojaAtc(TT, C))) { it.vitReg = true; return; } // ADDERA com "SUPL ALIM" no texto continua remédio
     const v = vitDe(TT, a.cat, !!cc || outraCesta, C); if (!v) return; it.vit = v;
     if (v.cat !== a.cat) AGG[i] = Object.assign({}, a, { cat: v.cat, vitTrocou: a.cat }); });
   // OUTRA CATEGORIA: 1º a categoria da marca na DIMA (PEDIGREE -> Pet), quando a marca é de uma categoria só (70%+);

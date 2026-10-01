@@ -409,3 +409,17 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
 - Teste com 5 arquivos (DIMA, Hoja, final, 88 itens de balcão, lojas):
   - antes, 505 fabricantes na saída, 5 fora das bases;
   - depois, 498 fabricantes, 2 fora das bases (SPECIALTY GOIAS e ANTIBIOTICOS: STATUS CRIAR FABRICANTE).
+
+### 3.5p Suplemento com sabor de fruta (ADDERITOS ADDERA MAN FRUTA VERMELHA GOMAS 30UN)
+- Antes ia para OUTRAS FRUTAS (pelo sabor) ou OUTRA CATEGORIA, por três motivos:
+  1. "GOMAS 30UN" não contava como forma de suplemento: só valia "30 GOMAS". Agora GOMAS, GOMINHAS, GUMMY e SOFTGEL valem
+     sem número antes.
+  2. A marca ADDERA está na CMED, e a regra de "remédio registrado" segurava o item na categoria de outra cesta. Essa trava
+     agora só vale dentro da Farmácia.
+  3. ADDERITOS não era reconhecido como ADDERA. `vitaminas.py` agora aprende o nome de linha que a loja escreve no lugar da
+     marca: 1ª palavra da descrição da loja que começa com o nome da marca e é mais comprida que ele. Exemplos: ADDERITOS ->
+     ADDERA, CEBIONC -> CEBION, ANEMIFERC -> ANEMIFER. Abreviação mais curta que a marca não vale (ACTION não é ACTIONQ10).
+- Resultado: VITAMINA OUTRO (como a base do cliente tem esse EAN), marca ADDERA MAN, HYPERA PHARMA.
+  BALA GOMA FRUTA VERMELHA continua BALA. ADDERA D3 em comprimido continua A11C2.
+- Outras cestas: "AZ" sozinho não é polivitamínico (REGISTRADOR AZ CVISOR saiu de MULTIVITAMINICO).
+- Teste: testes_farma/adderitos_gomas.csv.
