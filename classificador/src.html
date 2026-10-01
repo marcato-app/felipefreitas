@@ -451,13 +451,14 @@ async function loadBacklog(file) {
   const ci = {
     bc: findCol(hdr, [h => h === 'BARCODE', h => h === 'CODIGOBARRAS', h => h.includes('CODIGOBARRAS') && !h.includes('CONTENIDO'), h => h.includes('EAN'), h => h.includes('BARCODE')]),
     ds: findCol(hdr, [h => h === 'DESCRIPTIONS', h => h.includes('DESCRIPTION'), h => h.includes('DESCRI') && !aux(h)]),
-    cat: findCol(hdr, [h => h === 'ESTMER7DESCRIPCION', h => h === 'CATEGORIA', h => h.includes('CATEGORIA') && !aux(h)]),
+    cat: findCol(hdr, [h => h === 'ESTMER7DESCRIPCION', h => h.startsWith('SUBCATEGORIA') && !aux(h), h => h === 'CATEGORIA', h => h.includes('CATEGORIA') && !aux(h)]),
+    cat6: findCol(hdr, [h => h === 'ESTMER6DESCRIPCION', h => h.startsWith('CATEGORIA') && !aux(h)]), // nível de cima (EST MER 6), se a subcategoria vier vazia
     mar: findCol(hdr, [h => h === 'MARCA', h => h.includes('MARCA') && !aux(h)]),
     fab: findCol(hdr, [h => h === 'FABRICANTE', h => h.includes('FABRICANTE') && !aux(h)]),
     qt: findCol(hdr, [h => h === 'CONTENIDO' || h === 'QUANTIDADE' || h === 'CONTEUDO', h => (h.includes('QUANTIDADE') || h.includes('CONTENIDO')) && !aux(h)]),
   };
   // outras descrições do produto no arquivo (TOP_DESCRIPCION, MAX_DESCRIPCION das lojas) entram como descrições extras
-  let extras; const extrasDe = () => hdr.map((h, i) => [normH(h), i]).filter(([h, i]) => h.includes('DESCRI') && !aux(h) && !/ESTMER|SEGMENTO|CATEGORIA|WORDS/.test(h) && i !== ci.ds && i !== ci.main).map(([, i]) => i);
+  let extras; const extrasDe = () => hdr.map((h, i) => [normH(h), i]).filter(([h, i]) => h.includes('DESCRI') && !aux(h) && !/ESTMER|SEGMENTO|CATEGORIA|WORDS|PADRAO/.test(h) && i !== ci.ds && i !== ci.main).map(([, i]) => i);
   // descrição principal (a do cadastro do produto), se o arquivo tiver: vira a referência do tipo do item
   ci.main = findCol(hdr, [h => ['DESCRIPCION', 'DESCRICAO', 'DESCRITIVO', 'DESCRIPTION', 'DESCRICAOPRODUTO', 'DESCRITIVOATUAL', 'DESCRICAOPRINCIPAL'].includes(h)]);
   if (ci.main === ci.ds) ci.main = -1;
@@ -470,7 +471,10 @@ async function loadBacklog(file) {
     for (const i of extras) { const x = row[i] ? desgruda(String(row[i]).trim()) : ''; if (x && !D.some(y => N(y) === N(x))) D.push(x); }
     const mainD = ci.main >= 0 && row[ci.main] ? desgruda(String(row[ci.main]).trim()) : '';
     if (mainD) { const k = D.findIndex(x => N(x) === N(mainD)); if (k >= 0) D.splice(k, 1); D.unshift(mainD); }
-    items.push({ barcode: row[ci.bc], D, T: D.map(N), main: !!mainD, sugCatRaw: ci.cat >= 0 ? String(row[ci.cat] ?? '').trim() : '', sugCat: ci.cat >= 0 ? catInterna(row[ci.cat]) : '', sugMarca: ci.mar >= 0 ? String(row[ci.mar] ?? '').trim() : '',
+    // categoria sugerida: a subcategoria (EST MER 7); vazia, a categoria de cima (EST MER 6) -> filha que bate com a descrição
+    const cv = i => { const v = i >= 0 ? String(row[i] ?? '').trim() : ''; return valido(v) ? v : ''; }; // Por Defecto não é categoria
+    const cRaw = cv(ci.cat) || (ci.cat6 !== ci.cat ? cv(ci.cat6) : '');
+    items.push({ barcode: row[ci.bc], D, T: D.map(N), main: !!mainD, sugCatRaw: cRaw, sugCat: cRaw ? catSugerida(cRaw, D.map(N)) : '', sugMarca: ci.mar >= 0 ? String(row[ci.mar] ?? '').trim() : '',
       sugFab: ci.fab >= 0 ? String(row[ci.fab] ?? '').trim() : '', sugQt: ci.qt >= 0 ? row[ci.qt] : null });
   }
   data.items = items; data.sugCounts = new Map();
@@ -772,7 +776,8 @@ function vitDe(T, cat, farma, C) {
   let m = null; // marca de verdade (SUNDOWN) ganha de nome genérico usado como marca (VITAMINA C, OMEGA 3)
   for (const t of T) for (const x of t.matchAll(V.rx)) { const e = V.map.get(x[0]); if (!m || (m.gen && !e.gen)) m = e; if (!m.gen) break; }
   const supl = T.some(t => RX_SUPL.test(t)), forma = T.some(t => RX_FORMA_SUPL.test(t));
-  const ok = catVitAtc(cat) || (farma && (supl || (m && !m.gen))) || (cat === OUT && (supl || m) && (forma || supl)); // nome genérico (ZINCO) não tira de outra categoria de Farmácia
+  // marca sozinha só tira de outra categoria de Farmácia com forma/dose de suplemento (marca de rede: SAO JOAO tem luva)
+  const ok = catVitAtc(cat) || (farma && (supl || (m && !m.gen && forma))) || (cat === OUT && (supl || m) && (forma || supl)); // nome genérico (ZINCO) não tira de outra categoria de Farmácia
   if (!ok) return null;
   // regra do cliente: A-Z / polivitamínico ou 3+ vitaminas/minerais -> MULTIVITAMINICO; 1 ou 2 -> VITAMINA OUTRO;
   // sem nutriente escrito (só marca): pela marca na base e pelas palavras (naive Bayes)
@@ -1371,9 +1376,11 @@ function bateCategoria(c, T) {
 // categoria do arquivo: fica, a não ser que nenhuma descrição bata com ela E a descrição aponte para outra cesta
 function categoriaArquivo(it, a, byName) {
   const s = it.sugCat; if (!prioArq() || !s || s === a.cat) return a;
+  if (a.cat === OUT && data.dima) return a; // sem categoria pela descrição: antes a marca na DIMA, depois o arquivo (mais abaixo, no runAll)
   const c1 = byName.get(s); if (!c1) return a; // categoria que não existe na biblioteca
   const c0 = byName.get(a.cat);
-  if (!bateCategoria(c1, a.T) && c0 && c0.cesta && c1.cesta && c0.cesta !== c1.cesta)
+  // (no arquivo é Farmácia e a descrição tem sinal de remédio -XAROPE, MG, CAPS-: vale o arquivo; NOVOLACT XAROPE AMEIXA não é fruta)
+  if (!bateCategoria(c1, a.T) && c0 && c1.cesta && c0.cesta !== c1.cesta && !(c1.cesta === 'FARMACIA' && a.T.some(sinalFarma))) // categoria sem cesta (CHOCOLATE CANDY BAR) também é outra cesta
     return Object.assign({}, a, { arqTrocada: s });
   return Object.assign({}, a, { cat: s, per: a.per.map(() => s), flag: 'ARQUIVO', arqCat: true });
 }
@@ -1514,13 +1521,34 @@ async function runAll(opts = {}) {
     AGG[i] = Object.assign({}, a, { cat: c, cmedTrocou: a.cat }); });
   // suplemento de vitamina/mineral: VITAMINA OUTRO / MULTIVITAMINICO (ganha dos grupos ATC A11/A12/A13 e de palavra solta como ÓLEO)
   if (C.vit) items.forEach((it, i) => { const a = AGG[i], cc = byName.get(a.cat); it.vit = null;
-    if (a.cat !== OUT && !(cc && cc.cesta === 'FARMACIA')) return;
     const TT = a.T || it.T;
+    // de outra cesta (LARANJA pelo sabor, ROUPA INFANTIL pelo KIDS, SUPLEMENTO CAES E GATOS) só com prova forte de suplemento
+    // humano: SUPL ou marca de vitamina, com forma/dose ou nutriente escrito, e sem falar de animal
+    const forte = () => { const V = C.vit, J = TT.join(' | ');
+      const m = TT.some(t => { V.rx.lastIndex = 0; for (const x of t.matchAll(V.rx)) { const e = V.map.get(x[0]); if (e && !e.gen) return true; } return false; });
+      return (TT.some(t => RX_SUPL.test(t)) || m) && (TT.some(t => RX_FORMA_SUPL.test(t)) || nutrientes(TT).size > 0) && !RX_PET.test(J); };
+    const outraCesta = cc && cc.cesta && cc.cesta !== 'FARMACIA';
+    if (a.cat !== OUT && !(cc && cc.cesta === 'FARMACIA') && !(outraCesta && !a.arqCat && forte())) return;
+    if (a.arqCat && !catVitAtc(a.cat)) return; // categoria do arquivo (DERMOCOSMETICO SOLAR) não vira suplemento
     // remédio registrado (código de barras na lista CMED, ou marca da lista CMED sem sinal de suplemento) fica na categoria
     // de remédio (A11/A12...); nome só no registro da Anvisa não basta (fitoterápico vendido como suplemento: CASTANHA DA INDIA)
     if (cc && a.cat !== 'VITAMINA OUTRO' && a.cat !== 'MULTIVITAMINICO' && (it.cmed || (!TT.some(t => RX_SUPL.test(t)) && TT.some(t => regMarca(matchFC(t, C), C))))) { it.vitReg = true; return; }
-    const v = vitDe(TT, a.cat, !!cc, C); if (!v) return; it.vit = v;
+    const v = vitDe(TT, a.cat, !!cc || outraCesta, C); if (!v) return; it.vit = v;
     if (v.cat !== a.cat) AGG[i] = Object.assign({}, a, { cat: v.cat, vitTrocou: a.cat }); });
+  // OUTRA CATEGORIA: 1º a categoria da marca na DIMA (PEDIGREE -> Pet), quando a marca é de uma categoria só (70%+);
+  // depois a sugestão do arquivo que existe na biblioteca (o app não reconheceu a descrição)
+  items.forEach((it, i) => { const a = AGG[i]; if (a.cat !== OUT || !data.dima) return;
+    const T = a.T || it.T; let bn = null; try { bn = findBrand(T, [], '', C.black, data.dima, null); } catch (e) { bn = null; }
+    const b = bn && data.dima.map.get(bn); if (!b || !b.fabEm) return;
+    if (!T.some(t => t === bn || t.startsWith(bn + ' '))) return; // só marca no começo da descrição (SKOL LATA, PEDIGREE SACHE); no meio é palavra solta
+    if (!bn.includes(' ') && T.some(t => (headPos(t, C.headIdx) || {}).w === bn)) return; // a "marca" é o tipo do produto (CARTUCHO HP)
+    // EST MER 6 da DIMA (CERVEJA, PET ALIMENTO PARA CACHORRO) -> subcategoria do app que bate com a descrição
+    const cnt = new Map(); let tot = 0; for (const [seg, fm] of b.fabEm) { let n = 0; for (const v of fm.values()) n += v; tot += n; const c = catSugerida(seg, T); if (byName.has(c)) cnt.set(c, (cnt.get(c) || 0) + n + (bateCategoria(byName.get(c), T) ? tot + 1 : 0)); }
+    const top = [...cnt].sort((x, y) => y[1] - x[1])[0];
+    const umaCesta = cnt.size >= 1 && new Set([...cnt.keys()].map(c => byName.get(c).cesta || c)).size === 1; // PEDIGREE: só Pet
+    if (top && (top[1] / Math.max(1, tot) >= 0.7 || bateCategoria(byName.get(top[0]), T) || umaCesta)) AGG[i] = Object.assign({}, a, { cat: top[0], per: a.per.map(() => top[0]), dimaMarcaCat: bn }); });
+  items.forEach((it, i) => { const a = AGG[i]; if (a.cat === OUT && it.sugCat && byName.has(it.sugCat))
+    AGG[i] = Object.assign({}, a, { cat: it.sugCat, per: a.per.map(() => it.sugCat), flag: 'ARQUIVO', arqCat: true, sugSoFallback: true }); });
   const segOf = segmentosEstMer6(AGG, items, byName, C);
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
@@ -1752,6 +1780,24 @@ function catInterna(v) {
   if (!data.catAlias) { data.catAlias = new Map(); const tira = x => x.replace(/^[A-Z]\d{2}[A-Z]?\d?\s+/, '').replace(/^[-\s]+/, '');
     for (const c of cfg.categorias) for (const x of [c.nome, nomeOf(c.nome)]) { data.catAlias.set(N(x), c.nome); data.catAlias.set(N(tira(N(x))), c.nome); } }
   const n = N(raw); return data.catAlias.get(n) || data.catAlias.get(n.replace(/^[A-Z]\d{2}[A-Z]?\d?\s+/, '')) || raw;
+}
+// categoria sugerida no arquivo -> categoria do app; EST MER 6 (CORRELATO, A10N INIBIDOR DPP IV, DERMOCOSMETICO) vira a
+// filha que bate com a descrição (incluir ou palavra do nome: SOLAR), senão a filha "outros"/de menor código
+// EST MER 6 da DIMA com nome diferente das filhas no app (PET ALIMENTO PARA CACHORRO -> RACAO ... CAO)
+const SEG_FILHOS = { 'PET ALIMENTO PARA CACHORRO': ['RACAO SECA CAO', 'RACAO UMIDA CAO', 'PETISCO CAO', 'ALIMENTO NATURAL CAO'],
+  'PET ALIMENTO PARA GATO': ['RACAO SECA GATO', 'RACAO UMIDA GATO', 'PETISCO GATO', 'ALIMENTO NATURAL GATO'] };
+const SEG_ALIAS = { 'VITAMINA E MINERAL': 'VITAMINA OUTRO', CORRELATO: 'CORRELATO OUTROS', 'SUPLEMENTO NUTRICIONAL': 'SUPLEMENTO OUTROS', SUPLEMENTO: 'SUPLEMENTO OUTROS' };
+function catSugerida(raw, T) {
+  const c = catInterna(raw); if (cfg.categorias.some(x => x.nome === c)) return c;
+  const n = N(raw), cod = (/^([A-Z]\d\d[A-Z]?\d?)\s/.exec(n + ' ') || [])[1], base = n.replace(/^[A-Z]\d\d[A-Z]?\d?\s+/, '');
+  let filhos = cod ? cfg.categorias.filter(x => nomeOf(x.nome).startsWith(cod)) : [];
+  if (!filhos.length) filhos = cfg.categorias.filter(x => N(x.nome).startsWith(base + ' '));
+  if (!filhos.length && SEG_FILHOS[base]) filhos = SEG_FILHOS[base].map(f => cfg.categorias.find(x => x.nome === f)).filter(Boolean);
+  const f = filhos.find(x => bateCategoria(x, T)) || filhos.find(x => N(x.nome).split(' ').some(w => w.length >= 4 && !base.split(' ').includes(w) && T.some(t => t.split(' ').includes(w))));
+  if (f) return f.nome;
+  const al = SEG_ALIAS[base]; if (al && cfg.categorias.some(x => x.nome === al)) return al;
+  const o = filhos.find(x => /OUTR/.test(N(x.nome))) || filhos.sort((a, b) => nomeOf(a.nome).localeCompare(nomeOf(b.nome)))[0];
+  return o ? o.nome : raw;
 }
 function buildWorkbook() {
   const R = data.results; const wb = XLSX.utils.book_new();

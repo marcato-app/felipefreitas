@@ -24,7 +24,7 @@ print('ok:', here / 'classificador.html', f'{len(s):,} bytes')
 import json
 cf = json.loads((here / 'consts.json').read_text(encoding='utf-8'))
 for x in cf['libSeed']['categorias']:
-    if x.get('cesta') == 'FARMACIA': x['ativa'] = True  # no agente de Farmácia a cesta já abre ativa
+    x['ativa'] = True  # no agente de Farmácia todas as cestas abrem ativas (Farmácia tem prioridade; item de outra cesta acha a dele)
     if x['nome'] in ('PRESERVATIVO', 'ALGODAO', 'OUTROS BEBE PUERICULTURA LEVE'): x['ativa'] = True  # correlatos vendidos em farmácia
 f = s.replace((here / 'consts.json').read_text(encoding='utf-8'), json.dumps(cf, ensure_ascii=False), 1)
 f = f.replace('<title>Classificador de Backlog</title>', '<title>Classificador Farmácia</title>', 1)

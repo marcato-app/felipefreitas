@@ -323,3 +323,15 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   `python3 estmer.py` → `estMer7` (por nome oficial, nome do app ou código ATC). Categoria que não está na planilha
   (ex. A11C2 VITAMINA D PURA, categorias de nível EST MER 6 criadas da DIMA) sai com a coluna vazia.
 
+### 3.5k Nunca OUTRA CATEGORIA quando há sugestão (arquivo "final" com CATEGORIA PROD / SUBCATEGORIA PROD)
+- O agente de Farmácia abre com **todas as cestas ativas** (Farmácia continua com prioridade): Skol, granola, energético,
+  ração acham a categoria deles em vez de OUTRA CATEGORIA.
+- Categoria sugerida no arquivo: a **SUBCATEGORIA** (EST MER 7) primeiro; vazia ou "Por Defecto", a CATEGORIA (EST MER 6)
+  vira a filha que bate com a descrição (`catSugerida`: DERMOCOSMETICO + "SOLAR" -> DERMOCOSMETICO SOLAR; A10N -> A10N1;
+  VITAMINA E MINERAL -> VITAMINA OUTRO; CORRELATO -> CORRELATO OUTROS). A coluna "Padrão de descritivo" não é descrição.
+- Ordem quando a descrição não dá categoria: (1) marca no começo da descrição que a DIMA conhece numa categoria
+  (SKOL -> CERVEJA, PEDIGREE -> RACAO UMIDA CAO, SILMOX -> MEDICAMENTO CAES E GATOS); (2) a sugestão do arquivo.
+- Arquivo sugere Farmácia e a descrição tem sinal de remédio (XAROPE, MG, CAPS): vale o arquivo (NOVOLACT XAROPE AMEIXA
+  não é fruta). Categoria vinda do arquivo não vira suplemento; marca de rede sozinha (SAO JOAO) não tira luva/correlato
+  para VITAMINA OUTRO (precisa forma/dose); suplemento forte sai de outra cesta (sabor LARANJA, KIDS, cão e gato não).
+

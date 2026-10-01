@@ -11,7 +11,7 @@ const pagina = process.argv[2] || path.join(__dirname, '..', 'farmacia.html');
   await p.waitForFunction(() => typeof data !== 'undefined' && data.dima, null, { timeout: 60000 });
   await p.setInputFiles('#fBacklog', path.join(__dirname, 'vitaminas.csv'));
   await p.waitForFunction(() => !document.querySelector('#btnRun').disabled, null, { timeout: 60000 });
-  await p.evaluate(() => { if (typeof irEtapa === 'function') irEtapa(6); }); await p.click('#btnRun');
+  await p.evaluate(() => { if (typeof irEtapa === 'function') irEtapa(6); }); await p.click('#btnRun', { timeout: 600000 });
   await p.waitForFunction(() => data.results && data.results.length, null, { timeout: 600000 });
   const r = await p.evaluate(() => data.results.map(x => [String(x.it.barcode), x.it.D[0] || '', nomeOf(x.cat), x.marca, x.fab, x.desc, x.qt, !!x.it.vitReg, x.it.vit ? (x.it.vit.nut ?? -1) : null]));
   fs.writeFileSync(process.env.SAIDA || path.join(__dirname, 'vitaminas_saida.json'), JSON.stringify(r));
