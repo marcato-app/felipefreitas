@@ -1821,7 +1821,8 @@ async function runAll(opts = {}) {
     let desc = monta() + cauda;
     if (desc.length > DESC_MAX) desc = (monta().slice(0, Math.max(0, DESC_MAX - cauda.length)).replace(/\s+\S*$/, '') + cauda).trim();
     // Farmácia (genérico, referência, suplemento, correlato): marca sempre com a sigla do laboratório (NIMESULIDA GER, ADDERA MAN)
-    if (farma && sigla && valido(marca) && marca !== 'OUTRA MARCA' && !N(marca).endsWith(' ' + sigla)) marca = `${marca} ${sigla}`;
+    // (dermocosmético não: marca sem a sigla do fabricante -> MASSIME, NIVEA SUN)
+    if (farma && sigla && valido(marca) && marca !== 'OUTRA MARCA' && !/^DERMOCOSMETICO/.test(a.cat) && !N(marca).endsWith(' ' + sigla)) marca = `${marca} ${sigla}`;
     const alerts = [...alerts0];
     { const F0 = matchFM(T, C.fm); if (F0 && F0.cat === a.cat) alerts.push('Categoria pela marca ' + F0.nome + (F0.ncat > 1 ? ` (marca em ${F0.ncat} categorias; usada a de maior venda)` : ''));
       const C0 = !(F0 && F0.cat === a.cat) && C.pa && T.map(t => matchPA(t, C.pa)).find(p => p && p.cat === a.cat);
