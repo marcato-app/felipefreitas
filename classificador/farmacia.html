@@ -1772,6 +1772,8 @@ async function runAll(opts = {}) {
       }
     }
     const marcaGen = !!(it.vit && it.vit.m && it.vit.m.gen && N(semSigla(marca)) === N(semCodLab(it.vit.m.marca, T))); // VITAMINA D3: nome genérico
+    // VITAMINA D e VITAMINA D3 são o mesmo produto (a base não tem D2/ergocalciferol): marca genérica sempre VITAMINA D3
+    if (farma && N(semSigla(marca)) === 'VITAMINA D' && !T.some(t => /(?<![A-Z])(D2|ERGOCALCIFEROL)(?![A-Z0-9])/.test(t))) marca = 'VITAMINA D3';
     if (farma && !valido(fab) && marcaGen) { const l = labPorEAN(it.barcode, true); if (l) { fab = l; alerts0.push(`Fabricante pelo código de barras (prefixo da empresa nas bases): ${l}`); } } // nome genérico: 1º o dono do código de barras
     if (farma && !valido(fab) && valido(marca) && data.dima) { // marca da DIMA sem fabricante na categoria: o mais comum da marca
       let f = null; // NIVEA SUN sem fabricante na DIMA -> NIVEA (BEIERSDORF)

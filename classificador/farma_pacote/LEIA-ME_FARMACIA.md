@@ -447,3 +447,5 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   - Hoja: -1 marca e -1 fabricante, pelos códigos de barras falsos do arquivo de teste;
   - outras cestas: sem mudança.
 - Testes: testes_farma/althaia_arquivo.csv, testes_farma/althaia_descricoes.csv.
+- Marca genérica VITAMINA D vira sempre VITAMINA D3, salvo quando a descrição fala em D2 ou ERGOCALCIFEROL. É o mesmo produto:
+  a base do cliente não tem D2, e a maioria das marcas genéricas é VITAMINA D3 (46 contra 15 VITAMINA D).
