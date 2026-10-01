@@ -3,32 +3,32 @@
                                                    DIPIRONA SODICA 500MG 10CPRS (EMS) | DIPIRONA EMS | EMS PHARMA
                                                    ["Categoria pelo princípio ativo Dipirona"] pri=0
                                                  => C09C ANTAGONISTAS DE LA ANGIOTENSINA II PUROS
-                                                   LOSARTANA POTASSICA 50MG 30CPRS | LOSARTANA | OUTRO FABRICANTE
-                                                   ["Genérico sem laboratório na descrição nem no arquivo: marca e descritivo sem sigla (revisar)","Categoria pelo princípio ativo Losartana (base pede validação)"] pri=2
+                                                   LOSARTANA POTASSICA 50MG 30CPRS (NES) | LOSARTANA NES | NESTLE CIA
+                                                   ["Fabricante pelo código de barras (prefixo da empresa na lista CMED): NESTLE CIA","Categoria pelo princípio ativo Losartana (base pede validação)"] pri=2
                                                  => J01C1 PENICILINAS DE AMPLO ESPECTRO ORAIS
-                                                   AMOXICILINA CLAVULANATO DE POTASSIO 875MG 14CPRS | AMOXICILINA | OUTRO FABRICANTE
-                                                   ["Genérico sem laboratório na descrição nem no arquivo: marca e descritivo sem sigla (revisar)","Categoria pelo princípio ativo Amoxicilina+Clavulanato (base pede validação)"] pri=2
+                                                   AMOXICILINA CLAVULANATO DE POTASSIO 875MG 14CPRS (NES) | AMOXICILINA NES | NESTLE CIA
+                                                   ["Fabricante pelo código de barras (prefixo da empresa na lista CMED): NESTLE CIA","Categoria pelo princípio ativo Amoxicilina+Clavulanato (base pede validação)"] pri=2
                                                  => J01C1 PENICILINAS DE AMPLO ESPECTRO ORAIS
-                                                   AMOXICILINA 500MG 21CPS | AMOXICILINA | OUTRO FABRICANTE
-                                                   ["Genérico sem laboratório na descrição nem no arquivo: marca e descritivo sem sigla (revisar)","Categoria pelo princípio ativo Amoxicilina (base pede validação)"] pri=2
+                                                   AMOXICILINA 500MG 21CPS (NES) | AMOXICILINA NES | NESTLE CIA
+                                                   ["Fabricante pelo código de barras (prefixo da empresa na lista CMED): NESTLE CIA","Categoria pelo princípio ativo Amoxicilina (base pede validação)"] pri=2
                                                  => S01E2 TOPICOS OFTALMOLOGICOS ANTIGLAUCOMA
-                                                   TIMOLOL COLIRIO 0.5% 5ML | TIMOLOL | OUTRO FABRICANTE
-                                                   ["Genérico sem laboratório na descrição nem no arquivo: marca e descritivo sem sigla (revisar)","Categoria pelo princípio ativo Timolol (base pede validação)"] pri=2
+                                                   TIMOLOL COLIRIO 0.5% 5ML (NES) | TIMOLOL NES | NESTLE CIA
+                                                   ["Fabricante pelo código de barras (prefixo da empresa na lista CMED): NESTLE CIA","Categoria pelo princípio ativo Timolol (base pede validação)"] pri=2
                                                  => M01A1 ANTI REUMATICOS NAO ESTEROIDAIS PUROS
-                                                   IBUPROFENO 600MG 20CPRS | IBUPROFENO | OUTRO FABRICANTE
-                                                   ["Genérico sem laboratório na descrição nem no arquivo: marca e descritivo sem sigla (revisar)","Categoria pelo princípio ativo Ibuprofeno (base pede validação)"] pri=2
+                                                   IBUPROFENO 600MG 20CPRS (NES) | IBUPROFENO NES | NESTLE CIA
+                                                   ["Fabricante pelo código de barras (prefixo da empresa na lista CMED): NESTLE CIA","Categoria pelo princípio ativo Ibuprofeno (base pede validação)"] pri=2
                                                  => N02B NAO NARCOTICOS ANTIPIRETICOS
-                                                   PARACETAMOL 750MG 20CPRS | PARACETAMOL | OUTRO FABRICANTE
-                                                   ["Genérico sem laboratório na descrição nem no arquivo: marca e descritivo sem sigla (revisar)","Categoria pelo princípio ativo Paracetamol (Acetaminofeno)"] pri=2
+                                                   PARACETAMOL 750MG 20CPRS (NES) | PARACETAMOL NES | NESTLE CIA
+                                                   ["Fabricante pelo código de barras (prefixo da empresa na lista CMED): NESTLE CIA","Categoria pelo princípio ativo Paracetamol (Acetaminofeno)"] pri=2
                                                  => D01A1 ANTIFUNGICOS DERMATOLOGICOS TOPICOS
-                                                   CETOCONAZOL CREME 30G | CETOCONAZOL | OUTRO FABRICANTE
-                                                   ["Genérico sem laboratório na descrição nem no arquivo: marca e descritivo sem sigla (revisar)","Categoria pelo princípio ativo Cetoconazol tópico"] pri=2
+                                                   CETOCONAZOL CREME 30G (NES) | CETOCONAZOL NES | NESTLE CIA
+                                                   ["Fabricante pelo código de barras (prefixo da empresa na lista CMED): NESTLE CIA","Categoria pelo princípio ativo Cetoconazol tópico"] pri=2
                                                  => J02A AGENTES ANTIMICOTICOS SISTEMICOS EXCLUINDO GRISEOF
-                                                   CETOCONAZOL 200MG 10CPRS | CETOCONAZOL | OUTRO FABRICANTE
-                                                   ["Genérico sem laboratório na descrição nem no arquivo: marca e descritivo sem sigla (revisar)","Categoria pelo princípio ativo Cetoconazol (base pede validação)"] pri=2
+                                                   CETOCONAZOL 200MG 10CPRS (NES) | CETOCONAZOL NES | NESTLE CIA
+                                                   ["Fabricante pelo código de barras (prefixo da empresa na lista CMED): NESTLE CIA","Categoria pelo princípio ativo Cetoconazol (base pede validação)"] pri=2
                                                  => VITAMINA OUTRO
-                                                   SUPL ALIM VITAMINA D 2000UI 30CPS | VITAMINA D | OUTRO FABRICANTE
-                                                   ["Genérico sem laboratório na descrição nem no arquivo: marca e descritivo sem sigla (revisar)","Categoria pela DIMA: VITAMINA D em VITAMINA E MINERAL (subcategoria escolhida; revisar)"] pri=2
+                                                   SUPL ALIM VITAMINA D 2000UI 30CPS (NES) | VITAMINA D NES | NESTLE CIA
+                                                   ["Fabricante pelo código de barras (prefixo da empresa na lista CMED): NESTLE CIA","Categoria pela DIMA: VITAMINA D em VITAMINA E MINERAL (subcategoria escolhida; revisar)"] pri=2
                                                  => SHAMPOO LIQUIDO
                                                    SH CETOCONAZOL SHAMPOO ANTICASPA 100ML | CETOCONAZOL | AVVIO PHARMA
                                                    [] pri=0
@@ -36,11 +36,11 @@
                                                    BICARBONATO KITANO SODIO 80G | KITANO | GENERAL MILLS
                                                    [] pri=0
                                                  => C07A AGENTES BETA BLOQUEADORES PUROS
-                                                   PROPRANOLOL 40MG 30CPRS | PROPRANOLOL | OUTRO FABRICANTE
-                                                   ["Genérico sem laboratório na descrição nem no arquivo: marca e descritivo sem sigla (revisar)","Categoria pelo princípio ativo Propranolol (base pede validação)"] pri=2
+                                                   PROPRANOLOL 40MG 30CPRS (NES) | PROPRANOLOL NES | NESTLE CIA
+                                                   ["Fabricante pelo código de barras (prefixo da empresa na lista CMED): NESTLE CIA","Categoria pelo princípio ativo Propranolol (base pede validação)"] pri=2
                                                  => C10A1 ESTATINASINIB DA HMG COA REDUTASE
-                                                   SINVASTATINA GENERICO 20MG 30CPRS | SINVASTATINA | OUTRO FABRICANTE
-                                                   ["Genérico sem laboratório na descrição nem no arquivo: marca e descritivo sem sigla (revisar)","Categoria pelo princípio ativo Sinvastatina (base pede validação)"] pri=2
+                                                   SINVASTATINA GENERICO 20MG 30CPRS (NES) | SINVASTATINA NES | NESTLE CIA
+                                                   ["Fabricante pelo código de barras (prefixo da empresa na lista CMED): NESTLE CIA","Categoria pelo princípio ativo Sinvastatina (base pede validação)"] pri=2
                                                  => OUTRA CATEGORIA
                                                    AMOXICILINA CAES E GATOS COMPOSTO 10UN | OUTRA MARCA | OUTRO FABRICANTE
                                                    [] pri=0
@@ -92,8 +92,8 @@
                                                    OMEPRAZOL 20MG 28CPS (SAN) | OMEPRAZOL SAN | SANOFI
                                                    ["Categoria pelo princípio ativo Omeprazol","Arquivo: marca MEDLEY é laboratório ou genérico; usada a marca comercial ou o princípio ativo"] pri=2
                                                  => A02B1 ANTAGONISTAS H2
-                                                   RANITIDINA 150MG 20CPRS | RANITIDINA | OUTRO FABRICANTE
-                                                   ["Genérico sem laboratório na descrição nem no arquivo: marca e descritivo sem sigla (revisar)","Categoria pelo princípio ativo Ranitidina"] pri=2
+                                                   RANITIDINA 150MG 20CPRS (NES) | RANITIDINA NES | NESTLE CIA
+                                                   ["Fabricante pelo código de barras (prefixo da empresa na lista CMED): NESTLE CIA","Categoria pelo princípio ativo Ranitidina"] pri=2
                                                  => C09C ANTAGONISTAS DE LA ANGIOTENSINA II PUROS
-                                                   LOSARTANA POTASSICA 50MG 30CPRS | LOSARTANA | OUTRO FABRICANTE
-                                                   ["Genérico sem laboratório na descrição nem no arquivo: marca e descritivo sem sigla (revisar)","Categoria pelo princípio ativo Losartana (base pede validação)"] pri=2
+                                                   LOSARTANA POTASSICA 50MG 30CPRS (NES) | LOSARTANA NES | NESTLE CIA
+                                                   ["Fabricante pelo código de barras (prefixo da empresa na lista CMED): NESTLE CIA","Categoria pelo princípio ativo Losartana (base pede validação)"] pri=2

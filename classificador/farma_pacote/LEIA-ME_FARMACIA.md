@@ -343,4 +343,8 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
 - Abreviação de princípio ativo na marca (METFORM -> METFORMINA): prefixo de 5+ letras de um princípio ativo só
   (`paPorPrefixo`) -> genérico com sigla (METFORMINA BRS).
 - Dicionário de princípios ativos: METFORMINA sozinha = A10J1 BIGUANIDA SOLA (o do cliente apontava para SGLT2 + biguanida).
+- Fabricante conhecido nunca fica com OUTRA MARCA: em Farmácia que não é remédio (dermocosmético, correlato, suplemento)
+  a marca própria do fabricante vale (MASSIME, NATURALHELF) — o nome do fabricante escrito na descrição, senão a marca
+  da DIMA no começo; e o nome comercial do começo da descrição vale mesmo em SUPL ALIM (BIO-C, STRESSVAN, NATIBEM).
+  "Laboratório não é marca" (TEUTO, EMS, CIMED) só em remédio (categoria com código ATC).
 

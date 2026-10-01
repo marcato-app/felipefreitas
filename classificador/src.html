@@ -1665,13 +1665,29 @@ async function runAll(opts = {}) {
       }
     }
     if (farma && !valido(fab)) { const l = labPorEAN(it.barcode); if (l) { fab = l; alerts0.push(`Fabricante pelo código de barras (prefixo da empresa na lista CMED): ${l}`); } } // remédio sempre tem fabricante
+    // Farmácia que não é remédio (dermocosmético, correlato, suplemento): marca própria do fabricante vale (MASSIME, NATURALHELF);
+    // fabricante conhecido sem marca não deve acontecer: marca da DIMA na descrição, senão o nome do fabricante escrito nela
+    if (farma && !/^[A-Z]\d\d[A-Z]/.test(nomeOf(a.cat)) && (!valido(marca) || marca === 'OUTRA MARCA') && valido(fab)) {
+      const d = findBrand(T, [], '', C.black, data.dima, null);
+      const fw = N(fab).split(' ').filter(w => w.length >= 3 && !LAB_LIXO.has(w));
+      const noTexto = fw.length && T.some(t => (' ' + t + ' ').includes(' ' + fw.join(' ') + ' ')) ? fw.join(' ') : (fw[0] && T.some(t => t.split(' ').includes(fw[0])) ? fw[0] : null);
+      const m2 = noTexto || (d && T.some(t => t === d || t.startsWith(d + ' ')) ? d : null); // o fabricante escrito vence palavra solta (SOLAR)
+      if (m2) { marca = semSigla(data.dima.map.has(m2) ? data.dima.map.get(m2).canon : m2); bn = m2; alerts0.push(`Marca ${marca} (marca própria do fabricante)`); }
+    }
+    // ainda sem marca, com fabricante: o nome comercial escrito no começo (BIO-C, CEWIN, STRESSVAN), também em SUPL ALIM
+    if (farma && (!valido(marca) || marca === 'OUTRA MARCA') && valido(fab)) {
+      const T3 = T.map(t => t.split(' ').filter(w => !VIT_NAO.has(w) && !/^(SUPL|SUPLEMENTO|ALIM|ALIMENTAR|MULT|VIT|VITAMINA|VITAMINAS|KIT|COM|C|B|D|E)$/.test(w)).join(' '));
+      const nc = nomeComercial(T3, C, vocab, palavrasPA(T, C));
+      if (nc && !ehLab(nc) && !NUTRI_W[nc] && !paPorPrefixo(nc)) { marca = nc; bn = nc; alerts0.push(`Marca ${nc} pelo nome comercial da descrição`); }
+    }
     // nunca, em nenhuma cesta: POR DEFECTO vira OUTRA MARCA e SIN PROVEEDOR ASOCIADO vira OUTRO FABRICANTE (e não vão no descritivo)
     if (!valido(marca)) { marca = 'OUTRA MARCA'; bn = null; BD = null; }
     if (!valido(fab)) fab = 'OUTRO FABRICANTE';
     if (!farma && a.cat === OUT && marca !== 'OUTRA MARCA' && T.some(sinalFarma) && ehLab(marca)) { marca = 'OUTRA MARCA'; bn = null; BD = null; } // remédio sem categoria: laboratório não é marca
     let sigla = '', generico = false;
     if (farma) { // Farmácia: laboratório não é marca (TEUTO, EMS, CIMED); sigla do laboratório
-      const supl = !!it.vit || a.cat === 'VITAMINA OUTRO' || a.cat === 'MULTIVITAMINICO'; // suplemento com marca = nome do fabricante (FITOPLANT) é marca
+      // só remédio (categoria com código ATC): em suplemento, dermocosmético e correlato a marca própria do fabricante vale (FITOPLANT, MASSIME)
+      const supl = !!it.vit || a.cat === 'VITAMINA OUTRO' || a.cat === 'MULTIVITAMINICO' || !/^[A-Z]\d\d[A-Z]/.test(nomeOf(a.cat));
       if (marca !== 'OUTRA MARCA' && !supl && ehLab(marca)) {
         const pa = (C.pa ? T.map(t => matchPA(t, C.pa)).find(Boolean) : null) || T.map(t => matchPB(t, C)).find(Boolean) || null;
         alerts0.push(`Marca ${marca} é laboratório: usado ${pa ? 'o princípio ativo' : 'OUTRA MARCA'}`);
