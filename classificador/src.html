@@ -1317,12 +1317,27 @@ const DESC_MAX = 60;
 const SIG = () => K.farmaSiglas || { codigos: {}, fab: {} };
 const ehSigla = x => /^(?=.*[A-Z])[A-Z0-9]{3}$/.test(x) && !!SIG().codigos[x]; // 1FA (1FARMA) também
 const codDe = m => { const x = /\(([A-Z0-9]{3})\)\s*$/.exec(String(m || '').toUpperCase()) || /\s([A-Z0-9]{3})$/.exec(N(m)); return x && ehSigla(x[1]) ? x[1] : ''; };
-function siglaDe(T, fab, canon, D) {
+function siglaDe(T, fab, canon, D, marca) {
   for (const d of D || []) { const x = /\(((?=[A-Z0-9]*[A-Z])[A-Z0-9]{3})\)\s*$/.exec(String(d).toUpperCase()); if (x && !LAB_COD_NAO.has(x[1])) return x[1]; } // o padrão do cliente já na descrição: "... (NES)"
   for (const t of T) { const w = t.split(' '), l = w[w.length - 1]; if (w.length > 1 && ehSigla(l)) return l; }
   const lab = labAchado(T);
-  if (lab) { if (ehSigla(lab.termo)) return lab.termo; if (LAB_ALIAS[lab.termo]) return LAB_ALIAS[lab.termo]; const s = SIG().fab[N(lab.fab)]; if (s) return s; }
-  return codDe(canon) || SIG().fab[N(fab)] || siglaGerada(fab);
+  // código no fim da descrição vale como está (FER = Ferring)
+  if (lab) { if (ehSigla(lab.termo) || (/^(?=.*[A-Z])[A-Z0-9]{3}$/.test(lab.termo) && labIndex().codigo.has(lab.termo))) return lab.termo; if (LAB_ALIAS[lab.termo]) return LAB_ALIAS[lab.termo]; const s = SIG().fab[N(lab.fab)]; if (s) return s; }
+  const mn = N(String(marca || '').replace(/\s*\([A-Z0-9 ]{0,5}\)\s*$/, '')), SM = SIG().marcas || {};
+  const hoja = SM[mn] || (/ [A-Z0-9]{3}$/.test(mn) && SM[mn.slice(0, -4)] === mn.slice(-3) ? mn.slice(-3) : ''); // PICOPREP FER
+  return hoja || codDe(canon) || codDaMarca(marca) || SIG().fab[N(fab)] || siglaGerada(fab);
+}
+// como a DIMA grava a marca com a sigla (ADDERA MAN, DORFLEX (OPE)): marca -> sigla mais usada
+let MARCA_COD = null;
+function codDaMarca(m) {
+  const n = N(String(m || '').replace(/\s*\([A-Z0-9 ]{0,5}\)\s*$/, '')); if (!n) return '';
+  if ((SIG().marcas || {})[n]) return SIG().marcas[n]; // como a base Hoja escreve a marca (NATZ RDF, PICOPREP FER)
+  if (!data.dima) return '';
+  if (!MARCA_COD) { MARCA_COD = new Map();
+    for (const [k, b] of data.dima.map) { const x = /^(.+) ([A-Z0-9]{3})$/.exec(k); if (!x || !ehSigla(x[2])) continue;
+      if (!MARCA_COD.has(x[1])) MARCA_COD.set(x[1], new Map()); const mm = MARCA_COD.get(x[1]); mm.set(x[2], (mm.get(x[2]) || 0) + (b.total || 1)); } }
+  const mm = MARCA_COD.get(n); if (!mm) return ''; const o = [...mm].sort((a, b) => b[1] - a[1]); const tot = o.reduce((a, x) => a + x[1], 0);
+  return mm.size <= 2 && o[0][1] / tot >= 0.7 ? o[0][0] : ''; // genérico (LOSARTANA LEG/EMS/MED...) não tem sigla própria
 }
 // laboratório fora do dicionário: sigla das 3 primeiras letras/dígitos do nome (sem LTDA, FARMA, LAB...) - nunca sem sigla
 function siglaGerada(fab) {
@@ -1736,7 +1751,7 @@ async function runAll(opts = {}) {
       }
       { const pz = marca !== 'OUTRA MARCA' && !marca.includes(' ') && !BD && !fmHit && !(it.vit && it.vit.m) ? paPorPrefixo(N(marca)) : null;
         if (pz) { alerts0.push(`${marca} é abreviação de ${pz}: genérico`); marca = pz; bn = pz; } }
-      sigla = siglaDe(T, fab, BD && bn && BD.map.get(bn) ? BD.map.get(bn).canon : (it.vit && it.vit.m ? it.vit.m.marca : (marcaArq ? marca : '')), it.D);
+      sigla = siglaDe(T, fab, BD && bn && BD.map.get(bn) ? BD.map.get(bn).canon : (it.vit && it.vit.m ? it.vit.m.marca : (marcaArq ? marca : '')), it.D, marca);
       marca = semSigla(marca, sigla, fab); if (sigla && N(marca).endsWith(' ' + sigla)) marca = marca.slice(0, -(sigla.length + 1)).trim(); // PANTOVIN PAN -> PANTOVIN
       generico = marca !== 'OUTRA MARCA' && N(marca).split(' ').every(w => CONNECT.has(w) || palavrasPA([N(marca)], C).has(w));
       if (sigla && !ehSigla(sigla) && !Object.values(SIG().fab).includes(sigla) && fab !== 'OUTRO FABRICANTE') alerts0.push(`Sigla ${sigla} gerada do nome do laboratório ${fab} (incluir no dicionário de siglas)`);
@@ -1777,7 +1792,7 @@ async function runAll(opts = {}) {
     const keepT = T.filter((t, j) => a.per[j] === a.cat); const T2 = keepT.length ? keepT : T;
     const brandTxt = bn && valido(marca) ? cleanD(marca) : '';
     let comp = complement(T2, a.cat, ini, bn || '', groupOf(a.cat), cc);
-    if (it.vit) { // sem palavra repetida (A Z A Z, POLIVITAMINICO POLIVITAM) nem conector sobrando no fim (MDK COM)
+    if (it.vit || farma) { // D3, B12, OMEGA 3 preservados em todo item de Farmácia; sem palavra repetida (A Z A Z) nem conector no fim
       const w = vitDec(complement(T2.map(vitTok), a.cat, ini, bn || '', groupOf(a.cat), cc)).split(' ').filter(x => x && !VIT_NAO.has(x));
       const vw = []; for (let k = 0; k < w.length; k++) { const x = w[k];
         if (x === 'A' && w[k + 1] === 'Z' && vw.join(' ').includes('A Z')) { k++; continue; }
@@ -1804,7 +1819,8 @@ async function runAll(opts = {}) {
     while (cw.length && CONNECT.has(cw[cw.length - 1])) cw.pop();
     let desc = monta() + cauda;
     if (desc.length > DESC_MAX) desc = (monta().slice(0, Math.max(0, DESC_MAX - cauda.length)).replace(/\s+\S*$/, '') + cauda).trim();
-    if (farma && generico && sigla) marca = `${marca} ${sigla}`; // genérico: marca com a sigla do laboratório (NIMESULIDA GER)
+    // Farmácia (genérico, referência, suplemento, correlato): marca sempre com a sigla do laboratório (NIMESULIDA GER, ADDERA MAN)
+    if (farma && sigla && valido(marca) && marca !== 'OUTRA MARCA' && !N(marca).endsWith(' ' + sigla)) marca = `${marca} ${sigla}`;
     const alerts = [...alerts0];
     { const F0 = matchFM(T, C.fm); if (F0 && F0.cat === a.cat) alerts.push('Categoria pela marca ' + F0.nome + (F0.ncat > 1 ? ` (marca em ${F0.ncat} categorias; usada a de maior venda)` : ''));
       const C0 = !(F0 && F0.cat === a.cat) && C.pa && T.map(t => matchPA(t, C.pa)).find(p => p && p.cat === a.cat);
@@ -1835,7 +1851,7 @@ async function runAll(opts = {}) {
     else if (q.flag === 'QTD_PADRAO') alerts.push('Sem quantidade na descrição; usado o padrão ' + qtyText(q));
     else if (q.flag === 'QTD_DIV') alerts.push('Quantidades diferentes entre descrições');
     const pri = alerts.some(x => /^(Nenhuma|Descrições|Sem evidência|Arquivo: categoria)/.test(x)) ? 1 : alerts.some(x => !/^Categoria pel[oa] (princípio ativo|marca|DIMA|CMED|registro Anvisa|substância|cadastro Anvisa)[ :]/.test(x) || /\((base pede validação|destino corrigido em relação à base|marca em \d+ categorias; usada a de maior venda|subcategoria escolhida; revisar|classe pela substância; revisar)\)$/.test(x)) ? 2 : 0;
-    res.push({ it, cat: a.cat, marca, fab, qt: q.tot, qbase: q.base, desc, alerts, pri });
+    res.push({ it, cat: a.cat, marca, fab, qt: q.tot, qbase: q.base, desc, alerts, pri, status: statusCadastro(marca, fab, farma) });
     if (!quiet && i % 250 === 0) { $('#prog').style.width = (100 * i / items.length).toFixed(1) + '%'; $('#runState').textContent = `Classificando ${i.toLocaleString('pt-BR')} de ${items.length.toLocaleString('pt-BR')}…`; await new Promise(r => setTimeout(r, 0)); }
   }
   if (!quiet) $('#prog').style.width = '100%';
@@ -1889,22 +1905,43 @@ function catSugerida(raw, T) {
   const o = filhos.find(x => /OUTR/.test(N(x.nome))) || filhos.sort((a, b) => nomeOf(a.nome).localeCompare(nomeOf(b.nome)))[0];
   return o ? o.nome : raw;
 }
+// marca/fabricante que não existem nas bases do cliente (Hoja, DIMA, VITAMINA E MINERAL): o app preenche o correto e
+// avisa na coluna STATUS para criar no cadastro (CRIAR MARCA / CRIAR FABRICANTE)
+let BASE_CAD = null;
+function baseCadastro() {
+  if (BASE_CAD) return BASE_CAD;
+  const m = new Set(), f = new Set();
+  for (const x of K.farmaMarcas || []) { m.add(N(x[0])); if (x[2]) f.add(N(x[2])); }
+  if (data.dima) { for (const [k, b] of data.dima.map) { m.add(k); m.add(N(semSigla(k))); if (b.fabAll) for (const ff of b.fabAll.keys()) f.add(N(ff)); } }
+  for (const x of (K.farmaVit || {}).marcas || []) { m.add(N(x[0])); m.add(N(x[1])); if (x[2]) f.add(N(x[2])); }
+  for (const v of Object.values((K.farmaSiglas || {}).codigos || {})) f.add(N(v));
+  BASE_CAD = { m, f }; return BASE_CAD;
+}
+function statusCadastro(marca, fab, farma) {
+  const B = baseCadastro(), st = [];
+  const semFab = farma && (!valido(fab) || fab === 'OUTRO FABRICANTE'); // remédio sempre tem fabricante: completar (e a sigla)
+  if (valido(marca) && marca !== 'OUTRA MARCA') { const n = N(marca), s3 = n.replace(/ [A-Z0-9]{3}$/, '');
+    if (!B.m.has(n) && !B.m.has(s3) && !B.m.has(N(semSigla(marca)))) st.push('MARCA'); }
+  if (valido(fab) && fab !== 'OUTRO FABRICANTE' && !B.f.has(N(fab))) st.push('FABRICANTE');
+  const out = st.length ? 'CRIAR ' + st.join(' E ') : '';
+  return semFab ? (out ? out + '; SEM FABRICANTE' : 'SEM FABRICANTE') : out;
+}
 function buildWorkbook() {
   const R = data.results; const wb = XLSX.utils.book_new();
   const num = v => (v === null || v === undefined || isNaN(v)) ? null : (Math.abs(v - Math.round(v)) < 1e-9 ? Math.round(v) : v);
   const bc = v => { const s = String(v).trim(); return /^\d{1,15}$/.test(s) ? Number(s) : s; };
   // EST MER 7 CODIGO: código da categoria na árvore do cliente (planilha de padrões -> estmer.py -> K.estMer7)
   const em7 = cat => (K.estMer7 || {})[cat] || '';
-  const main = [['CODIGO BARRAS', 'DESCRITIVO PADRONIZADO', 'FABRICANTE', 'MARCA', 'CONTENIDO', 'CATEGORIA', 'EST MER 7 CODIGO', 'CODIGO INTERNO']];
-  for (const r of R) main.push([bc(r.it.barcode), r.desc, r.fab, r.marca, num(r.qt), nomeOf(r.cat), em7(r.cat), ciFlag(r.it.barcode)]);
-  const ws = XLSX.utils.aoa_to_sheet(main); ws['!cols'] = [{ wch: 16 }, { wch: 60 }, { wch: 28 }, { wch: 24 }, { wch: 11 }, { wch: 26 }, { wch: 18 }, { wch: 22 }];
+  const main = [['CODIGO BARRAS', 'DESCRITIVO PADRONIZADO', 'FABRICANTE', 'MARCA', 'CONTENIDO', 'CATEGORIA', 'EST MER 7 CODIGO', 'CODIGO INTERNO', 'STATUS']];
+  for (const r of R) main.push([bc(r.it.barcode), r.desc, r.fab, r.marca, num(r.qt), nomeOf(r.cat), em7(r.cat), ciFlag(r.it.barcode), r.status || '']);
+  const ws = XLSX.utils.aoa_to_sheet(main); ws['!cols'] = [{ wch: 16 }, { wch: 60 }, { wch: 28 }, { wch: 24 }, { wch: 11 }, { wch: 26 }, { wch: 18 }, { wch: 22 }, { wch: 28 }];
   for (let i = 2; i <= main.length; i++) { const c = ws['A' + i]; if (c && c.t === 'n') c.z = '0'; }
   XLSX.utils.book_append_sheet(wb, ws, 'Planilha1');
-  const rv = [['CODIGO BARRAS', 'CODIGO INTERNO', 'CATEGORIA', 'EST MER 7 CODIGO', 'CATEGORIA SUGERIDA', 'MARCA', 'MARCA SUGERIDA', 'FABRICANTE', 'FABRICANTE SUGERIDO', 'CONTENIDO', 'CONTENIDO SUGERIDO', 'DESCRITIVO PADRONIZADO', 'ALERTAS', 'DESCRICOES ORIGINAIS', 'PRIORIDADE', 'DESCRICAO DA LOJA USADA', 'LOJAS']];
-  for (const r of [...R].filter(r => r.pri).sort((a, b) => a.pri - b.pri || a.cat.localeCompare(b.cat)))
-    rv.push([bc(r.it.barcode), ciFlag(r.it.barcode), nomeOf(r.cat), em7(r.cat), r.it.sugCatRaw || r.it.sugCat, r.marca, r.it.sugMarca, r.fab, r.it.sugFab, num(r.qt), r.it.sugQt, r.desc, r.alerts.join('; '), r.it.D.slice(0, 4).join(' | ').slice(0, 500), r.pri, r.it.lojaUsada || '', r.it.nLojas || '']);
-  const ws2 = XLSX.utils.aoa_to_sheet(rv); ws2['!cols'] = [{ wch: 16 }, { wch: 22 }, { wch: 24 }, { wch: 18 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 50 }, { wch: 55 }, { wch: 80 }, { wch: 10 }];
-  ws2['!autofilter'] = { ref: 'A1:N' + rv.length };
+  const rv = [['CODIGO BARRAS', 'CODIGO INTERNO', 'STATUS', 'CATEGORIA', 'EST MER 7 CODIGO', 'CATEGORIA SUGERIDA', 'MARCA', 'MARCA SUGERIDA', 'FABRICANTE', 'FABRICANTE SUGERIDO', 'CONTENIDO', 'CONTENIDO SUGERIDO', 'DESCRITIVO PADRONIZADO', 'ALERTAS', 'DESCRICOES ORIGINAIS', 'PRIORIDADE', 'DESCRICAO DA LOJA USADA', 'LOJAS']];
+  for (const r of [...R].filter(r => r.pri || r.status).sort((a, b) => (a.pri || 9) - (b.pri || 9) || a.cat.localeCompare(b.cat)))
+    rv.push([bc(r.it.barcode), ciFlag(r.it.barcode), r.status || '', nomeOf(r.cat), em7(r.cat), r.it.sugCatRaw || r.it.sugCat, r.marca, r.it.sugMarca, r.fab, r.it.sugFab, num(r.qt), r.it.sugQt, r.desc, r.alerts.join('; '), r.it.D.slice(0, 4).join(' | ').slice(0, 500), r.pri, r.it.lojaUsada || '', r.it.nLojas || '']);
+  const ws2 = XLSX.utils.aoa_to_sheet(rv); ws2['!cols'] = [{ wch: 16 }, { wch: 22 }, { wch: 26 }, { wch: 24 }, { wch: 18 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 50 }, { wch: 55 }, { wch: 80 }, { wch: 10 }];
+  ws2['!autofilter'] = { ref: 'A1:O' + rv.length };
   XLSX.utils.book_append_sheet(wb, ws2, 'REVISAO');
   const cnt = new Map(); for (const r of R) { const k = nomeOf(r.cat); if (!cnt.has(k)) cnt.set(k, [0, 0, 0]); const x = cnt.get(k); x[0]++; if (r.marca === 'OUTRA MARCA') x[1]++; if (r.qt === null) x[2]++; }
   const sm = [['CATEGORIA', 'QTD ITENS', 'SEM MARCA', 'SEM CONTENIDO']]; for (const [k, v] of [...cnt].sort((a, b) => b[1][0] - a[1][0])) sm.push([k, ...v]);
@@ -2393,6 +2430,7 @@ $('#qForm').addEventListener('submit', async e => {
     const cc = cfg.categorias.find(c => c.nome === r.cat);
     res.innerHTML = ''; al.innerHTML = '';
     res.append(
+      ...(r.status ? [qTile('Cadastro', r.status, 'marca/fabricante fora das bases do cliente')] : []),
       qTile('Categoria', nomeOf(r.cat), [cc && cc.cesta ? 'cesta ' + cc.cesta : '', (K.estMer7 || {})[r.cat] ? 'EST MER 7 ' + K.estMer7[r.cat] : ''].filter(Boolean).join(' · ')),
       qTile('Marca', r.marca),
       qTile('Fabricante', r.fab),

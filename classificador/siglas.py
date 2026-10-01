@@ -52,6 +52,9 @@ def main():
         ini = iniciais(f)
         pref = [s for s in ss if ini.startswith(s)]
         fab[N(f)] = pref[0] if pref else ss.most_common(1)[0][0]
+    # código que a base Hoja usa para o laboratório vale como sigla padrão dele, mesmo sendo palavra comum (FER = FERRING)
+    for sg, f in (c.get('farmaCodLab') or {}).items():
+        if re.fullmatch(r'(?=.*[A-Z])[A-Z0-9]{3}', sg) and N(f) not in fab: fab[N(f)] = sg
     # fabricantes das bases sem nenhuma sigla: gera (3 primeiras letras do nome, sem colidir com sigla de outro)
     # só fabricantes de Farmácia: EST MER 6 com código ATC ou de categoria da cesta Farmácia, base Hoja e base de vitaminas
     farma = {N(x['nome']) for x in c['libSeed']['categorias'] + c['cfg']['categorias'] if x.get('cesta') == 'FARMACIA'} | {'VITAMINA E MINERAL'}
@@ -70,7 +73,20 @@ def main():
         cands = [ini[:3]] + [ini[0] + x + y for x in ini[1:] for y in ini[2:]] if len(ini) >= 3 else []
         s = next((x for x in cands if ok_sigla(x) and x not in usadas), None)
         if s: fab[N(f)] = s; usadas.add(s); geradas[N(f)] = s
-    c['farmaSiglas'] = {'codigos': codigos, 'fab': fab}
+    # sigla de cada marca como a base de marcas de Farmácia do cliente (Hoja) escreve: NATZ RDF, PICOPREP FER, VIVACITA PRO
+    # (vale antes da sigla padrão do fabricante; inclui siglas que são palavra comum, só para aquela marca)
+    marcas = {}
+    try:
+        from farma_marcas import ler
+        for pz in sorted((here / 'dados' / 'farma_marcas').glob('*')):
+            if pz.suffix.lower() not in ('.tsv', '.csv', '.txt'): continue
+            for f, m, _e7, v in ler(pz):
+                x = re.match(r'^(.*\S)\s+\(?([A-Z0-9]{3})\)?$', N(m) if '(' not in str(m) else str(m).upper().strip())
+                if x and re.fullmatch(r'(?=.*[A-Z])[A-Z0-9]{3}', x.group(2)): marcas.setdefault(N(x.group(1)), Counter())[x.group(2)] += (v or 1)
+    except Exception as e:
+        print('Hoja:', e)
+    marcas = {k: c.most_common(1)[0][0] for k, c in marcas.items()}
+    c['farmaSiglas'] = {'codigos': codigos, 'fab': fab, 'marcas': marcas}
     (here / 'consts.json').write_text(json.dumps(c, ensure_ascii=False), encoding='utf-8')
     wb = openpyxl.Workbook(); ws = wb.active; ws.title = 'Siglas'
     ws.append(['SIGLA', 'FABRICANTE', 'OCORRENCIAS NAS BASES', 'ORIGEM', 'SIGLA PADRAO DO FABRICANTE?'])
@@ -80,7 +96,7 @@ def main():
     for col, w in zip('ABCDE', [8, 45, 12, 28, 14]): ws.column_dimensions[col].width = w
     ws.auto_filter.ref = ws.dimensions; ws.freeze_panes = 'A2'
     wb.save(here / 'dados' / 'farma_siglas_laboratorios.xlsx')
-    print(f"{len(codigos)} siglas das bases ({len(por_fab)} fabricantes), {len(geradas)} geradas; "
+    print(f"{len(marcas)} marcas com sigla na Hoja; {len(codigos)} siglas das bases ({len(por_fab)} fabricantes), {len(geradas)} geradas; "
           f"ex.: EMS PHARMA={fab.get('EMS PHARMA')} HYPERA={fab.get('HYPERA PHARMA')} GER={codigos.get('GER')} -> dados/farma_siglas_laboratorios.xlsx")
 
 

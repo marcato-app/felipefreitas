@@ -26,7 +26,9 @@ const exp = fs.readFileSync(path.join(__dirname, 'hoja_marcas_esperado.tsv'), 'u
     const sig = (/\s([A-Z0-9]{3})$/.exec(String(x.mar).replace(/[()]/g, '').trim()) || [])[1];
     const marcaEsp = x.generico ? (sig ? `${x.pa} ${sig}` : x.pa) : x.base;
     const semCod = String(x.base).replace(/\s*\([A-Z0-9 ]{0,5}\)\s*$/, '');
-    const mOk = [marcaEsp, semCod, sig ? `${semCod} ${sig}` : ''].some(e => e && n(x.marca) === n(e)), fOk = n(x.fabR) === n(x.fab) || /OUTRO FABRICANTE|SIN PROVEEDOR/.test(x.fab);
+    // regra do cliente: em Farmácia a marca leva sempre a sigla do laboratório (a da Hoja quando ela escreve)
+    const mOk = [marcaEsp, semCod, sig ? `${semCod} ${sig}` : '', sig && x.generico ? `${x.pa} ${sig}` : ''].some(e => e && n(x.marca) === n(e))
+      || (!sig && n(x.marca).startsWith(n(semCod) + ' ') && n(x.marca).length === n(semCod).length + 4), fOk = n(x.fabR) === n(x.fab) || /OUTRO FABRICANTE|SIN PROVEEDOR/.test(x.fab);
     okM += mOk; okF += fOk; farma += x.cesta === 'FARMACIA';
     if (!mOk || !fOk || x.cesta !== 'FARMACIA') erros.push(`${x.generico ? 'GEN' : 'COM'} ${x.mar.padEnd(28)} | marca ${String(x.marca).padEnd(22)} (esp. ${marcaEsp}) | fab ${String(x.fabR).padEnd(22)} (esp. ${x.fab}) | ${x.cat} | ${x.desc}`);
   }

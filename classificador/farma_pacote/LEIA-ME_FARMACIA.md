@@ -361,3 +361,15 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   (SUN = Sun Farmacêutica só por nome não). Marca da DIMA + sigla no fim (NIVEA SUN) continua marca.
 - Marca da DIMA sem fabricante na categoria: o fabricante mais comum da marca (NIVEA SUN -> BEIERSDORF).
 
+### 3.5m Sigla em toda marca de Farmácia e coluna STATUS
+- Em Farmácia (genérico, referência, suplemento, correlato) a **marca leva sempre a sigla** do laboratório: ADDERA MAN,
+  DORFLEX OPE, NIMESULIDA GER. Ordem da sigla: "(XXX)"/código no fim da descrição (FER = Ferring) -> laboratório
+  escrito -> **sigla da marca na base Hoja** (`farmaSiglas.marcas`, 941 marcas: NATZ RDF, PICOPREP FER) -> código da
+  marca na DIMA (só marca de um laboratório: ADDERA MAN; genérico como LOSARTANA não) -> sigla padrão do fabricante
+  (o código que a Hoja usa para ele vale) -> gerada do nome.
+- D3, B12, OMEGA 3 preservados no descritivo de todo item de Farmácia (não só suplemento).
+- Arquivo baixado: coluna **STATUS** (Planilha1 e REVISAO; consulta rápida mostra "Cadastro"):
+  `CRIAR MARCA` / `CRIAR FABRICANTE` / `CRIAR MARCA E FABRICANTE` quando o app preencheu uma marca/fabricante que
+  não existe nas bases do cliente (Hoja, DIMA, VITAMINA E MINERAL); `SEM FABRICANTE` quando um item de Farmácia não tem
+  fabricante identificado (e por isso fica sem sigla). Itens com STATUS também entram na aba REVISAO.
+
