@@ -1337,6 +1337,19 @@ function paPorPrefixo(w) {
   const c = PA_PALAVRAS.filter(p => p.startsWith(w)); return c.length === 1 ? c[0] : null;
 }
 const DESC_MAX = 60;
+// nome único do fabricante (siglas.py -> K.farmaFabs): a grafia que já existe nas bases do cliente; LABORATORIO GROSS -> GROSS,
+// SANOFI FARMACEUTICA LTDA -> SANOFI FARMACEUTICA, nome da CMED com razão social -> o nome cadastrado
+const FAB_LIXO = new Set([...LAB_LIXO, ...'LABORATORIOS FARMACETICA FARMACEUTICAS IMPORTACAO EXPORTACAO IMP EXP MEDICAMENTOS DISTRIBUIDORA CIA GRUPO'.split(' ')]);
+const FAB_ALIAS = { GLAXOSMITHKLINE: 'GSK' };
+function canonFab(f) {
+  if (!valido(f) || f === 'OUTRO FABRICANTE') return f;
+  const C = K.farmaFabs || {}; let w = N(f).split(' ').filter(x => !FAB_LIXO.has(x));
+  if (!w.length) return f;
+  if (FAB_ALIAS[w[0]] && C[FAB_ALIAS[w[0]]]) return C[FAB_ALIAS[w[0]]];
+  for (let n = w.length; n >= 1; n--) { const k = w.slice(0, n).join(' '); // nome da CMED mais comprido que o cadastrado
+    if (C[k] && (n === w.length || n >= 2 || k.length >= 5)) return C[k]; }
+  return f;
+}
 // sigla do laboratório (3 letras, siglas.py -> K.farmaSiglas): código/nome do laboratório na descrição (GERMED -> GER),
 // código da marca na DIMA ("DORFLEX (OPE)", "SUNDOWN NES"), senão a sigla padrão do fabricante
 const SIG = () => K.farmaSiglas || { codigos: {}, fab: {} };
@@ -1770,6 +1783,7 @@ async function runAll(opts = {}) {
     }
     // nunca, em nenhuma cesta: POR DEFECTO vira OUTRA MARCA e SIN PROVEEDOR ASOCIADO vira OUTRO FABRICANTE (e não vão no descritivo)
     if (!valido(marca)) { marca = 'OUTRA MARCA'; bn = null; BD = null; }
+    if (farma) fab = canonFab(fab);
     if (!valido(fab)) fab = 'OUTRO FABRICANTE';
     if (!farma && a.cat === OUT && marca !== 'OUTRA MARCA' && T.some(sinalFarma) && ehLab(marca)) { marca = 'OUTRA MARCA'; bn = null; BD = null; } // remédio sem categoria: laboratório não é marca
     let sigla = '', generico = false;

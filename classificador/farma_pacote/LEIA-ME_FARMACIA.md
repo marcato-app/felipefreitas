@@ -386,3 +386,17 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   Hoja em ATC que existe na CMED): vale a categoria de remédio que passar nos nutrientes (alerta "Remédio registrado").
 - Teste: `testes_farma/addera_validacao.csv` e `addera_com_categoria_arquivo.csv`.
 
+
+### 3.5o Fabricante com nome único (sem CIMED A / CIMED B)
+- `siglas.py` monta `farmaFabs` = {chave: nome}: a chave é o nome sem razão social (LTDA, IND, COM, LABORATORIO, FARMACEUTICA,
+  GRUPO, IMPORTACAO, MEDICAMENTOS...). O nome escolhido é o mais usado nas bases do cliente (Hoja pesa mais, depois
+  VITAMINA E MINERAL e DIMA de Farmácia). Ex.: SANOFI FARMACEUTICA LTDA -> SANOFI FARMACEUTICA, LABORATORIO GROSS -> GROSS,
+  PANVEL -> GRUPO PANVEL.
+- Nome curto que é o começo de um só nome mais completo, e bem mais usado, também junta: FORHEALTH -> FORHEALTH NUTRICIONAL.
+  UNIAO, VITA e APIS não juntam, porque vários nomes começam assim.
+- No app, `canonFab()` passa todo fabricante de Farmácia (do arquivo, da DIMA, da CMED, do código de barras) por esse mapa:
+  - o nome da CMED com razão social cai no nome cadastrado (FARMA VISION IMPORTACAO E EXPORTACAO DE MEDICAMENTOS -> FARMA VISION);
+  - apelido: GLAXOSMITHKLINE -> GSK.
+- Teste com 5 arquivos (DIMA, Hoja, final, 88 itens de balcão, lojas):
+  - antes, 505 fabricantes na saída, 5 fora das bases;
+  - depois, 498 fabricantes, 2 fora das bases (SPECIALTY GOIAS e ANTIBIOTICOS: STATUS CRIAR FABRICANTE).

@@ -21,6 +21,9 @@ LIXO = set('LABORATORIO LABORATORIOS LAB LABS FARMACEUTICA FARMACEUTICOS FARMACE
            'INDUSTRIA COM COMERCIO SA S A LTDA ME EIRELI DO DA DE E BRASIL BR CIA GRUPO'.split())
 NAO_SIGLA = set('MARCA OUTRA OUTRO COM SEM CPR COMP CAP CAPS CPS DRG GTS SOL SUS XPE AMP INJ CRE POM GEL ADT INF PED UND '
                 'MCG MEQ REV OPC GOT KIT MAX PRO NEW ONE DAY MIX FIT TOP KID VIT MAG ZERO SUN MET DUO FOR XR RET ORO ZIN CAL FER OMG'.split())  # palavra de produto (MET = metformina)
+# palavras que não distinguem um fabricante de outro (razão social): somem na chave do nome único
+FAB_LIXO = LIXO | set('LABORATORIOS FARMACETICA FARMACEUTICAS FARMACEUTICOS FARMACEUTICO IMPORTACAO EXPORTACAO IMP EXP MEDICAMENTOS DISTRIBUIDORA'.split())
+chave_fab = lambda f: ' '.join(w for w in N(f).split() if w not in FAB_LIXO)
 ok_sigla = lambda s: bool(re.fullmatch(r'(?=.*[A-Z])[A-Z0-9]{3}', s)) and s not in NAO_SIGLA  # 1FA (1FARMA) também vale
 
 
@@ -86,6 +89,28 @@ def main():
     except Exception as e:
         print('Hoja:', e)
     marcas = {k: c.most_common(1)[0][0] for k, c in marcas.items()}
+    # nome único de cada fabricante: grafias do mesmo fabricante (SANOFI FARMACEUTICA / SANOFI FARMACEUTICA LTDA,
+    # GROSS / LABORATORIO GROSS, PANVEL / GRUPO PANVEL) viram a mais usada nas bases do cliente (a base Hoja pesa mais)
+    peso = Counter()
+    for f, n in todos.items(): peso[f.strip()] += n
+    for m in c.get('farmaMarcas', []):
+        if m[2] and N(m[2]) not in SEM: peso[m[2].strip()] += 50
+    canon = {}
+    for f, n in sorted(peso.items(), key=lambda x: (-x[1], len(x[0]))):
+        k = chave_fab(f)
+        if k and k not in canon: canon[k] = f
+    # nome curto que é começo de um só nome mais completo e bem mais usado (UNIAO -> UNIAO QUIMICA, FORHEALTH ->
+    # FORHEALTH NUTRICIONAL); VITA, APIS (vários nomes começam assim) não juntam
+    pk = Counter()
+    for f, n in peso.items(): pk[chave_fab(f)] += n
+    juntou = []
+    for k in list(canon):
+        if ' ' in k or len(k) < 4 or N(canon[k]) != k: continue  # GLOBAL MEDICAMENTOS, SOUL BRASIL: a palavra que sumiu pode distinguir
+        longos = [x for x in canon if x.startswith(k + ' ')]
+        if len(longos) == 1 and pk[longos[0]] >= 3 * pk[k]:
+            juntou.append((canon[k], canon[longos[0]])); canon[k] = canon[longos[0]]
+    print('juntados pelo começo do nome:', juntou)
+    c['farmaFabs'] = canon
     c['farmaSiglas'] = {'codigos': codigos, 'fab': fab, 'marcas': marcas}
     (here / 'consts.json').write_text(json.dumps(c, ensure_ascii=False), encoding='utf-8')
     wb = openpyxl.Workbook(); ws = wb.active; ws.title = 'Siglas'
@@ -96,6 +121,7 @@ def main():
     for col, w in zip('ABCDE', [8, 45, 12, 28, 14]): ws.column_dimensions[col].width = w
     ws.auto_filter.ref = ws.dimensions; ws.freeze_panes = 'A2'
     wb.save(here / 'dados' / 'farma_siglas_laboratorios.xlsx')
+    print(f"{len(canon)} fabricantes (nome único; {sum(peso.values() and 1 for f in peso) - len(canon)} grafias juntadas)")
     print(f"{len(marcas)} marcas com sigla na Hoja; {len(codigos)} siglas das bases ({len(por_fab)} fabricantes), {len(geradas)} geradas; "
           f"ex.: EMS PHARMA={fab.get('EMS PHARMA')} HYPERA={fab.get('HYPERA PHARMA')} GER={codigos.get('GER')} -> dados/farma_siglas_laboratorios.xlsx")
 
