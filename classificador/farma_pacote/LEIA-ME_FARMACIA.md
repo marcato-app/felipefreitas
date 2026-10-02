@@ -522,3 +522,18 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
 - REVISAO ganhou a coluna PESQUISA GOOGLE (link com EAN e descrição), para conferir na mão.
 - MULT, MULTI, POLI, SUPL e ALIM nunca são marca (a DIMA tem uma "marca" MULT).
 - Teste com Claude simulado: testes_farma/rodar_ia_simulado.js, com testes_farma/ia_completar.csv.
+
+### 3.5v Produtos distintos no mesmo código de barras + revisão dos 500 de VITAMINA E MINERAL
+- Mesmo código com descrições de produtos diferentes (NEOSALDINA + BRIGADEIRO, RODO + FUROATO DE MOMETASONA):
+  - a referência agora é a descrição com que mais outras concordam, e não mais sempre a 1ª (SACOS PARA LIXO + BUCLINA +
+    BUCLINA: vale BUCLINA);
+  - as descrições de outro produto saem da classificação e vão para a coluna PRODUTOS DISTINTOS NO CODIGO ("SIM: ..."),
+    na Planilha1 e na REVISAO. A REVISAO inclui todo item com essa marca.
+  - Efeito na base de vitaminas: EST MER 7 7.484 -> 7.533; marca 7.136 -> 7.216; fabricante 7.091 -> 7.150. Outras
+    cestas: sem mudança.
+- dados/vitamina_mineral_revisao_500.xlsx: 500 itens de VITAMINA E MINERAL que outro app pôs em outras categorias.
+  - Revisão item a item (testes_farma/vitamina_500_veredito.py): é farma?, categoria sugerida (nome da árvore), cesta,
+    observação e produtos distintos.
+  - Abas: RESUMO, FARMA, NAO FARMA, PRODUTOS DISTINTOS, TODOS.
+  - Resultado: 285 farma, 215 não farma, 90 códigos com produtos distintos. O outro app acertou 28 categorias; o
+    classificador acertou farma/não farma em 363.

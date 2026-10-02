@@ -1010,17 +1010,20 @@ function parecidas(a, b) { for (const x of a) for (const y of b) if (x === y || 
 function coerentes(T) {
   if (T.length < 2) return null;
   const S = T.map(toksDesc);
-  const ref = 0; // a 1ª descrição (ou a da coluna principal, que o loadBacklog põe em 1º) é a do produto
+  // referência: a descrição com que mais outras concordam (a maioria é o produto); empate fica a 1ª (ou a da coluna
+  // principal, que o loadBacklog põe em 1º). SACOS PARA LIXO + BUCLINA + BUCLINA: vale BUCLINA
+  let ref = 0, best = -1;
+  S.forEach((si, i) => { if (!si.size) return; const n = S.reduce((k, sj, j) => k + (j !== i && sj.size && parecidas(si, sj) ? 1 : 0), 0); if (n > best) { best = n; ref = i; } });
   if (!S[ref].size) return null;
   const keep = S.map((si, i) => i === ref || !si.size || parecidas(si, S[ref]));
   if (keep.every(Boolean)) return null;
   // referência primeiro, depois as outras que combinam, na ordem original
   const idx = [ref, ...keep.map((k, i) => k && i !== ref ? i : -1).filter(i => i >= 0)];
-  return { T: idx.map(i => T[i]), drop: keep.filter(k => !k).length };
+  return { T: idx.map(i => T[i]), drop: keep.filter(k => !k).length, dropT: T.filter((_, i) => !keep[i]) };
 }
 function aggregate(T0, sug, C, main) {
   const K = coerentes(T0); const T = K ? K.T : T0;
-  const r = aggregate0(T, sug, C); r.T = T; r.misturadas = K ? K.drop : 0; return r;
+  const r = aggregate0(T, sug, C); r.T = T; r.misturadas = K ? K.drop : 0; r.distintas = K ? K.dropT : []; return r;
 }
 function aggregate0(T, sug, C) {
   const votes = new Map(); const per = [];
@@ -1977,7 +1980,7 @@ async function runAll(opts = {}) {
     else if (q.flag === 'QTD_PADRAO') alerts.push('Sem quantidade na descrição; usado o padrão ' + qtyText(q));
     else if (q.flag === 'QTD_DIV') alerts.push('Quantidades diferentes entre descrições');
     const pri = alerts.some(x => /^(Nenhuma|Descrições|Sem evidência|Arquivo: categoria)/.test(x)) ? 1 : alerts.some(x => !/^Categoria pel[oa] (princípio ativo|marca|DIMA|CMED|registro Anvisa|substância|cadastro Anvisa)[ :]/.test(x) || /\((base pede validação|destino corrigido em relação à base|marca em \d+ categorias; usada a de maior venda|subcategoria escolhida; revisar|classe pela substância; revisar)\)$/.test(x)) ? 2 : 0;
-    res.push({ it, cat: a.cat, marca, fab, qt: q.tot, qbase: q.base, desc, alerts, pri, farma, status: statusCadastro(marca, fab, farma) });
+    res.push({ it, cat: a.cat, marca, fab, qt: q.tot, qbase: q.base, desc, alerts, pri, farma, status: statusCadastro(marca, fab, farma), distintos: a.distintas || [] });
     if (!quiet && i % 250 === 0) { $('#prog').style.width = (100 * i / items.length).toFixed(1) + '%'; $('#runState').textContent = `Classificando ${i.toLocaleString('pt-BR')} de ${items.length.toLocaleString('pt-BR')}…`; await new Promise(r => setTimeout(r, 0)); }
   }
   if (!quiet) $('#prog').style.width = '100%';
@@ -2075,20 +2078,22 @@ function statusCadastro(marca, fab, farma) {
   const out = st.length ? 'CRIAR ' + st.join(' E ') : '';
   return semFab ? (out ? out + '; SEM FABRICANTE' : 'SEM FABRICANTE') : out;
 }
+// mesmo código de barras com descrições de outro produto (não usadas na classificação): SIM: descrições
+const distintosTxt = r => r.distintos && r.distintos.length ? 'SIM: ' + r.distintos.slice(0, 5).join(' | ').slice(0, 300) : '';
 function buildWorkbook() {
   const R = data.results; const wb = XLSX.utils.book_new();
   const num = v => (v === null || v === undefined || isNaN(v)) ? null : (Math.abs(v - Math.round(v)) < 1e-9 ? Math.round(v) : v);
   const bc = v => { const s = String(v).trim(); return /^\d{1,15}$/.test(s) ? Number(s) : s; };
   // EST MER 7 CODIGO: código da categoria na árvore do cliente (planilha de padrões -> estmer.py -> K.estMer7)
   const em7 = cat => (K.estMer7 || {})[cat] || '';
-  const main = [['CODIGO BARRAS', 'DESCRITIVO PADRONIZADO', 'FABRICANTE', 'MARCA', 'CONTENIDO', 'CATEGORIA', 'EST MER 7 CODIGO', 'CODIGO INTERNO', 'STATUS']];
-  for (const r of R) main.push([bc(r.it.barcode), r.desc, r.fab, r.marca, num(r.qt), nomeOf(r.cat), em7(r.cat), ciFlag(r.it.barcode), r.status || '']);
+  const main = [['CODIGO BARRAS', 'DESCRITIVO PADRONIZADO', 'FABRICANTE', 'MARCA', 'CONTENIDO', 'CATEGORIA', 'EST MER 7 CODIGO', 'CODIGO INTERNO', 'STATUS', 'PRODUTOS DISTINTOS NO CODIGO']];
+  for (const r of R) main.push([bc(r.it.barcode), r.desc, r.fab, r.marca, num(r.qt), nomeOf(r.cat), em7(r.cat), ciFlag(r.it.barcode), r.status || '', distintosTxt(r)]);
   const ws = XLSX.utils.aoa_to_sheet(main); ws['!cols'] = [{ wch: 16 }, { wch: 60 }, { wch: 28 }, { wch: 24 }, { wch: 11 }, { wch: 26 }, { wch: 18 }, { wch: 22 }, { wch: 28 }];
   for (let i = 2; i <= main.length; i++) { const c = ws['A' + i]; if (c && c.t === 'n') c.z = '0'; }
   XLSX.utils.book_append_sheet(wb, ws, 'Planilha1');
-  const rv = [['CODIGO BARRAS', 'CODIGO INTERNO', 'STATUS', 'CATEGORIA', 'EST MER 7 CODIGO', 'CATEGORIA SUGERIDA', 'MARCA', 'MARCA SUGERIDA', 'FABRICANTE', 'FABRICANTE SUGERIDO', 'CONTENIDO', 'CONTENIDO SUGERIDO', 'DESCRITIVO PADRONIZADO', 'ALERTAS', 'DESCRICOES ORIGINAIS', 'PRIORIDADE', 'DESCRICAO DA LOJA USADA', 'LOJAS', 'PESQUISA GOOGLE']];
-  for (const r of [...R].filter(r => r.pri || r.status).sort((a, b) => (a.pri || 9) - (b.pri || 9) || a.cat.localeCompare(b.cat)))
-    rv.push([bc(r.it.barcode), ciFlag(r.it.barcode), r.status || '', nomeOf(r.cat), em7(r.cat), r.it.sugCatRaw || r.it.sugCat, r.marca, r.it.sugMarca, r.fab, r.it.sugFab, num(r.qt), r.it.sugQt, r.desc, r.alerts.join('; '), r.it.D.slice(0, 4).join(' | ').slice(0, 500), r.pri, r.it.lojaUsada || '', r.it.nLojas || '', 'https://www.google.com/search?q=' + encodeURIComponent(String(r.it.barcode) + ' ' + (r.it.D[0] || ''))]);
+  const rv = [['CODIGO BARRAS', 'CODIGO INTERNO', 'STATUS', 'CATEGORIA', 'EST MER 7 CODIGO', 'CATEGORIA SUGERIDA', 'MARCA', 'MARCA SUGERIDA', 'FABRICANTE', 'FABRICANTE SUGERIDO', 'CONTENIDO', 'CONTENIDO SUGERIDO', 'DESCRITIVO PADRONIZADO', 'ALERTAS', 'DESCRICOES ORIGINAIS', 'PRIORIDADE', 'DESCRICAO DA LOJA USADA', 'LOJAS', 'PESQUISA GOOGLE', 'PRODUTOS DISTINTOS NO CODIGO']];
+  for (const r of [...R].filter(r => r.pri || r.status || (r.distintos && r.distintos.length)).sort((a, b) => (a.pri || 9) - (b.pri || 9) || a.cat.localeCompare(b.cat)))
+    rv.push([bc(r.it.barcode), ciFlag(r.it.barcode), r.status || '', nomeOf(r.cat), em7(r.cat), r.it.sugCatRaw || r.it.sugCat, r.marca, r.it.sugMarca, r.fab, r.it.sugFab, num(r.qt), r.it.sugQt, r.desc, r.alerts.join('; '), r.it.D.slice(0, 4).join(' | ').slice(0, 500), r.pri, r.it.lojaUsada || '', r.it.nLojas || '', 'https://www.google.com/search?q=' + encodeURIComponent(String(r.it.barcode) + ' ' + (r.it.D[0] || '')), distintosTxt(r)]);
   const ws2 = XLSX.utils.aoa_to_sheet(rv); ws2['!cols'] = [{ wch: 16 }, { wch: 22 }, { wch: 26 }, { wch: 24 }, { wch: 18 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 50 }, { wch: 55 }, { wch: 80 }, { wch: 10 }];
   ws2['!autofilter'] = { ref: 'A1:O' + rv.length };
   XLSX.utils.book_append_sheet(wb, ws2, 'REVISAO');
