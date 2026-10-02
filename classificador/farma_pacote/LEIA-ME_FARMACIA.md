@@ -571,3 +571,20 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
 - Base de vitaminas: 27 -> 0 em Farmácia (os 4 que sobram estão em OUTRA CATEGORIA). Arquivo dos 500: 0.
 - Ainda ficam com OUTRA MARCA os itens sem marca nas bases e também sem fabricante.
 - Testes DIMA, Hoja e outras cestas: sem perda (Hoja marca 1.409 -> 1.414).
+
+### 3.5y Sigla obrigatória em toda marca de Farmácia (menos dermocosmético)
+- Causa das marcas sem sigla: o item não tinha fabricante (368 de 379 na base de vitaminas), e sem fabricante não há sigla.
+- Agora, marca de Farmácia sem fabricante:
+  1. pega o fabricante da marca na DIMA, na base de vitaminas ou na Hoja;
+  2. nome genérico (ZINCO, TRIPTOFANO, L TREONATO, VITAMINA C) sem dono vira OUTRA MARCA / OUTRO FABRICANTE, porque o
+     princípio não fica sozinho;
+  3. marca de verdade sem dono em nenhuma base (NUTRA VITTON, PURITANS PRIDE, HEXAMAG) vira o próprio fabricante, com
+     sigla gerada e STATUS CRIAR FABRICANTE.
+- `siglaGerada` sempre devolve 3 caracteres: LP FARMACEUTICA -> LPF, P&G -> PGX.
+- `vitaminas.py`: prefixo do código de barras com 2 SKUs do mesmo fabricante também vale.
+- Resultados:
+  - base de vitaminas: 379 -> 0 marcas de Farmácia sem sigla; marca certa 7.165 -> 7.121 (genéricos sem fabricante agora
+    são OUTRA MARCA);
+  - Hoja: fabricante 1.429 -> 1.433;
+  - outras cestas: sem mudança;
+  - arquivo dos 500: 231 marcas de Farmácia, todas com sigla.

@@ -1445,9 +1445,11 @@ function codDaMarca(m) {
 }
 // laboratório fora do dicionário: sigla das 3 primeiras letras/dígitos do nome (sem LTDA, FARMA, LAB...) - nunca sem sigla
 function siglaGerada(fab) {
-  const n = N(fab); if (!n || !valido(n)) return '';
-  const w = n.split(' ').filter(x => !LAB_LIXO.has(x)).join('') || n.replace(/ /g, '');
-  return w.length >= 3 ? w.slice(0, 3) : '';
+  const n = N(fab); if (!n || !valido(n) || n === 'OUTRO FABRICANTE') return '';
+  let w = n.split(' ').filter(x => !LAB_LIXO.has(x)).join('') || n.replace(/ /g, '');
+  if (w.length < 3) w = (w + n.replace(/ /g, '').slice(w.length)).slice(0, 3); // LP FARMACEUTICA -> LPF
+  if (w.length < 3) w = (w + 'XXX').slice(0, 3); // P&G -> PGX: a sigla é obrigatória, sempre 3 caracteres
+  return w.slice(0, 3);
 }
 // marca sem o código do laboratório no fim ("DORFLEX (OPE)" -> DORFLEX, "SUNDOWN NES" -> SUNDOWN)
 // (a sigla solta no fim só sai quando é a do laboratório do item: NIMEGON MET continua NIMEGON MET)
@@ -1892,6 +1894,20 @@ async function runAll(opts = {}) {
       nomeCom();
       if (!valido(marca) || marca === 'OUTRA MARCA') { const pn = produtoNome(T, fab); if (pn) { marca = pn; bn = pn; alerts0.push(`Marca ${pn}: nome do produto (sem marca nas bases)`); } }
       if (!valido(marca) || marca === 'OUTRA MARCA') { const fw = N(fab).split(' ').filter(w => !LAB_LIXO.has(w) && !FAB_LIXO.has(w)); if (fw.length) { marca = fw.slice(0, 2).join(' '); bn = marca; alerts0.push(`Marca ${marca}: nome do fabricante (a descrição não diz o produto) - revisar`); } }
+    }
+    // marca de Farmácia sem fabricante: a sigla é obrigatória, então o fabricante tem de existir. 1º o da marca na DIMA ou na
+    // base de vitaminas; nome genérico (ZINCO, TRIPTOFANO) sem dono vira OUTRA MARCA; marca de verdade sem dono em nenhuma base
+    // (NUTRA VITTON, PURITANS PRIDE) é o próprio fabricante (STATUS CRIAR FABRICANTE)
+    if (farma && valido(marca) && marca !== 'OUTRA MARCA' && (!valido(fab) || fab === 'OUTRO FABRICANTE')) {
+      const mk = N(semSigla(marca)); let f = null;
+      const b = data.dima && (data.dima.map.get(mk) || data.dima.map.get(N(marca)));
+      if (b && b.fabAll) { let v = 0; for (const [ff, vv] of b.fabAll) if (valido(ff) && ff !== 'OUTRO FABRICANTE' && vv > v) { v = vv; f = ff; } }
+      if (!f) { const vm2 = ((K.farmaVit || {}).marcas || []).find(x => x[0] === mk && x[2]); if (vm2) f = vm2[2]; }
+      if (!f) { const hm = (K.farmaMarcas || []).find(x => N(x[0]) === mk && x[2]); if (hm) f = hm[2]; }
+      if (f) { fab = canonFab(f); alerts0.push(`Fabricante ${fab} pela marca ${marca} nas bases`); }
+      else if (nomeGenerico(marca) || NUTRI_NOME[mk] || Object.values(NUTRI_NOME).includes(mk) || palavrasPA([mk], C).size || (K.farmaVit && ((K.farmaVit.marcas || []).find(x => x[0] === mk) || [])[5])) {
+        alerts0.push(`Marca ${marca} é nome genérico e não há fabricante: OUTRA MARCA (o princípio não fica sozinho)`); marca = 'OUTRA MARCA'; bn = null; BD = null; }
+      else { fab = marca; alerts0.push(`Fabricante desconhecido: usada a própria marca ${marca} como fabricante (criar no cadastro)`); }
     }
     // quantidade não faz parte da marca (FLOPI KIDS 54G -> FLOPI KIDS)
     if (farma && valido(marca)) { const m0 = marca.replace(/\s+\d+([.,]\d+)?\s*(G|KG|ML|L|MG|MCG|UI|UN|CPS|CAPS|CPR|CPRS)(?![A-Z0-9])/g, '').trim(); if (m0 && m0 !== marca) { marca = m0; bn = bn && N(m0); } }
