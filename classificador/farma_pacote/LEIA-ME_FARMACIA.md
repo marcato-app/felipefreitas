@@ -606,3 +606,29 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   - DIMA: igual;
   - outras cestas: sem mudança;
   - arquivo dos 500: OUTRA MARCA em Farmácia 21 -> 1.
+
+### 3.6a Palavras descritivas nunca são marca nem fabricante
+- Constante PALAVRA_DESCRITIVA: HOMEM, MULHER, KIDS, INFANTIL, SENIOR, GESTANTE, ADULTO, CABELO(S), PELE, UNHA(S),
+  IMUNIDADE, IMUNE, VEGANO/VEGANA/VEGAN, COMPLEXO, EXTRATO, SKIN, HAIR, NAILS, BEAUTY, GOLD, ULTRA e NATURAL(IS).
+  - Entram em FARMA_NAO_MARCA.
+  - produtoNome pula frases feitas só dessas palavras (antes surgiam "HOMEM HOM / fabricante HOMEM" e "ISOS").
+  - MEGA ficou de fora: é começo de marca (MEGA DAY).
+  - OLEO não entra nesse pulo, porque o Hoja tem marca OLEO (óleo mineral).
+- vitaminas.py: COMUM recebeu as mesmas palavras.
+- testes_farma/corrige_gabriel.py corrige um arquivo já classificado só nas linhas com problema e marca a coluna
+  AJUSTE.
+  - Problemas tratados: marca descritiva, OUTRA MARCA, fabricante inventado.
+  - Saídas: CORRIGIDO ou REVISAR.
+- testes_farma/fab_lista.py (usa fab_similar.py) compara uma lista de fabricantes a criar com o Hoja completo e
+  classifica cada um:
+  - JA EXISTE NO HOJA;
+  - NAO E FABRICANTE;
+  - PALAVRA SOLTA - CONFERIR;
+  - E MARCA NO HOJA;
+  - VERIFICAR;
+  - DUPLICADO NA LISTA;
+  - PODE CRIAR.
+- Resultados:
+  - DIMA: OUTRA CATEGORIA 82, EST MER 6 1.534, fabricante 1.900;
+  - Hoja: marca 1.415, fabricante 1.434;
+  - vitaminas: EST MER 7 7.516, marca 7.200, fabricante 7.176.

@@ -818,6 +818,7 @@ function produtoNome(T, fab) {
     while (w.length && CONNECT.has(w[0])) w.shift();
     let p = w.slice(0, 3); while (p.length && CONNECT.has(p[p.length - 1])) p.pop();
     if (!p.length || !p.some(x => x.length >= 4)) continue;
+    if (p.every(x => PALAVRA_DESCRITIVA.has(x) || CONNECT.has(x))) continue; // MULHER, HOMEM KIDS: descreve, não é o produto
     const nome = p.join(' ');
     if (!best || (/^VIT(AMINA)?$/.test(best) && !/^VIT(AMINA)?$/.test(nome))) best = nome; // VITAMINA sozinho só se não houver nada melhor
   }
@@ -1477,6 +1478,10 @@ const FARMA_NAO_MARCA = new Set(('GENERICO GENERICA GENERICOS SIMILAR MEDICAMENT
   'MULT MULTI POLI POLIVIT MULTIVIT POLIVITAMINICO MULTIVITAMINICO SUPL SUPLEMENTO ALIM ALIMENTAR OLEO OLEOS GOMA GOMAS GUMMY GUMMIES ' +
   'SUP SUPLE SUPLEM SUPLEMEN SUPLEMENT SUPLEMNETO SUPLEENTO SUPLENTO SUPLLEMENTO ALI ALIMENTA ALIMENT VIT VITA VITAM VITAMINA VITAMINAS COMPOSTO COMPLEMENTO PRODUTO PRODUTOS ' + // SUPL ALIM MULT (padrão do descritivo) não é marca
   'EFERVESCENTE REVESTIDO ORAL NASAL TOPICO TOPICA OFTALMICO OFTALMICA SACHE SACHES PO FRASCO BISNAGA CAIXA CX FR').split(' '));
+// descreve o produto (público, uso, apelo), nunca é marca nem fabricante: HOMEM, MULHER, VEGANO, COMPLEXO
+const PALAVRA_DESCRITIVA = new Set(('HOMEM MULHER KIDS INFANTIL SENIOR GESTANTE ADULTO CABELO CABELOS PELE UNHA UNHAS IMUNIDADE IMUNE ' +
+  'VEGANO VEGANA VEGAN COMPLEXO EXTRATO SKIN HAIR NAILS BEAUTY GOLD ULTRA NATURAL NATURAIS').split(' '));
+PALAVRA_DESCRITIVA.forEach(w => FARMA_NAO_MARCA.add(w));
 // palavras dos princípios ativos escritos na descrição (HIDROXIDO DE ALUMINIO, OLEO MINERAL)
 function palavrasPA(T, C) { const out = new Set(); for (const P of [C.pa, C.pb]) { if (!P) continue; for (const t of T) { let m; P.rx.lastIndex = 0; while ((m = P.rx.exec(t))) m[0].split(' ').forEach(w => out.add(w)); } } return out; }
 function farmaNaoMarca(m, C, paW) {
