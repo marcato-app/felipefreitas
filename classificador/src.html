@@ -752,6 +752,9 @@ const NUTRI_W = { CALCIO: 'CA', CALCIUM: 'CA', MAGNESIO: 'MG', MAGNESIUM: 'MG', 
   NIACINA: 'B3', NICOTINAMIDA: 'B3', RIBOFLAVINA: 'B2', TIAMINA: 'B1', PIRIDOXINA: 'B6', CIANOCOBALAMINA: 'B12',
   METILCOBALAMINA: 'B12', COBALAMINA: 'B12', FOLICO: 'B9', FOLATO: 'B9', METILFOLATO: 'B9', COLECALCIFEROL: 'D',
   MENAQUINONA: 'K', RETINOL: 'A', TOCOFEROL: 'E', ASCORBICO: 'C' };
+// nutriente -> nome genérico usado como marca (item sem marca: VITAMINA K GNN)
+const NUTRI_NOME = { D: 'VITAMINA D3', C: 'VITAMINA C', A: 'VITAMINA A', E: 'VITAMINA E', K: 'VITAMINA K', B12: 'VITAMINA B12', B1: 'VITAMINA B1',
+  B6: 'VITAMINA B6', B9: 'ACIDO FOLICO', B7: 'BIOTINA', CA: 'CALCIO', MG: 'MAGNESIO', ZN: 'ZINCO', FE: 'FERRO', SE: 'SELENIO', CR: 'CROMO', I: 'IODO' };
 const nutKey = x => /^[DK]\d*$/.test(x) ? x[0] : x === 'MK7' ? 'K' : x;
 // 2ª validação da categoria de vitamina/mineral: o nutriente da categoria tem de estar escrito, e categoria "PURA"
 // não aceita outro nutriente junto (ADDERA CALCIO + D3 não é VITAMINA D PURA)
@@ -789,9 +792,14 @@ const marcaCmed = nome => { if (!data.cmedProd) return false;
 const hojaAtc = (T, C) => { const f = matchFM(T, C.fm); return !!(f && f.cat && /^[A-Z]\d\d[A-Z]/.test(nomeOf(f.cat)) && regMarca({ nome: f.nome }, C) && marcaCmed(f.nome)); };
 const catVitAtc = nome => /^A1[123][A-Z]/.test(nomeOf(nome)) || nome === 'VITAMINA OUTRO' || nome === 'MULTIVITAMINICO';
 // devolve { m: marca da base (ou null), cat: VITAMINA OUTRO | MULTIVITAMINICO } quando o item é suplemento de vitamina/mineral
+// marca de verdade da base VITAMINA E MINERAL escrita na descrição (não genérica, não travada)
+function vitMarca(T, C) { const V = C.vit; if (!V || (V.fora && T.some(t => V.fora.test(t)))) return null;
+  for (const t of T) for (const x of t.matchAll(V.rx)) { const e = V.map.get(x[0]); if (e && !e.gen) return e; }
+  return null; }
 function vitDe(T, cat, farma, C) {
   const V = C.vit; if (!V) return null;
-  if (V.fora && T.some(t => V.fora.test(t))) return null; // marca que a DIMA/Hoja só conhecem fora de vitamina
+  // marca que a DIMA/Hoja só conhecem fora de vitamina (NEOSALDINA); com nutriente ou A-Z escrito, vale a vitamina (OLDVITTA A-Z)
+  if (V.fora && T.some(t => V.fora.test(t)) && !RX_MULTI.test(T.join(' | ')) && !nutrientes(T).size) return null;
   let m = null; // marca de verdade (SUNDOWN) ganha de nome genérico usado como marca (VITAMINA C, OMEGA 3)
   for (const t of T) for (const x of t.matchAll(V.rx)) { const e = V.map.get(x[0]); if (!m || (m.gen && !e.gen) || (m.gen && e.gen && e.termo.startsWith(m.termo) && e.termo.length > m.termo.length)) m = e; if (!m.gen) break; } // VITAMINA D3 ganha de VITAMINA D
   const supl = T.some(t => RX_SUPL.test(t)), forma = T.some(t => RX_FORMA_SUPL.test(t));
@@ -1738,7 +1746,8 @@ async function runAll(opts = {}) {
         const tenta = DD => { const b2 = DD && findBrand(T, [], '', C.black, DD, vocab); return b2 && !farmaNaoMarca(b2, C, paW) ? b2 : null; };
         const fabArq = prioArq() && valido(it.sugFab) ? it.sugFab.trim() : '';
         bn = null; BD = null; fmHit = null;
-        let vm = it.vit && it.vit.m;
+        let vm = (it.vit && it.vit.m) || vitMarca(T, C); // remédio registrado (BIO C em A11G1) também usa a marca da base de vitaminas
+        if (vm && /^(A ?Z|POLIVITAMINICOS?|MULTIVITAMINICOS?)( |$)/.test(vm.termo)) vm = null; // A Z / POLIVITAMINICO indica multivitamínico, não é nome de produto
         { const h = vm && matchFM(T, C.fm); // base de marcas de Farmácia com o nome mais completo da mesma linha (MOBILITY OSCAL D): ela vale
           // VITAMINA D3 (Hoja, BIOLAB) é nome genérico: não traz o fabricante
           if (h && h.nome && !(vm.gen && N(h.nome) === N(vm.termo)) && (vm.gen || (h.nome !== vm.termo && h.nome.includes(vm.termo)))) { vm = null; bn = h.nome; marca = h.nome; fab = fabArq || h.fab || 'OUTRO FABRICANTE'; fmHit = h; } }
@@ -1792,7 +1801,7 @@ async function runAll(opts = {}) {
     if (farma && !valido(fab)) { const l = labPorEAN(it.barcode, !!it.vit || a.cat === 'VITAMINA OUTRO' || a.cat === 'MULTIVITAMINICO'); if (l) { fab = l; alerts0.push(`Fabricante pelo código de barras (prefixo da empresa nas bases): ${l}`); } } // remédio sempre tem fabricante
     // Farmácia que não é remédio (dermocosmético, correlato, suplemento): marca própria do fabricante vale (MASSIME, NATURALHELF);
     // fabricante conhecido sem marca não deve acontecer: marca da DIMA na descrição, senão o nome do fabricante escrito nela
-    if (farma && !/^[A-Z]\d\d[A-Z]/.test(nomeOf(a.cat)) && (!valido(marca) || marca === 'OUTRA MARCA') && valido(fab)) {
+    if (farma && (!/^[A-Z]\d\d[A-Z]/.test(nomeOf(a.cat)) || !ehLab(fab)) && (!valido(marca) || marca === 'OUTRA MARCA') && valido(fab)) { // OLDVITTA, ETTERNA: marca própria mesmo em categoria de remédio
       const d = findBrand(T, [], '', C.black, data.dima, null);
       const fw = N(fab).split(' ').filter(w => w.length >= 3 && !LAB_LIXO.has(w));
       const noTexto = fw.length && T.some(t => (' ' + t + ' ').includes(' ' + fw.join(' ') + ' ')) ? fw.join(' ') : (fw[0] && T.some(t => t.split(' ').includes(fw[0])) ? fw[0] : null);
@@ -1804,6 +1813,14 @@ async function runAll(opts = {}) {
       const T3 = T.map(t => t.split(' ').filter(w => !VIT_NAO.has(w) && !/^(SUPL|SUPLEMENTO|ALIM|ALIMENTAR|MULT|VIT|VITAMINA|VITAMINAS|KIT|COM|C|B|D|E)$/.test(w)).join(' '));
       const nc = nomeComercial(T3, C, vocab, palavrasPA(T, C));
       if (nc && !ehLab(nc) && !NUTRI_W[nc] && !paPorPrefixo(nc)) { marca = nc; bn = nc; alerts0.push(`Marca ${nc} pelo nome comercial da descrição`); }
+    }
+    // fabricante conhecido nunca fica com OUTRA MARCA: nome genérico (princípio ativo ou VITAMINA K, COMPLEXO B) + sigla do fabricante
+    if (farma && (!valido(marca) || marca === 'OUTRA MARCA') && valido(fab) && fab !== 'OUTRO FABRICANTE') {
+      const pa = (C.pa ? T.map(t => matchPA(t, C.pa)).find(Boolean) : null) || T.map(t => matchPB(t, C)).find(Boolean) || null;
+      let g = pa ? paIni(pa, T) : null;
+      if (!g && C.vit) for (const t of T) for (const x of t.matchAll(C.vit.rx)) { const e = C.vit.map.get(x[0]); if (e && e.gen && (!g || (e.termo.startsWith(g) && e.termo.length > g.length))) g = e.termo; }
+      if (!g) { const nu = [...nutrientes(T)]; if (nu.length === 1 && NUTRI_NOME[nu[0]]) g = NUTRI_NOME[nu[0]]; } // VIT K -> VITAMINA K
+      if (g) { marca = g; bn = g; alerts0.push(`Marca ${g}: nome genérico com a sigla do fabricante (o item não tem marca)`); }
     }
     // nunca, em nenhuma cesta: POR DEFECTO vira OUTRA MARCA e SIN PROVEEDOR ASOCIADO vira OUTRO FABRICANTE (e não vão no descritivo)
     if (!valido(marca)) { marca = 'OUTRA MARCA'; bn = null; BD = null; }
@@ -1940,14 +1957,20 @@ async function runAll(opts = {}) {
   { const med = new Map(); for (const r of res) { const b = r.qbase; if (r.qt && (b === 'G' || b === 'ML')) { const k = r.cat + '|' + b; if (!med.has(k)) med.set(k, []); med.get(k).push(r.qt); } }
     for (const [k, v] of med) { v.sort((x, y) => x - y); med.set(k, v.length >= 5 ? v[Math.floor(v.length / 2)] : null); }
     for (const r of res) { const m = med.get(r.cat + '|' + r.qbase); if (m && r.qt && (r.qt > 20 * m || r.qt < m / 20)) { r.alerts.push(`Conteúdo fora do comum para a categoria (típico ${fmtUnit(m, r.qbase)})`); r.pri = r.pri || 2; } } }
-  // Farmácia: uma marca = um fabricante no arquivo inteiro (genérico também: a sigla separa NIMESULIDA ALT de NIMESULIDA EMS).
+  // uma marca = um fabricante no arquivo inteiro, em todas as cestas (Farmácia genérico também: a sigla separa NIMESULIDA ALT
+  // de NIMESULIDA EMS); linha da marca com OUTRO FABRICANTE ganha o fabricante da marca (ZINCO KIDS CAT).
   // Fabricante da marca: 1º o que tem a sigla da marca (CEBION MER -> MERCK), 2º o da marca na DIMA, 3º o mais comum no arquivo
   { const por = new Map();
-    for (const r of res) { if (!r.farma || r.marca === 'OUTRA MARCA' || !valido(r.fab) || r.fab === 'OUTRO FABRICANTE') continue;
+    const semFab = r => !valido(r.fab) || r.fab === 'OUTRO FABRICANTE';
+    for (const r of res) { if (r.marca === 'OUTRA MARCA' || !valido(r.marca)) continue; // todas as cestas
       if (!por.has(r.marca)) por.set(r.marca, []); por.get(r.marca).push(r); }
     for (const [m, rs] of por) {
-      const cnt = new Map(); for (const r of rs) cnt.set(r.fab, (cnt.get(r.fab) || 0) + 1);
-      if (cnt.size < 2) continue;
+      const cnt = new Map(); for (const r of rs) if (!semFab(r)) cnt.set(r.fab, (cnt.get(r.fab) || 0) + 1);
+      // sem fabricante em nenhuma linha: o dono da sigla da marca (ZINCO QUELATO CAT -> CATARINENSE PHARMA)
+      if (!cnt.size) { const sg0 = (/ ([A-Z0-9]{3})$/.exec(N(m)) || [])[1], d0 = sg0 && rs.some(r => r.farma) && SIG().codigos[sg0];
+        if (d0) for (const r of rs) { r.fab = canonFab(d0); r.alerts.push(`Fabricante ${r.fab} pela sigla da marca ${m}`); r.status = statusCadastro(r.marca, r.fab, r.farma); }
+        continue; }
+      if (cnt.size < 2 && !rs.some(semFab)) continue;
       const fs = [...cnt.keys()], sg = (/ ([A-Z0-9]{3})$/.exec(N(m)) || [])[1];
       const mais = l => l.sort((x, y) => cnt.get(y) - cnt.get(x))[0];
       let dono = null; const ss = sg ? fs.filter(f => (SIG().fab[N(f)] || siglaGerada(f)) === sg) : [];
@@ -1955,7 +1978,7 @@ async function runAll(opts = {}) {
       if (!dono && data.dima) { const b = data.dima.map.get(N(m)) || data.dima.map.get(N(semSigla(m))); let v = 0;
         if (b && b.fabAll) for (const f of fs) { const x = b.fabAll.get(f) || 0; if (x > v) { v = x; dono = f; } } }
       if (!dono) dono = mais(fs);
-      for (const r of rs) if (r.fab !== dono) { r.alerts.push(`Fabricante unificado: a marca ${m} tem um fabricante só (${dono}); estava ${r.fab}`); r.fab = dono; r.status = statusCadastro(r.marca, r.fab, true); r.pri = r.pri || 2; }
+      for (const r of rs) if (r.fab !== dono) { r.alerts.push(`Fabricante unificado: a marca ${m} tem um fabricante só (${dono}); estava ${r.fab}`); r.fab = dono; r.status = statusCadastro(r.marca, r.fab, r.farma); r.pri = r.pri || 2; }
     } }
   if (quiet) return res;
   data.results = res;

@@ -83,6 +83,7 @@ def main():
                 if N(fab) not in SEM: x[1][fab] += 1
     marcas = []
     for t, (m, f, nm, n) in sorted(por.items()):
+        if re.match(r'^(A ?Z|POLIVITAMINICO|MULTIVITAMINICO)( |$)', t): continue  # A Z TEU (1 SKU): indica multivitamínico, não é marca
         if len(t) < 3 or t in COMUM or t.isdigit() or (n < 10 and any(x in fora for x in termo(t))): continue
         if n <= 1 and ' ' not in t and len(t) <= 4: continue  # 1 SKU e nome curto (GABA, TOP): pouca prova
         # nome genérico usado como marca (OMEGA 3, VITAMINA C, COMPLEXO B): vários fabricantes ou nome de nutriente;

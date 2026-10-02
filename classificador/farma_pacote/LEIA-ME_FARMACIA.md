@@ -465,3 +465,22 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   cestas).
 - A base de vitaminas do cliente tem 93 marcas com mais de um fabricante (290 SKUs: OMEGA 3 com 14, CATARINENSE, PURAVIDA).
   Por isso o "fabricante certo" contra ela caiu de 7.023 para 6.987.
+
+### 3.5s OUTRA MARCA com fabricante e OUTRO FABRICANTE na mesma marca
+- A unificação de fabricante por marca agora vale em todas as cestas. A linha com OUTRO FABRICANTE ganha o fabricante da
+  marca (ZINCO KIDS CAT). Se nenhuma linha tem fabricante, vale o dono da sigla da marca (ZINCO QUELATO CAT -> CATARINENSE).
+- Fabricante conhecido não fica com OUTRA MARCA. Ordem do que vira marca:
+  1. marca própria do fabricante, quando o nome dele está na descrição (OLDVITTA, ETTERNA). Vale mesmo em categoria de
+     remédio, se o fabricante não é laboratório de remédio;
+  2. o princípio ativo;
+  3. o nome genérico de vitamina;
+  4. o nutriente único (VIT K -> VITAMINA K GNN).
+- Remédio registrado também usa marca da base de vitaminas (BIO C UNI em A11G1; antes perdia o "C").
+- "A Z" e POLIVITAMINICO não são marca (a base tinha "A Z TEU"). A trava da DIMA (marca só conhecida fora de vitamina) não
+  vale quando a descrição traz nutriente ou A-Z (OLDVITTA A-Z ia para R05C EXPECTORANTES).
+- Resultados:
+  - base de vitaminas: EST MER 7 7.248 -> 7.410; marca 7.017 -> 7.122; fabricante 6.987 -> 7.076;
+  - Hoja: marca 1.384 -> 1.399;
+  - marcas com 2+ fabricantes: 0;
+  - OUTRA MARCA com fabricante: 67 -> 30 (metade em outras cestas: OUTRA CATEGORIA);
+  - outras cestas: sem mudança.
