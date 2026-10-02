@@ -804,6 +804,26 @@ function fabSoSuplemento(bc, T) {
   for (const n of [9, 8, 7]) { const f = pf[sk.slice(0, n)]; if (f && FAB_VIT.set.has(N(f))) return true; }
   return T.some(t => FAB_VIT.chaves.some(k => (' ' + t + ' ').includes(' ' + k + ' ')));
 }
+// nome do produto escrito na descrição, sem SUPL ALIM, fabricante, sigla, dose, forma e quantidade (OLEO DE LINHACA DOURADA
+// 1000MG 60CPS -> OLEO DE LINHACA DOURADA): vira a marca genérica do item que não tem marca
+const PN_FORA = new Set(('SUPL SUPLEMENTO SUPLLEMENTO SUPLEM SUPLE ALIM ALIMENTAR MULT CPR CPRS CP CPS CAP CAPS CAPSULA CAPSULAS COMP COMPRIMIDO COMPRIMIDOS ' +
+  'DRG DRAGEA DRAGEAS GTS GOTAS UN UND UNID UNIDADES SACHE SACHES FRASCO FR CX CAIXA POTE REFIL COM C X ML G MG MCG UI KG L ' +
+  'REV REVEST REVESTIDO REVESTIDOS SOFTGEL SOFTGELS GEL MOLE MOLES MASTIGAVEL MASTIGAVEIS EFERV EFERVESCENTE LIQ LIQUIDO SOL SOLUCAO ORAL ' +
+  'SABOR SEM ACUCAR ZERO NOVO NOVA PROMO KIT LEVE PAGUE').split(' '));
+function produtoNome(T, fab) {
+  const fw = new Set(N(fab || '').split(' '));
+  { const l = labAchado(T); if (l) for (const x of l.termo.split(' ')) fw.add(x); } // NEO QUIMICA, FLORA NATIVA: laboratório não é produto
+  let best = null;
+  for (const t of T) {
+    const w = t.split(' ').filter(x => x && !PN_FORA.has(x) && !fw.has(x) && !/\d/.test(x) && !ehSigla(x) && !palavraLab(x) && !LAB_LIXO.has(x) && x.length >= 2);
+    while (w.length && CONNECT.has(w[0])) w.shift();
+    let p = w.slice(0, 3); while (p.length && CONNECT.has(p[p.length - 1])) p.pop();
+    if (!p.length || !p.some(x => x.length >= 4)) continue;
+    const nome = p.join(' ');
+    if (!best || (/^VIT(AMINA)?$/.test(best) && !/^VIT(AMINA)?$/.test(nome))) best = nome; // VITAMINA sozinho só se não houver nada melhor
+  }
+  return best;
+}
 // marca de verdade da base VITAMINA E MINERAL escrita na descrição (não genérica, não travada)
 function vitMarca(T, C) { const V = C.vit; if (!V || (V.fora && T.some(t => V.fora.test(t)))) return null;
   for (const t of T) for (const x of t.matchAll(V.rx)) { const e = V.map.get(x[0]); if (e && !e.gen) return e; }
@@ -1837,7 +1857,7 @@ async function runAll(opts = {}) {
     if (farma && !valido(fab)) { const l = labPorEAN(it.barcode, !!it.vit || a.cat === 'VITAMINA OUTRO' || a.cat === 'MULTIVITAMINICO'); if (l) { fab = l; alerts0.push(`Fabricante pelo código de barras (prefixo da empresa nas bases): ${l}`); } } // remédio sempre tem fabricante
     // Farmácia que não é remédio (dermocosmético, correlato, suplemento): marca própria do fabricante vale (MASSIME, NATURALHELF);
     // fabricante conhecido sem marca não deve acontecer: marca da DIMA na descrição, senão o nome do fabricante escrito nela
-    const nomeCom = () => { const fw0 = new Set(N(fab).split(' '));
+    const nomeCom = () => { const fw0 = new Set(N(fab).split(' ')); { const l = labAchado(T); if (l) for (const x of l.termo.split(' ')) fw0.add(x); }
       const T3 = T.map(t => t.split(' ').filter(w => !VIT_NAO.has(w) && !fw0.has(w) && !palavraLab(w) && !/^(SUPL|SUPLEMENTO|ALIM|ALIMENTAR|MULT|VIT|VITAMINA|VITAMINAS|KIT|COM|C|B|D|E)$/.test(w)).join(' '));
       const nc = nomeComercial(T3, C, vocab, palavrasPA(T, C));
       if (nc && !ehLab(nc) && !NUTRI_W[nc] && !paPorPrefixo(nc) && !farmaNaoMarca(nc, C)) { marca = nc; bn = nc; alerts0.push(`Marca ${nc} pelo nome comercial da descrição`); } };
@@ -1866,6 +1886,13 @@ async function runAll(opts = {}) {
       if (!g) { const nu = [...nutrientes(T)]; if (nu.length === 1 && NUTRI_NOME[nu[0]]) g = NUTRI_NOME[nu[0]]; } // VIT K -> VITAMINA K
       if (g && /^(A ?Z|MULT|MULTI|POLI|POLIVIT|MULTIVIT|POLIVITAMINICOS?|MULTIVITAMINICOS?|SUPL|SUPLEMENTO)( |$)/.test(g)) g = null; // indica multivitamínico, não é marca
       if (g) { marca = g; bn = g; alerts0.push(`Marca ${g}: nome genérico com a sigla do fabricante (o item não tem marca)`); }
+    }
+    // Farmácia com fabricante conhecido NUNCA fica com OUTRA MARCA: 1º nome comercial escrito (FITOPRIME, CAPSDAY), 2º o nome
+    // do produto como genérico (OLEO DE LINHACA, ARGININA, ESPINHEIRA SANTA; ganha a sigla do fabricante), 3º o nome do fabricante
+    if (farma && (!valido(marca) || marca === 'OUTRA MARCA') && valido(fab) && fab !== 'OUTRO FABRICANTE') {
+      nomeCom();
+      if (!valido(marca) || marca === 'OUTRA MARCA') { const pn = produtoNome(T, fab); if (pn) { marca = pn; bn = pn; alerts0.push(`Marca ${pn}: nome do produto (sem marca nas bases)`); } }
+      if (!valido(marca) || marca === 'OUTRA MARCA') { const fw = N(fab).split(' ').filter(w => !LAB_LIXO.has(w) && !FAB_LIXO.has(w)); if (fw.length) { marca = fw.slice(0, 2).join(' '); bn = marca; alerts0.push(`Marca ${marca}: nome do fabricante (a descrição não diz o produto) - revisar`); } }
     }
     // quantidade não faz parte da marca (FLOPI KIDS 54G -> FLOPI KIDS)
     if (farma && valido(marca)) { const m0 = marca.replace(/\s+\d+([.,]\d+)?\s*(G|KG|ML|L|MG|MCG|UI|UN|CPS|CAPS|CPR|CPRS)(?![A-Z0-9])/g, '').trim(); if (m0 && m0 !== marca) { marca = m0; bn = bn && N(m0); } }

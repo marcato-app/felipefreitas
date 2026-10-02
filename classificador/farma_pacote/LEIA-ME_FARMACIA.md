@@ -558,3 +558,16 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   - OLEO e GOMAS não são marca.
 - dados/vitamina_mineral_500_classificado.xlsx: os 500 em uma aba no formato do classificador (com a categoria revisada,
   STATUS e PRODUTOS DISTINTOS), mais E FARMA? e CATEGORIA OUTRO APP.
+
+### 3.5x Farmácia com fabricante nunca fica com OUTRA MARCA
+- Cadeia obrigatória (depois de todas as outras regras de marca):
+  1. nome comercial escrito na descrição (FITOPRIME VDO, CAPSDAY, NUTRI CORP). Laboratório de remédio escrito (NEO QUIMICA,
+     ACHE) não entra;
+  2. nome do produto como genérico (`produtoNome`: sem SUPL ALIM, fabricante, laboratório, sigla, dose, forma e quantidade,
+     até 3 palavras): OLEO DE LINHACA DOURADA TIR, ARGININA AIR, ESPINHEIRA SANTA NAT, METILFOLATO DE CALCIO FLN. A sigla
+     do fabricante entra como em todo genérico;
+  3. nome do fabricante, quando a descrição só traz dose e quantidade ("KRESS 300MG X 300 CPS" -> KRESS KRE). Vai com o
+     alerta "revisar".
+- Base de vitaminas: 27 -> 0 em Farmácia (os 4 que sobram estão em OUTRA CATEGORIA). Arquivo dos 500: 0.
+- Ainda ficam com OUTRA MARCA os itens sem marca nas bases e também sem fabricante.
+- Testes DIMA, Hoja e outras cestas: sem perda (Hoja marca 1.409 -> 1.414).
