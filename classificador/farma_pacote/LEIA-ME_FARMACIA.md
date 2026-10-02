@@ -449,3 +449,19 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
 - Testes: testes_farma/althaia_arquivo.csv, testes_farma/althaia_descricoes.csv.
 - Marca genérica VITAMINA D vira sempre VITAMINA D3, salvo quando a descrição fala em D2 ou ERGOCALCIFEROL. É o mesmo produto:
   a base do cliente não tem D2, e a maioria das marcas genéricas é VITAMINA D3 (46 contra 15 VITAMINA D).
+
+### 3.5r Uma marca = um fabricante (COMPLEXO B IME com BAGO, VITAMEDIC, AIRELA...)
+- Causa: a sigla da marca vinha da base Hoja pelo nome ("COMPLEXO B" -> IME, porque só a IMEC tem essa marca lá), mesmo
+  quando o fabricante do produto era outro (do arquivo ou da descrição).
+- Nome genérico (COMPLEXO B, VITAMINA C, princípio ativo; genérico na base de vitaminas) leva a sigla do fabricante do
+  produto: COMPLEXO B BAG, COMPLEXO B VMD, COMPLEXO B STL, COMPLEXO B AIR. Sigla escrita na descrição continua valendo.
+  Marca de verdade não troca pela sigla: a mesma sigla serve a laboratórios diferentes (BIO = BIOLAB e BIOBALANCE).
+- Passada final no arquivo inteiro: marca de Farmácia com mais de um fabricante fica com um só, escolhido nesta ordem:
+  1. o fabricante que tem a sigla da marca (CEBION MER -> MERCK, NORIPURUM TKD -> TAKEDA);
+  2. o fabricante da marca na DIMA;
+  3. o mais comum no arquivo.
+  Os outros itens ganham o alerta "Fabricante unificado".
+- Teste com 6 arquivos: antes, 73 marcas com mais de um fabricante; depois, 0 na Farmácia (as que sobram são de outras
+  cestas).
+- A base de vitaminas do cliente tem 93 marcas com mais de um fabricante (290 SKUs: OMEGA 3 com 14, CATARINENSE, PURAVIDA).
+  Por isso o "fabricante certo" contra ela caiu de 7.023 para 6.987.
