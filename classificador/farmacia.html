@@ -276,7 +276,7 @@ td.alert{color:var(--warn); font-size:12px}
     <section class="step hidden" data-step="6" data-nome="Classificar" data-sub="resultado">
       <div class="step-h"><span class="eyebrow">Etapa 6 de 6</span><h2>Classificar e baixar</h2>
         <p>Categoria por votação entre as descrições de cada código. A planilha sai com a aba principal, a aba REVISAO (itens com alerta, descrição da loja usada) e o resumo.</p></div>
-      <div class="bar"><button class="pri" id="btnRun" disabled>Classificar</button><button id="btnDownload" disabled>Baixar planilha .xlsx</button><span class="note" id="runState">Envie o backlog ou o arquivo das lojas para começar.</span></div>
+      <div class="bar"><button class="pri" id="btnRun" disabled>Classificar</button><button id="btnDownload" disabled>Baixar planilha .xlsx</button><button id="btnIA" class="ghost" disabled title="Pergunta ao Claude (conhecimento dele, sem internet) a categoria, a marca e o fabricante dos itens em OUTRA CATEGORIA ou OUTRA MARCA; o app reclassifica só esses, com todas as regras, e marca para revisar">Completar com IA</button><button id="btnIAStop" class="ghost hidden">Parar</button><span class="note" id="runState">Envie o backlog ou o arquivo das lojas para começar.</span></div>
       <div class="progress" aria-hidden="true"><div id="prog"></div></div>
       <div id="results" class="hidden" style="display:flex;flex-direction:column;gap:14px">
         <div class="sum" id="kpis"></div>
@@ -1443,6 +1443,7 @@ const FARMA_NAO_MARCA = new Set(('GENERICO GENERICA GENERICOS SIMILAR MEDICAMENT
   'MONOIDRATADO MONOIDRATADA DI TRI HIDRATADO HIDRATADA ASSOCIACAO COMPOSTO COMPOSTA ' +
   'COMPRIMIDO COMPRIMIDOS CAPSULA CAPSULAS DRAGEA DRAGEAS SOLUCAO SUSPENSAO XAROPE GOTAS POMADA CREME GEL LOCAO SPRAY COLIRIO AMPOLA INJETAVEL ' +
   'DIA MCG MG ML UI ' +
+  'MULT MULTI POLI POLIVIT MULTIVIT POLIVITAMINICO MULTIVITAMINICO SUPL SUPLEMENTO ALIM ALIMENTAR ' + // SUPL ALIM MULT (padrão do descritivo) não é marca
   'EFERVESCENTE REVESTIDO ORAL NASAL TOPICO TOPICA OFTALMICO OFTALMICA SACHE SACHES PO FRASCO BISNAGA CAIXA CX FR').split(' '));
 // palavras dos princípios ativos escritos na descrição (HIDROXIDO DE ALUMINIO, OLEO MINERAL)
 function palavrasPA(T, C) { const out = new Set(); for (const P of [C.pa, C.pb]) { if (!P) continue; for (const t of T) { let m; P.rx.lastIndex = 0; while ((m = P.rx.exec(t))) m[0].split(' ').forEach(w => out.add(w)); } } return out; }
@@ -1513,6 +1514,8 @@ function bateCategoria(c, T) {
 // categoria do arquivo: fica, a não ser que nenhuma descrição bata com ela E a descrição aponte para outra cesta
 function categoriaArquivo(it, a, byName) {
   const s = it.sugCat; if (!prioArq() || !s || s === a.cat) return a;
+  // categoria dada pela IA (Completar com IA) para item sem categoria ou que não é de farmácia: vale direto, para revisar
+  if (it.ia && it.ia.cat === s && byName.has(s)) return Object.assign({}, a, { cat: s, per: a.per.map(() => s), flag: 'ARQUIVO', arqCat: true });
   if (a.cat === OUT && data.dima) return a; // sem categoria pela descrição: antes a marca na DIMA, depois o arquivo (mais abaixo, no runAll)
   const c1 = byName.get(s); if (!c1) return a; // categoria que não existe na biblioteca
   const c0 = byName.get(a.cat);
@@ -1770,7 +1773,7 @@ async function runAll(opts = {}) {
         const fabArq = prioArq() && valido(it.sugFab) ? it.sugFab.trim() : '';
         bn = null; BD = null; fmHit = null;
         let vm = (it.vit && it.vit.m) || vitMarca(T, C); // remédio registrado (BIO C em A11G1) também usa a marca da base de vitaminas
-        if (vm && /^(A ?Z|POLIVITAMINICOS?|MULTIVITAMINICOS?)( |$)/.test(vm.termo)) vm = null; // A Z / POLIVITAMINICO indica multivitamínico, não é nome de produto
+        if (vm && /^(A ?Z|MULT|MULTI|POLI|POLIVIT|MULTIVIT|POLIVITAMINICOS?|MULTIVITAMINICOS?)( |$)/.test(vm.termo)) vm = null; // A Z / POLIVITAMINICO indica multivitamínico, não é nome de produto
         { const h = vm && matchFM(T, C.fm); // base de marcas de Farmácia com o nome mais completo da mesma linha (MOBILITY OSCAL D): ela vale
           // VITAMINA D3 (Hoja, BIOLAB) é nome genérico: não traz o fabricante
           if (h && h.nome && !(vm.gen && N(h.nome) === N(vm.termo)) && (vm.gen || (h.nome !== vm.termo && h.nome.includes(vm.termo)))) { vm = null; bn = h.nome; marca = h.nome; fab = fabArq || h.fab || 'OUTRO FABRICANTE'; fmHit = h; } }
@@ -1843,6 +1846,7 @@ async function runAll(opts = {}) {
       let g = pa ? paIni(pa, T) : null;
       if (!g && C.vit) for (const t of T) for (const x of t.matchAll(C.vit.rx)) { const e = C.vit.map.get(x[0]); if (e && e.gen && (!g || (e.termo.startsWith(g) && e.termo.length > g.length))) g = e.termo; }
       if (!g) { const nu = [...nutrientes(T)]; if (nu.length === 1 && NUTRI_NOME[nu[0]]) g = NUTRI_NOME[nu[0]]; } // VIT K -> VITAMINA K
+      if (g && /^(A ?Z|MULT|MULTI|POLI|POLIVIT|MULTIVIT|POLIVITAMINICOS?|MULTIVITAMINICOS?|SUPL|SUPLEMENTO)( |$)/.test(g)) g = null; // indica multivitamínico, não é marca
       if (g) { marca = g; bn = g; alerts0.push(`Marca ${g}: nome genérico com a sigla do fabricante (o item não tem marca)`); }
     }
     // nunca, em nenhuma cesta: POR DEFECTO vira OUTRA MARCA e SIN PROVEEDOR ASOCIADO vira OUTRO FABRICANTE (e não vão no descritivo)
@@ -1933,7 +1937,7 @@ async function runAll(opts = {}) {
     // no máximo 60 caracteres com espaços: sai palavra do complemento (do fim) antes de mexer em marca, dose, quantidade e sigla
     const cauda = (dose ? ' ' + dose : '') + (qTxt ? ' ' + qTxt : '') + (sigla ? ` (${sigla})` : '');
     // a sigla só vai no fim, entre parênteses (MAXINUTRI MAX ... (MAX) -> MAXINUTRI ... (MAX))
-    let cw = cleanD(comp).split(' ').filter(w => w && !(farma && sigla && w === sigla));
+    let cw = cleanD(comp).split(' ').filter(w => w && !(farma && sigla && w === sigla) && !(it.ia && it.ia.naoFarma && /^(SUPL|SUPLEMENTO|ALIM|ALIMENTAR|MULT|MULTIVITAMINICO|POLIVITAMINICO|VIT|VITAMINA)$/.test(w))); // não é farmácia (IA): sem SUPL ALIM MULT
     const cab = cleanD([ini, farma && sigla ? cleanD(brandTxt || '').replace(new RegExp('(^| )' + sigla + '$'), '') : brandTxt].filter(Boolean).join(' '));
     const monta = () => cleanD([cab, cw.join(' ')].filter(Boolean).join(' '));
     while (cw.length && monta().length + cauda.length > DESC_MAX) cw.pop();
@@ -2083,9 +2087,9 @@ function buildWorkbook() {
   const ws = XLSX.utils.aoa_to_sheet(main); ws['!cols'] = [{ wch: 16 }, { wch: 60 }, { wch: 28 }, { wch: 24 }, { wch: 11 }, { wch: 26 }, { wch: 18 }, { wch: 22 }, { wch: 28 }];
   for (let i = 2; i <= main.length; i++) { const c = ws['A' + i]; if (c && c.t === 'n') c.z = '0'; }
   XLSX.utils.book_append_sheet(wb, ws, 'Planilha1');
-  const rv = [['CODIGO BARRAS', 'CODIGO INTERNO', 'STATUS', 'CATEGORIA', 'EST MER 7 CODIGO', 'CATEGORIA SUGERIDA', 'MARCA', 'MARCA SUGERIDA', 'FABRICANTE', 'FABRICANTE SUGERIDO', 'CONTENIDO', 'CONTENIDO SUGERIDO', 'DESCRITIVO PADRONIZADO', 'ALERTAS', 'DESCRICOES ORIGINAIS', 'PRIORIDADE', 'DESCRICAO DA LOJA USADA', 'LOJAS']];
+  const rv = [['CODIGO BARRAS', 'CODIGO INTERNO', 'STATUS', 'CATEGORIA', 'EST MER 7 CODIGO', 'CATEGORIA SUGERIDA', 'MARCA', 'MARCA SUGERIDA', 'FABRICANTE', 'FABRICANTE SUGERIDO', 'CONTENIDO', 'CONTENIDO SUGERIDO', 'DESCRITIVO PADRONIZADO', 'ALERTAS', 'DESCRICOES ORIGINAIS', 'PRIORIDADE', 'DESCRICAO DA LOJA USADA', 'LOJAS', 'PESQUISA GOOGLE']];
   for (const r of [...R].filter(r => r.pri || r.status).sort((a, b) => (a.pri || 9) - (b.pri || 9) || a.cat.localeCompare(b.cat)))
-    rv.push([bc(r.it.barcode), ciFlag(r.it.barcode), r.status || '', nomeOf(r.cat), em7(r.cat), r.it.sugCatRaw || r.it.sugCat, r.marca, r.it.sugMarca, r.fab, r.it.sugFab, num(r.qt), r.it.sugQt, r.desc, r.alerts.join('; '), r.it.D.slice(0, 4).join(' | ').slice(0, 500), r.pri, r.it.lojaUsada || '', r.it.nLojas || '']);
+    rv.push([bc(r.it.barcode), ciFlag(r.it.barcode), r.status || '', nomeOf(r.cat), em7(r.cat), r.it.sugCatRaw || r.it.sugCat, r.marca, r.it.sugMarca, r.fab, r.it.sugFab, num(r.qt), r.it.sugQt, r.desc, r.alerts.join('; '), r.it.D.slice(0, 4).join(' | ').slice(0, 500), r.pri, r.it.lojaUsada || '', r.it.nLojas || '', 'https://www.google.com/search?q=' + encodeURIComponent(String(r.it.barcode) + ' ' + (r.it.D[0] || ''))]);
   const ws2 = XLSX.utils.aoa_to_sheet(rv); ws2['!cols'] = [{ wch: 16 }, { wch: 22 }, { wch: 26 }, { wch: 24 }, { wch: 18 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 50 }, { wch: 55 }, { wch: 80 }, { wch: 10 }];
   ws2['!autofilter'] = { ref: 'A1:O' + rv.length };
   XLSX.utils.book_append_sheet(wb, ws2, 'REVISAO');
@@ -2180,7 +2184,72 @@ function renderResults() {
   const sel = $('#fltCat'); const cur = sel.value; sel.replaceChildren(el('option', { value: '' }, 'Todas'));
   for (const [c] of [...cnt].sort()) sel.append(el('option', { value: c }, nomeOf(c))); sel.value = cur;
   renderPreview(); $('#btnDownload').disabled = false;
+  $('#btnIA').disabled = !iaPendentes().length; $('#btnIA').textContent = `Completar com IA (${iaPendentes().length.toLocaleString('pt-BR')})`;
 }
+// ---- Completar com IA: itens em OUTRA CATEGORIA ou (Farmácia) OUTRA MARCA -> o Claude sugere categoria/marca/fabricante pelo
+// conhecimento dele (não navega na internet); o app usa a sugestão como se viesse no arquivo e reclassifica só esses itens
+const IA_LOTE = 25, IA_MAX = 400;
+function iaPendentes() { return (data.results || []).filter(r => !r.it.ia && !r.it.iaVisto && (r.cat === OUT || (r.farma && r.marca === 'OUTRA MARCA'))); }
+let iaCtl = null;
+$('#btnIAStop').addEventListener('click', () => iaCtl?.abort());
+$('#btnIA').addEventListener('click', async () => {
+  const sample = await cuse('sample'); const st = $('#runState');
+  if (!sample) { st.textContent = 'Para usar a IA, abra a página logada na sua conta Claude.'; return; }
+  const pend = iaPendentes().slice(0, IA_MAX); if (!pend.length) return;
+  // todas as cestas: item que não é de farmácia (ESCOVA DE CABELO) vai para a categoria dele, e a IA diz o que é
+  const cats = cfg.categorias.filter(c => c.ativa !== false && c.nome !== OUT);
+  const porNome = new Map(); for (const c of cats) { porNome.set(N(nomeOf(c.nome)), c.nome); porNome.set(N(c.nome), c.nome); }
+  const lista = [...new Set(cats.map(c => nomeOf(c.nome)))].sort().join('\n');
+  $('#btnIA').disabled = true; $('#btnIAStop').classList.remove('hidden'); iaCtl = new AbortController();
+  let feitos = 0, achou = 0;
+  try {
+    for (let k = 0; k < pend.length; k += IA_LOTE) {
+      const lote = pend.slice(k, k + IA_LOTE);
+      st.textContent = `IA: consultando itens ${k + 1}-${k + lote.length} de ${pend.length}… (pode levar até 1 minuto por lote)`;
+      for (const r of lote) r.it.iaVisto = true; // consultado: não pergunta de novo, mesmo sem resposta
+      const linhas = lote.map((r, j) => JSON.stringify({ i: j, ean: String(r.it.barcode), descricoes: r.it.D.slice(0, 3), fabricante: r.fab !== 'OUTRO FABRICANTE' ? r.fab : '' })).join('\n');
+      const prompt = 'Você classifica produtos de varejo do Brasil, principalmente de farmácia (remédios, suplementos, vitaminas, dermocosméticos, correlatos). '
+        + 'Para cada item abaixo, diga pelo seu conhecimento qual é o produto: '
+        + 'PRODUTO (o que é, em poucas palavras, ex.: "xarope expectorante", "escova de cabelo", "suplemento de vitamina D"); '
+        + 'FARMACIA (true se é item de farmácia: remédio, suplemento, vitamina, dermocosmético, correlato; false se não é: escova de cabelo, café, roupa...); '
+        + 'CATEGORIA (copie exatamente um nome da lista, de qualquer cesta; suplemento de vitamina/mineral sem registro de remédio é VITAMINA OUTRO, '
+        + 'ou MULTIVITAMINICO se for polivitamínico/A-Z/3+ nutrientes); '
+        + 'MARCA comercial do produto (sem o nome do laboratório; ex.: FLUENCE, NEO FRESH, DEPURA) e FABRICANTE (empresa dona da marca). '
+        + 'Se não reconhecer com segurança, deixe o campo vazio (""). Não invente.\n\n'
+        + 'Responda SOMENTE com um JSON: {"itens":[{"i":0,"produto":"","farmacia":true,"categoria":"","marca":"","fabricante":"","certeza":"alta|media|baixa"}]}\n\n'
+        + 'LISTA DE CATEGORIAS:\n' + lista + '\n\nITENS (um JSON por linha):\n' + linhas;
+      let resp; try { resp = await askJSON(sample, prompt, iaCtl.signal); } catch (e) { if (e && e.code === 'cancelled') break; throw e; }
+      for (const x of Array.isArray(resp) ? resp : (resp && Array.isArray(resp.itens) ? resp.itens : [])) {
+        const r = lote[Number(x.i)]; if (!r || String(x.certeza || '').toLowerCase() === 'baixa') continue;
+        const cat = porNome.get(N(x.categoria || '')), marca = valido(x.marca) ? N(x.marca) : '', fab = valido(x.fabricante) ? N(x.fabricante) : '';
+        if (!cat && !marca && !fab && !(x.farmacia === false && x.produto)) continue;
+        r.it.ia = { cat: cat || '', marca, fab, produto: String(x.produto || '').trim().slice(0, 60), naoFarma: x.farmacia === false };
+        if (cat && (r.cat === OUT || x.farmacia === false)) { r.it.sugCatRaw = r.it.sugCatRaw || r.it.sugCat; r.it.sugCat = cat; } // não é farmácia: a categoria da IA vale (escova de cabelo)
+        else r.it.ia.cat = '';
+        if (marca) r.it.sugMarca = marca;
+        if (fab) r.it.sugFab = canonFab(fab);
+        achou++;
+      }
+      feitos += lote.length;
+    }
+    const sel = pend.filter(r => r.it.ia).map(r => r.it);
+    if (sel.length) {
+      st.textContent = `IA: reclassificando ${sel.length} itens com as regras do app…`;
+      const prio = cfg.priorizarArquivo; cfg.priorizarArquivo = true;
+      let novos; try { novos = await runAll({ items: sel, silent: true }); } finally { cfg.priorizarArquivo = prio; }
+      const pos = new Map(data.results.map((r, i) => [r.it, i]));
+      for (const n of novos) { const i = pos.get(n.it); if (i === undefined) continue;
+        const ia = n.it.ia;
+        n.alerts.unshift(`IA (conhecimento do Claude, sem internet): ${[ia.naoFarma && 'NAO E FARMACIA', ia.produto && 'produto: ' + ia.produto, ia.cat && 'categoria ' + nomeOf(ia.cat), ia.marca && 'marca ' + ia.marca, ia.fab && 'fabricante ' + ia.fab].filter(Boolean).join(', ')} - revisar`);
+        n.pri = n.pri || 2; data.results[i] = n; }
+    }
+    renderResults();
+    st.textContent = `IA: ${feitos} itens consultados, ${achou} completados (marcados "IA - revisar" na aba REVISAO).` + (iaPendentes().length ? ` Faltam ${iaPendentes().length}: clique de novo para o próximo lote.` : '');
+  } catch (e) {
+    st.textContent = e && e.code === 'not_granted' ? 'A IA não foi autorizada nesta página.' : e && e.code === 'rate_limited' ? 'Limite de uso do Claude atingido; tente mais tarde.' : 'IA: erro ' + ((e && (e.code || e.message)) || e);
+    renderResults();
+  } finally { $('#btnIAStop').classList.add('hidden'); iaCtl = null; }
+});
 function renderPreview() {
   const R = data.results; if (!R) return; const fc = $('#fltCat').value, fm = $('#fltMode').value;
   const rows = R.filter(r => (!fc || r.cat === fc) && (fm === 'all' || r.pri)); const show = rows.slice(0, 300);

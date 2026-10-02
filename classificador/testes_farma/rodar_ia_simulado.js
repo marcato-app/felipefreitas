@@ -1,0 +1,24 @@
+const { chromium } = require('playwright'); const fs = require('fs');
+(async () => { const b = await chromium.launch(); const p = await b.newPage(); p.on('pageerror', e => console.error('ERRO', e.message));
+  await p.setContent(fs.readFileSync(process.argv[2], 'utf8'), { waitUntil: 'load', timeout: 120000 });
+  await p.waitForFunction(() => typeof data !== 'undefined' && data.dima, null, { timeout: 60000 });
+  await p.setInputFiles('#fBacklog', process.argv[3]);
+  await p.waitForFunction(() => !document.querySelector('#btnRun').disabled, null, { timeout: 60000 });
+  await p.evaluate(() => irEtapa(6)); await p.click('#btnRun', { timeout: 600000 });
+  await p.waitForFunction(() => data.results && data.results.length, null, { timeout: 600000 });
+  await p.evaluate(() => {
+    const ans = { 'FLUENCE': { categoria: 'R05C EXPECTORANTES', marca: 'FLUENCE', fabricante: 'HEBRON' }, 'FRESH': { categoria: 'S01K1 LAGRIMAS ARTIFICIAIS E LUBRIFICANTES OCULARES', marca: 'NEO FRESH', fabricante: 'HYPERA PHARMA' }, 'LONG JACK': { categoria: 'VITAMINA OUTRO', marca: 'LONG JACK', fabricante: 'UNI NUTRE' }, 'PRESERVITO': { produto: 'escova de cabelo', farmacia: false, categoria: 'ESCOVA PARA CABELO', marca: 'PRESERVITO', fabricante: '' } };
+    const fake = async (prompt) => { const P = String(typeof prompt === 'string' ? prompt : prompt[0].content); window.__bytes = Math.max(window.__bytes || 0, new TextEncoder().encode(P).length);
+      const linhas = P.split('ITENS (um JSON por linha):\n')[1].split('\n').filter(Boolean);
+      window.__lista = P.split('LISTA DE CATEGORIAS:\n')[1].split('\n\n')[0].split('\n').filter(x => /ESCOVA E PENTE|S01K1/.test(x));
+      const out = linhas.map(l => { const o = JSON.parse(l); const d = o.descricoes.join(' '); const k = Object.keys(ans).find(k => d.includes(k)); return Object.assign({ i: o.i, certeza: 'alta' }, k ? ans[k] : { categoria: '', marca: '', fabricante: '' }); });
+      return { text: JSON.stringify({ itens: out }), truncated: false }; };
+    window.claude = { use: async n => n === 'sample' ? fake : null };
+  });
+  await p.waitForFunction(() => !document.querySelector('#btnIA').disabled, null, { timeout: 10000 });
+  console.log(await p.evaluate(() => document.querySelector('#btnIA').textContent));
+  await p.click('#btnIA'); await p.waitForFunction(() => /IA: \d+ itens consultados|IA: erro/.test(document.querySelector('#runState').textContent), null, { timeout: 600000 });
+  console.log(await p.evaluate(() => document.querySelector('#runState').textContent));
+  console.log(JSON.stringify(await p.evaluate(() => [window.__lista, window.__bytes])));
+  for (const x of await p.evaluate(() => data.results.map(r => [r.it.barcode, nomeOf(r.cat), r.marca, r.fab, r.desc, r.alerts[0]]))) console.log(x.join(' | '));
+  await b.close(); })();

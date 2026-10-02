@@ -505,3 +505,20 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   - Hoja: marca 1.399 -> 1.413;
   - outras cestas: sem mudança.
 - PANVEL 100MG X 30 CPR (marca de rede em todas as categorias, sem o produto escrito) continua OUTRA CATEGORIA.
+
+### 3.5u Botão "Completar com IA" e link do Google na REVISAO
+- Depois de classificar, o botão "Completar com IA (N)" manda ao Claude (capacidade `sample`, conta de quem abre a página;
+  não navega na internet, usa o que sabe) os itens em OUTRA CATEGORIA e os de Farmácia com OUTRA MARCA.
+  - Lotes de 25, até 400 por clique. O botão "Parar" interrompe.
+  - Vão o EAN, até 3 descrições e o fabricante, junto com a lista de categorias de todas as cestas.
+- O Claude responde, para cada item: produto (o que é), farmácia sim/não, categoria (só da lista), marca, fabricante e
+  certeza. Certeza "baixa" é descartada.
+- O app usa a resposta como sugestão de arquivo e reclassifica só esses itens com todas as regras (sigla, descritivo,
+  nome único do fabricante, uma marca = um fabricante).
+  - O alerta "IA (conhecimento do Claude, sem internet): ... - revisar" leva o item para a aba REVISAO.
+  - "NAO E FARMACIA, produto: escova de cabelo": a categoria da IA vale mesmo se o app tinha posto em Farmácia, e o
+    descritivo perde o SUPL ALIM MULT.
+  - Item consultado não é perguntado de novo.
+- REVISAO ganhou a coluna PESQUISA GOOGLE (link com EAN e descrição), para conferir na mão.
+- MULT, MULTI, POLI, SUPL e ALIM nunca são marca (a DIMA tem uma "marca" MULT).
+- Teste com Claude simulado: testes_farma/rodar_ia_simulado.js, com testes_farma/ia_completar.csv.
