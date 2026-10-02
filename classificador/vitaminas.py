@@ -143,7 +143,16 @@ def main():
         if len(e) == 13 and e[:3] in ('789', '790') and N(b['Fabricante']) not in SEM:
             for k in (7, 8, 9): pre[e[:k]][b['Fabricante'].strip()] += 1
     pref = {p: c.most_common(1)[0][0] for p, c in pre.items() if sum(c.values()) >= 3 and c.most_common(1)[0][1] / sum(c.values()) >= 0.8}
-    cj['farmaVit'] = {'marcas': marcas, 'pesos': pesos, 'prior': prior, 'fora': trava, 'pref': pref}
+    # fabricante que só faz suplemento (50%+ dos SKUs na DIMA em vitamina, cálcio/minerais A11-A13, colágeno, probiótico, ou 3+ SKUs na base e fora da DIMA):
+    # item sem categoria com o nome dele ou o prefixo dele no código de barras é vitamina (MAXINUTRI X 60 CPR)
+    fd = defaultdict(Counter)
+    for k in range(0, len(d['rows']), 3):
+        f = d['fabs'][d['rows'][k + 2]]
+        if N(f) not in SEM: fd[f.strip()][bool(re.match(r'^(VITAMINA E MINERAL|COLAGENO|SUPLEMENTO|A1[123][A-Z]|A07F|B03A)', d['segs'][d['rows'][k + 1]]))] += 1
+    fb = Counter(b['Fabricante'].strip() for b in base if N(b['Fabricante']) not in SEM)
+    fab_vit = sorted({f for f, c in fd.items() if sum(c.values()) >= 3 and c[True] / sum(c.values()) >= 0.5} |
+                     {f for f, n in fb.items() if n >= 3 and f not in fd})
+    cj['farmaVit'] = {'marcas': marcas, 'pesos': pesos, 'prior': prior, 'fora': trava, 'pref': pref, 'fabVit': fab_vit}
     (here / 'consts.json').write_text(json.dumps(cj, ensure_ascii=False), encoding='utf-8')
     # acerto do modelo MULTI x OUTRO na própria base (só as palavras, sem a marca)
     ok = 0
@@ -152,6 +161,7 @@ def main():
         for col in ('TOP_DESCRIPCION', 'MAX_DESCRIPCION'): w |= set(N(b[col]).split())
         s = prior + sum(pesos.get(x, 0) for x in w)
         ok += (s > 0) == multi(b)
+    print(len(fab_vit), 'fabricantes só de suplemento, ex.:', [f for f in fab_vit if f in ('MAXINUTRI', 'KATIGUA', 'UNILIFE', 'GRUPO PANVEL', 'BAYER', 'ACHE LABORATORIOS FARMACEUTICOS SA', 'KRESS FARMACEUTICA', 'GOLD VITAM')])
     print(f"{len(base)} SKUs da base; {len(marcas)} marcas de vitamina ({sum(1 for m in marcas if m[4])} da base); "
           f"{len(pesos)} palavras MULTI x OUTRO; acerto só pelas palavras das lojas {100 * ok / max(1, len(base)):.0f}%")
 

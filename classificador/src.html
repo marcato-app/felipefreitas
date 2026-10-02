@@ -792,20 +792,36 @@ const marcaCmed = nome => { if (!data.cmedProd) return false;
 const hojaAtc = (T, C) => { const f = matchFM(T, C.fm); return !!(f && f.cat && /^[A-Z]\d\d[A-Z]/.test(nomeOf(f.cat)) && regMarca({ nome: f.nome }, C) && marcaCmed(f.nome)); };
 const catVitAtc = nome => /^A1[123][A-Z]/.test(nomeOf(nome)) || nome === 'VITAMINA OUTRO' || nome === 'MULTIVITAMINICO';
 // devolve { m: marca da base (ou null), cat: VITAMINA OUTRO | MULTIVITAMINICO } quando o item é suplemento de vitamina/mineral
+// fabricante que só faz suplemento (vitaminas.py -> farmaVit.fabVit): escrito na descrição ou dono do prefixo do código de barras
+let FAB_VIT = null;
+function fabSoSuplemento(bc, T) {
+  const V = K.farmaVit || {}; if (!V.fabVit) return false;
+  if (!FAB_VIT) { FAB_VIT = { set: new Set(V.fabVit.map(N)), chaves: [] };
+    for (const f of V.fabVit) { const w = N(f).split(' ').filter(x => !FAB_LIXO.has(x)); if (!w.length) continue;
+      FAB_VIT.chaves.push(w.join(' ')); if (w[0].length >= 5 && !LAB_NOME_NAO.has(w[0]) && !GENERIC.has(w[0])) FAB_VIT.chaves.push(w[0]); } }
+  const sk = String(bc || '').replace(/\D/g, '').replace(/^0+/, ''), pf = V.pref || {};
+  for (const n of [9, 8, 7]) { const f = pf[sk.slice(0, n)]; if (f && FAB_VIT.set.has(N(f))) return true; }
+  return T.some(t => FAB_VIT.chaves.some(k => (' ' + t + ' ').includes(' ' + k + ' ')));
+}
 // marca de verdade da base VITAMINA E MINERAL escrita na descrição (não genérica, não travada)
 function vitMarca(T, C) { const V = C.vit; if (!V || (V.fora && T.some(t => V.fora.test(t)))) return null;
   for (const t of T) for (const x of t.matchAll(V.rx)) { const e = V.map.get(x[0]); if (e && !e.gen) return e; }
   return null; }
-function vitDe(T, cat, farma, C) {
+function vitDe(T, cat, farma, C, prova) {
   const V = C.vit; if (!V) return null;
   // marca que a DIMA/Hoja só conhecem fora de vitamina (NEOSALDINA); com nutriente ou A-Z escrito, vale a vitamina (OLDVITTA A-Z)
-  if (V.fora && T.some(t => V.fora.test(t)) && !RX_MULTI.test(T.join(' | ')) && !nutrientes(T).size) return null;
+  if (V.fora && T.some(t => V.fora.test(t)) && !RX_MULTI.test(T.join(' | ')) && !nutrientes(T).size && !prova && !T.some(t => /(?<![A-Z])(VITAMINA|VITAMINAS|VITAMINICO)(?![A-Z])/.test(t))) return null;
   let m = null; // marca de verdade (SUNDOWN) ganha de nome genérico usado como marca (VITAMINA C, OMEGA 3)
   for (const t of T) for (const x of t.matchAll(V.rx)) { const e = V.map.get(x[0]); if (!m || (m.gen && !e.gen) || (m.gen && e.gen && e.termo.startsWith(m.termo) && e.termo.length > m.termo.length)) m = e; if (!m.gen) break; } // VITAMINA D3 ganha de VITAMINA D
   const supl = T.some(t => RX_SUPL.test(t)), forma = T.some(t => RX_FORMA_SUPL.test(t));
   // marca sozinha só tira de outra categoria de Farmácia com forma/dose de suplemento (marca de rede: SAO JOAO tem luva)
-  const ok = catVitAtc(cat) || (farma && (supl || (m && !m.gen && forma))) || (cat === OUT && (supl || m) && (forma || T.some(t => RX_SUPL.test(t.replace(/(?<![A-Z])A ?-?Z(?![A-Z])/g, ' '))))); // "AZ" sozinho (REGISTRADOR AZ) não é polivitamínico // nome genérico (ZINCO) não tira de outra categoria de Farmácia
-  if (!ok) return null;
+  const ok = catVitAtc(cat) || (farma && (supl || (m && !m.gen && forma))) || (cat === OUT && (supl || m) && (forma || T.some(t => RX_SUPL.test(t.replace(/(?<![A-Z])A ?-?Z(?![A-Z])/g, ' '))))); // "AZ" sozinho (REGISTRADOR AZ) não é polivitamínico
+  // sem categoria: fabricante só de suplemento (nome ou prefixo do código de barras: MAXINUTRI X 60 CPR) ou a palavra
+  // VITAMINA com forma de suplemento (VITAMINA ATIVDAY CABELO E UNHAS 60CP); nunca tópico, nunca animal
+  const ok2 = !ok && cat === OUT && (prova || T.some(t => /(?<![A-Z])(VITAMINA|VITAMINAS|VITAMINICO|VIT)(?![A-Z])/.test(t))) &&
+    (forma || T.some(t => /(?<![A-Z])(\d+\s*(ML|CPR|CP|CAP|CAPS)|GOTAS|GTS|SACHES?|EFERV\w*)(?![A-Z])/.test(t))) &&
+    !T.some(t => /(?<![A-Z])(POMADA|CREME|GEL|LOCAO|SHAMPOO|XAMPU|SABONETE|ESMALTE|CONDICIONADOR|MASCARA|SERUM|HIDRATANTE)(?![A-Z])/.test(t)) && !RX_PET.test(T.join(' | ')); // nome genérico (ZINCO) não tira de outra categoria de Farmácia
+  if (!ok && !ok2) return null;
   // regra do cliente: A-Z / polivitamínico ou 3+ vitaminas/minerais -> MULTIVITAMINICO; 1 ou 2 -> VITAMINA OUTRO;
   // sem nutriente escrito (só marca): pela marca na base e pelas palavras (naive Bayes)
   const nut = nutrientes(T);
@@ -1680,7 +1696,7 @@ async function runAll(opts = {}) {
       if (c2 && byName.has(c2)) { it.vitReg = true; AGG[i] = Object.assign({}, a, { cat: c2, per: a.per.map(() => c2), regTrocou: a.cat }); return; }
     }
     if (cc && !outraCesta && a.cat !== 'VITAMINA OUTRO' && a.cat !== 'MULTIVITAMINICO' && (it.cmed || TT.some(t => regMarca(matchFC(t, C), C)) || hojaAtc(TT, C))) { it.vitReg = true; return; } // ADDERA com "SUPL ALIM" no texto continua remédio
-    const v = vitDe(TT, a.cat, !!cc || outraCesta, C); if (!v) return; it.vit = v;
+    const v = vitDe(TT, a.cat, !!cc || outraCesta, C, false); if (!v) return; it.vit = v;
     if (v.cat !== a.cat) AGG[i] = Object.assign({}, a, { cat: v.cat, vitTrocou: a.cat }); });
   // OUTRA CATEGORIA: 1º a categoria da marca na DIMA (PEDIGREE -> Pet), quando a marca é de uma categoria só (70%+);
   // depois a sugestão do arquivo que existe na biblioteca (o app não reconheceu a descrição)
@@ -1696,6 +1712,12 @@ async function runAll(opts = {}) {
     if (top && (top[1] / Math.max(1, tot) >= 0.7 || bateCategoria(byName.get(top[0]), T) || umaCesta)) AGG[i] = Object.assign({}, a, { cat: top[0], per: a.per.map(() => top[0]), dimaMarcaCat: bn }); });
   items.forEach((it, i) => { const a = AGG[i]; if (a.cat === OUT && it.sugCat && byName.has(it.sugCat))
     AGG[i] = Object.assign({}, a, { cat: it.sugCat, per: a.per.map(() => it.sugCat), flag: 'ARQUIVO', arqCat: true, sugSoFallback: true }); });
+  // ainda sem categoria (nem marca na DIMA, nem sugestão do arquivo): fabricante que só faz suplemento, pelo nome escrito ou pelo
+  // prefixo do código de barras (MAXINUTRI X 60 CPR, KRESS X 60 CPR) -> VITAMINA OUTRO / MULTIVITAMINICO
+  if (C.vit) items.forEach((it, i) => { const a = AGG[i]; if (a.cat !== OUT) return; const TT = a.T || it.T;
+    if (!fabSoSuplemento(it.barcode, TT)) return;
+    const v = vitDe(TT, a.cat, false, C, true); if (!v || !byName.has(v.cat)) return; it.vit = v;
+    AGG[i] = Object.assign({}, a, { cat: v.cat, per: a.per.map(() => v.cat), vitTrocou: a.cat, vitFab: true }); });
   const segOf = segmentosEstMer6(AGG, items, byName, C);
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
@@ -1909,7 +1931,9 @@ async function runAll(opts = {}) {
     // o descritivo é sempre padronizado pelo app (já com a categoria, marca e conteúdo mantidos do arquivo)
     // no máximo 60 caracteres com espaços: sai palavra do complemento (do fim) antes de mexer em marca, dose, quantidade e sigla
     const cauda = (dose ? ' ' + dose : '') + (qTxt ? ' ' + qTxt : '') + (sigla ? ` (${sigla})` : '');
-    let cw = cleanD(comp).split(' ').filter(Boolean); const cab = cleanD([ini, brandTxt].filter(Boolean).join(' '));
+    // a sigla só vai no fim, entre parênteses (MAXINUTRI MAX ... (MAX) -> MAXINUTRI ... (MAX))
+    let cw = cleanD(comp).split(' ').filter(w => w && !(farma && sigla && w === sigla));
+    const cab = cleanD([ini, farma && sigla ? cleanD(brandTxt || '').replace(new RegExp('(^| )' + sigla + '$'), '') : brandTxt].filter(Boolean).join(' '));
     const monta = () => cleanD([cab, cw.join(' ')].filter(Boolean).join(' '));
     while (cw.length && monta().length + cauda.length > DESC_MAX) cw.pop();
     while (cw.length && CONNECT.has(cw[cw.length - 1])) cw.pop();

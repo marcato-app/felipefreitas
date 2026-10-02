@@ -484,3 +484,24 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   - marcas com 2+ fabricantes: 0;
   - OUTRA MARCA com fabricante: 67 -> 30 (metade em outras cestas: OUTRA CATEGORIA);
   - outras cestas: sem mudança.
+
+### 3.5t Suplemento que caía em OUTRA CATEGORIA (MAXINUTRI X 60 CPR, VITAMINA ATIVDAY CABELO E UNHAS 60CP)
+- Descrição só com fabricante, dose e forma ("KRESS X 60 CPR (KRE)") não dizia o produto.
+  - `vitaminas.py` gera `farmaVit.fabVit`: fabricantes que só fazem suplemento, ou seja, 50%+ dos SKUs na DIMA em vitamina,
+    A11-A13, colágeno, probiótico (A07F), ferro (B03A) ou suplemento de academia, ou 3+ SKUs na base de vitaminas e fora
+    da DIMA. São 161, por exemplo MAXINUTRI, KRESS, UNILIFE, KATIGUA, GOLD VITAM (PANVEL, BAYER e ACHE não entram).
+  - O item que continua sem categoria depois da marca na DIMA e da sugestão do arquivo vai para VITAMINA OUTRO ou
+    MULTIVITAMINICO quando:
+    - o nome desse fabricante está na descrição, ou ele é o dono do prefixo do código de barras;
+    - e a forma é de suplemento (CPR, CAPS, ML, GOTAS, SACHE, EFERV).
+- A palavra VITAMINA com forma de suplemento também tira de OUTRA CATEGORIA: ETTERNA VITAMINA HOMEM 60CAPS.
+  Tópico (POMADA, CREME, GEL, SHAMPOO...) e produto animal não entram.
+  "VITAMINA BANANA 1UN" (vitamina de fruta) continua BANANA.
+- A trava da DIMA não vale com a palavra VITAMINA nem com fabricante só de suplemento (OLDVITTA, ETTERNA).
+- Descritivo: a sigla só vai no fim. "SUPL ALIM MAXINUTRI MAX 400MG (MAX)" -> "SUPL ALIM MAXINUTRI 400MG 60CPRS (MAX)".
+- Resultados:
+  - base de vitaminas: EST MER 7 7.410 -> 7.484; OUTRA CATEGORIA 345 -> ~265;
+  - DIMA: OUTRA CATEGORIA 87 -> 81;
+  - Hoja: marca 1.399 -> 1.413;
+  - outras cestas: sem mudança.
+- PANVEL 100MG X 30 CPR (marca de rede em todas as categorias, sem o produto escrito) continua OUTRA CATEGORIA.
