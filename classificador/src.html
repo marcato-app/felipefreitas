@@ -805,7 +805,7 @@ function fabSoSuplemento(bc, T) {
 }
 // nome do produto escrito na descrição, sem SUPL ALIM, fabricante, sigla, dose, forma e quantidade (OLEO DE LINHACA DOURADA
 // 1000MG 60CPS -> OLEO DE LINHACA DOURADA): vira a marca genérica do item que não tem marca
-const PN_FORA = new Set(('SUPL SUPLEMENTO SUPLLEMENTO SUPLEM SUPLE ALIM ALIMENTAR MULT CPR CPRS CP CPS CAP CAPS CAPSULA CAPSULAS COMP COMPRIMIDO COMPRIMIDOS ' +
+const PN_FORA = new Set(('SUP SUPLEMEN SUPLEMENT SUPLEMNETO SUPLEENTO SUPLENTO ALI ALIMENTA ALIMENT PRODUTO PRODUTOS SUPL SUPLEMENTO SUPLLEMENTO SUPLEM SUPLE ALIM ALIMENTAR MULT CPR CPRS CP CPS CAP CAPS CAPSULA CAPSULAS COMP COMPRIMIDO COMPRIMIDOS ' +
   'DRG DRAGEA DRAGEAS GTS GOTAS UN UND UNID UNIDADES SACHE SACHES FRASCO FR CX CAIXA POTE REFIL COM C X ML G MG MCG UI KG L ' +
   'REV REVEST REVESTIDO REVESTIDOS SOFTGEL SOFTGELS GEL MOLE MOLES MASTIGAVEL MASTIGAVEIS EFERV EFERVESCENTE LIQ LIQUIDO SOL SOLUCAO ORAL ' +
   'SABOR SEM ACUCAR ZERO NOVO NOVA PROMO KIT LEVE PAGUE').split(' '));
@@ -1393,6 +1393,7 @@ function paPorPrefixo(w) {
 let VIT_GEN = null;
 function nomeGenerico(m) { if (!VIT_GEN) VIT_GEN = new Set(((K.farmaVit || {}).marcas || []).filter(x => x[5]).map(x => N(x[0])));
   const n = N(semSigla(m)); return VIT_GEN.has(n) || VIT_GEN.has(n.replace(/ [A-Z0-9]{3}$/, '')); }
+const SIGLA_SEM_FAB = 'OTF'; // sigla de OUTRO FABRICANTE (conferida: não é sigla de nenhum laboratório nas bases)
 const DESC_MAX = 60;
 // nome único do fabricante (siglas.py -> K.farmaFabs): a grafia que já existe, 1º a da DIMA, depois Hoja; LABORATORIO GROSS -> GROSS,
 // SANOFI FARMACEUTICA LTDA -> SANOFI FARMACEUTICA, nome da CMED com razão social -> o nome cadastrado
@@ -1473,7 +1474,8 @@ const FARMA_NAO_MARCA = new Set(('GENERICO GENERICA GENERICOS SIMILAR MEDICAMENT
   'MONOIDRATADO MONOIDRATADA DI TRI HIDRATADO HIDRATADA ASSOCIACAO COMPOSTO COMPOSTA ' +
   'COMPRIMIDO COMPRIMIDOS CAPSULA CAPSULAS DRAGEA DRAGEAS SOLUCAO SUSPENSAO XAROPE GOTAS POMADA CREME GEL LOCAO SPRAY COLIRIO AMPOLA INJETAVEL ' +
   'DIA MCG MG ML UI ' +
-  'MULT MULTI POLI POLIVIT MULTIVIT POLIVITAMINICO MULTIVITAMINICO SUPL SUPLEMENTO ALIM ALIMENTAR OLEO OLEOS GOMA GOMAS GUMMY GUMMIES ' + // SUPL ALIM MULT (padrão do descritivo) não é marca
+  'MULT MULTI POLI POLIVIT MULTIVIT POLIVITAMINICO MULTIVITAMINICO SUPL SUPLEMENTO ALIM ALIMENTAR OLEO OLEOS GOMA GOMAS GUMMY GUMMIES ' +
+  'SUP SUPLE SUPLEM SUPLEMEN SUPLEMENT SUPLEMNETO SUPLEENTO SUPLENTO SUPLLEMENTO ALI ALIMENTA ALIMENT VIT VITA VITAM VITAMINA VITAMINAS COMPOSTO COMPLEMENTO PRODUTO PRODUTOS ' + // SUPL ALIM MULT (padrão do descritivo) não é marca
   'EFERVESCENTE REVESTIDO ORAL NASAL TOPICO TOPICA OFTALMICO OFTALMICA SACHE SACHES PO FRASCO BISNAGA CAIXA CX FR').split(' '));
 // palavras dos princípios ativos escritos na descrição (HIDROXIDO DE ALUMINIO, OLEO MINERAL)
 function palavrasPA(T, C) { const out = new Set(); for (const P of [C.pa, C.pb]) { if (!P) continue; for (const t of T) { let m; P.rx.lastIndex = 0; while ((m = P.rx.exec(t))) m[0].split(' ').forEach(w => out.add(w)); } } return out; }
@@ -1890,9 +1892,12 @@ async function runAll(opts = {}) {
     }
     // Farmácia com fabricante conhecido NUNCA fica com OUTRA MARCA: 1º nome comercial escrito (FITOPRIME, CAPSDAY), 2º o nome
     // do produto como genérico (OLEO DE LINHACA, ARGININA, ESPINHEIRA SANTA; ganha a sigla do fabricante), 3º o nome do fabricante
-    if (farma && (!valido(marca) || marca === 'OUTRA MARCA') && valido(fab) && fab !== 'OUTRO FABRICANTE') {
+    let marcaProduto = false; // marca = nome do produto (genérico): sem fabricante leva a sigla OTF, não vira fabricante
+    if (farma && (!valido(marca) || marca === 'OUTRA MARCA')) {
       nomeCom();
-      if (!valido(marca) || marca === 'OUTRA MARCA') { const pn = produtoNome(T, fab); if (pn) { marca = pn; bn = pn; alerts0.push(`Marca ${pn}: nome do produto (sem marca nas bases)`); } }
+      if (!valido(marca) || marca === 'OUTRA MARCA') { const pn = produtoNome(T, fab); if (pn) { marca = pn; bn = pn; marcaProduto = true; alerts0.push(`Marca ${pn}: nome do produto (sem marca nas bases)`); } }
+    }
+    if (farma && (!valido(marca) || marca === 'OUTRA MARCA') && valido(fab) && fab !== 'OUTRO FABRICANTE') {
       if (!valido(marca) || marca === 'OUTRA MARCA') { const fw = N(fab).split(' ').filter(w => !LAB_LIXO.has(w) && !FAB_LIXO.has(w)); if (fw.length) { marca = fw.slice(0, 2).join(' '); bn = marca; alerts0.push(`Marca ${marca}: nome do fabricante (a descrição não diz o produto) - revisar`); } }
     }
     // marca de Farmácia sem fabricante: a sigla é obrigatória, então o fabricante tem de existir. 1º o da marca na DIMA ou na
@@ -1905,8 +1910,8 @@ async function runAll(opts = {}) {
       if (!f) { const vm2 = ((K.farmaVit || {}).marcas || []).find(x => x[0] === mk && x[2]); if (vm2) f = vm2[2]; }
       if (!f) { const hm = (K.farmaMarcas || []).find(x => N(x[0]) === mk && x[2]); if (hm) f = hm[2]; }
       if (f) { fab = canonFab(f); alerts0.push(`Fabricante ${fab} pela marca ${marca} nas bases`); }
-      else if (nomeGenerico(marca) || NUTRI_NOME[mk] || Object.values(NUTRI_NOME).includes(mk) || palavrasPA([mk], C).size || (K.farmaVit && ((K.farmaVit.marcas || []).find(x => x[0] === mk) || [])[5])) {
-        alerts0.push(`Marca ${marca} é nome genérico e não há fabricante: OUTRA MARCA (o princípio não fica sozinho)`); marca = 'OUTRA MARCA'; bn = null; BD = null; }
+      else if (marcaProduto || nomeGenerico(marca) || NUTRI_NOME[mk] || Object.values(NUTRI_NOME).includes(mk) || palavrasPA([mk], C).size || (K.farmaVit && ((K.farmaVit.marcas || []).find(x => x[0] === mk) || [])[5])) {
+        alerts0.push(`Marca ${marca} é nome genérico e não há fabricante: sigla OTF (outro fabricante)`); fab = 'OUTRO FABRICANTE'; }
       else { fab = marca; alerts0.push(`Fabricante desconhecido: usada a própria marca ${marca} como fabricante (criar no cadastro)`); }
     }
     // quantidade não faz parte da marca (FLOPI KIDS 54G -> FLOPI KIDS)
@@ -1928,6 +1933,8 @@ async function runAll(opts = {}) {
       { const pz = marca !== 'OUTRA MARCA' && !marca.includes(' ') && !BD && !fmHit && !(it.vit && it.vit.m) ? paPorPrefixo(N(marca)) : null;
         if (pz) { alerts0.push(`${marca} é abreviação de ${pz}: genérico`); marca = pz; bn = pz; } }
       sigla = siglaDe(T, fab, BD && bn && BD.map.get(bn) ? BD.map.get(bn).canon : (it.vit && it.vit.m ? (marcaGen ? '' : it.vit.m.marca) : (marcaArq ? marca : '')), it.D, marca);
+      // sigla é obrigatória: sem fabricante, OTF (= OUTRO FABRICANTE; livre em todas as bases) -> VITAMINA C OTF
+      if (!valido(fab) || fab === 'OUTRO FABRICANTE') sigla = marca !== 'OUTRA MARCA' && valido(marca) ? SIGLA_SEM_FAB : '';
       marca = semSigla(marca, sigla, fab); if (sigla && N(marca).endsWith(' ' + sigla)) marca = marca.slice(0, -(sigla.length + 1)).trim(); // PANTOVIN PAN -> PANTOVIN
       generico = marca !== 'OUTRA MARCA' && N(marca).split(' ').every(w => CONNECT.has(w) || palavrasPA([N(marca)], C).has(w));
       // uma marca = um fabricante: a sigla da marca tem que ser a do fabricante. Nome genérico (COMPLEXO B, VITAMINA C,

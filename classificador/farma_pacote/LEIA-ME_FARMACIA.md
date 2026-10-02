@@ -588,3 +588,21 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   - Hoja: fabricante 1.429 -> 1.433;
   - outras cestas: sem mudança;
   - arquivo dos 500: 231 marcas de Farmácia, todas com sigla.
+
+### 3.5z Sigla OTF (OUTRO FABRICANTE) e fim do OUTRA MARCA em Farmácia
+- Sigla OTF: genérico ou nome do produto sem fabricante leva a sigla OTF (VITAMINA C OTF, CHA VERDE OTF, TRIPTOFANO OTF),
+  com fabricante OUTRO FABRICANTE e descritivo terminando em "(OTF)".
+  - OTF foi conferida: não é sigla de nenhum laboratório (siglas das bases, Hoja, final de marca na DIMA). OUF já é
+    OUROFINO.
+  - Fica na constante SIGLA_SEM_FAB.
+- Item de Farmácia sem marca, com ou sem fabricante, passa pela cadeia:
+  1. nome comercial escrito (VITSE, DESINCHA, MAGUP, CARDIOSETYL). Sem fabricante nas bases, a marca vira o próprio
+     fabricante (CRIAR FABRICANTE);
+  2. nome do produto (CHA VERDE, OLEO DE CARTAMO, CABELOS PELE E UNHAS) -> "<produto> OTF".
+- SUP, SUPLEMEN, ALIMENTA, VIT e VITAMINA (pedaços de SUPLEMENTO ALIMENTAR / VITAMINA) nunca são marca.
+- Resultados:
+  - base de vitaminas: OUTRA MARCA em Farmácia 245 -> 3; marcas OTF 172; marca sem sigla 0; marca certa 7.174 (era 7.121);
+  - Hoja: marca 1.415, fabricante 1.434;
+  - DIMA: igual;
+  - outras cestas: sem mudança;
+  - arquivo dos 500: OUTRA MARCA em Farmácia 21 -> 1.
