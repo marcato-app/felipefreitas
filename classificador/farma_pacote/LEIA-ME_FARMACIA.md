@@ -537,3 +537,24 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   - Abas: RESUMO, FARMA, NAO FARMA, PRODUTOS DISTINTOS, TODOS.
   - Resultado: 285 farma, 215 não farma, 90 códigos com produtos distintos. O outro app acertou 28 categorias; o
     classificador acertou farma/não farma em 363.
+
+### 3.5w Código com produtos distintos -> CODIGO INTERNO, OUTRA MARCA, OUTRO FABRICANTE
+- Regra: quando o mesmo código de barras traz uma descrição de produto de OUTRA CESTA (NEOSALDINA x BRIGADEIRO, COMBIRON x
+  PACOCA, VAXIGRIP x SORVETE), o item sai com:
+  - categoria CODIGO INTERNO, OUTRA MARCA, OUTRO FABRICANTE, sem STATUS e sem EST MER 7;
+  - "SIM: <descrições do outro produto>" na coluna PRODUTOS DISTINTOS NO CODIGO.
+- Descrição da mesma cesta com outras palavras (SUPER OMEGA 3 TG x ESSENTIAL NUTRITION 1000MG) é o mesmo produto: a
+  classificação fica e a coluna diz "VERIFICAR: ...". Para item de Farmácia, descrição com sinal de remédio ou suplemento
+  (MG, CPR, CAPS, GOTAS, SUPL) nunca conta como outro produto.
+- Descrições parecidas, em cadeia: 2 palavras em comum (MACA PERUANA) ou a mesma 1ª palavra (BOLDO ... x BOLDO MAIS) contam
+  como o mesmo produto. Códigos como XY8 e B12 contam como palavra.
+- Base de vitaminas: 106 viram CODIGO INTERNO (Stresstabs + bola de futebol, Ephynal + sabonete, Urovit + ovo de páscoa).
+  Antes da trava de cesta eram 743, com muitos falsos.
+- Outros ajustes:
+  - categoria dada pela IA ou pela revisão não passa pela regra de vitamina;
+  - laboratório de remédio: o nome comercial escrito vence (ACHE SITOL -> SITOL ACH);
+  - quantidade sai da marca (FLOPI KIDS 54G);
+  - 54G, VIT, MAG, ZIN, CAL e OMG não são sigla;
+  - OLEO e GOMAS não são marca.
+- dados/vitamina_mineral_500_classificado.xlsx: os 500 em uma aba no formato do classificador (com a categoria revisada,
+  STATUS e PRODUTOS DISTINTOS), mais E FARMA? e CATEGORIA OUTRO APP.

@@ -1006,7 +1006,7 @@ function headPos(t, H) {
 // descrição principal (coluna própria) ou, sem ela, a 1ª da lista (a outra maioria pode ser o produto errado). Descrição sem
 // nenhuma palavra em comum com a referência não vota nem entra no descritivo/marca/quantidade.
 const TOK_STOP = new Set('COM SEM PARA POR UND UNID UNIDADE CAIXA PACOTE PCT KIT NOVO NOVA TAM TAMANHO COR CORES SORTIDO SORTIDA SORTIDOS MOD MODELO REF COD'.split(' '));
-function toksDesc(t) { return new Set(t.split(' ').filter(w => w.length >= 3 && !/\d/.test(w) && !SKIPH.has(w) && !SKIPTIPO.has(w) && !TOK_STOP.has(w) && !ATTR.has(w) && !CONNECT.has(w))); }
+function toksDesc(t) { return new Set(t.split(' ').filter(w => w.length >= 3 && (!/\d/.test(w) || /^[A-Z]+\d+[A-Z0-9]*$/.test(w)) && !/^\d+(MG|ML|G|KG|UN|CPS|CAPS|CPR|L)$/.test(w) && !SKIPH.has(w) && !SKIPTIPO.has(w) && !TOK_STOP.has(w) && !ATTR.has(w) && !CONNECT.has(w))); }
 function parecidas(a, b) { for (const x of a) for (const y of b) if (x === y || (x.length >= 4 && y.length >= 4 && (x.startsWith(y) || y.startsWith(x)))) return true; return false; }
 function coerentes(T) {
   if (T.length < 2) return null;
@@ -1016,7 +1016,13 @@ function coerentes(T) {
   let ref = 0, best = -1;
   S.forEach((si, i) => { if (!si.size) return; const n = S.reduce((k, sj, j) => k + (j !== i && sj.size && parecidas(si, sj) ? 1 : 0), 0); if (n > best) { best = n; ref = i; } });
   if (!S[ref].size) return null;
-  const keep = S.map((si, i) => i === ref || !si.size || parecidas(si, S[ref]));
+  // também é o mesmo produto: 2 palavras em comum (MACA PERUANA, com sabor/fruta) ou a mesma 1ª palavra (BOLDO 10ML x BOLDO MAIS)
+  const W = T.map(t => t.split(' ').filter(w => w.length >= 3 && !/\d/.test(w) && !CONNECT.has(w) && !SKIPH.has(w)));
+  const junto = (i, j) => { const a = new Set(W[i]); let n = 0; for (const w of new Set(W[j])) if (a.has(w)) n++; return n >= 2 || (W[i][0] && W[i][0].length >= 4 && W[i][0] === W[j][0]); };
+  // parecida com qualquer descrição já aceita (em cadeia): MACA PERUANA 30CAPS ~ TESTO MACA PERUANA MIX ~ TESTO MACA PER+
+  const keep = S.map((si, i) => i === ref || !si.size);
+  for (let mudou = true; mudou;) { mudou = false;
+    for (let i = 0; i < S.length; i++) if (!keep[i] && keep.some((k, j) => k && S[j].size && (parecidas(S[i], S[j]) || junto(i, j)))) { keep[i] = true; mudou = true; } }
   if (keep.every(Boolean)) return null;
   // referência primeiro, depois as outras que combinam, na ordem original
   const idx = [ref, ...keep.map((k, i) => k && i !== ref ? i : -1).filter(i => i >= 0)];
@@ -1320,12 +1326,12 @@ function segmentosEstMer6(AGG, items, byName, C) {
 /* ---- Farmácia: fabricante é sempre o laboratório escrito na descrição, conferido com o dicionário / DIMA ---- */
 const ATC_RX = /^[A-Z]\d\d[A-Z]?\d? /;
 const LAB_LIXO = new Set('LABORATORIO LABORATORIOS LAB LABS FARMACEUTICA FARMACEUTICOS FARMACEUTICO FARMA PHARMA PHARMACEUTICA IND INDUSTRIA COM COMERCIO SA S A LTDA ME EIRELI DO DA DE E BRASIL BR'.split(' '));
-const LAB_COD_NAO = new Set('MARCA OUTRA OUTRO COM SEM CPR COMP CAP CAPS DRG GTS SOL SUS XPE AMP INJ CRE POM GEL ADT INF PED UN UND CX FR MCG MG ML UI MEQ REV CT BL AL PLAS OPC GOT MET DUO FOR XR RET ORO'.split(' ')); // MET = metformina (NIMEGON MET)
+const LAB_COD_NAO = new Set('VIT VITA MAG ZIN CAL OMG MARCA OUTRA OUTRO COM SEM CPR COMP CAP CAPS DRG GTS SOL SUS XPE AMP INJ CRE POM GEL ADT INF PED UN UND CX FR MCG MG ML UI MEQ REV CT BL AL PLAS OPC GOT MET DUO FOR XR RET ORO'.split(' ')); // MET = metformina (NIMEGON MET)
 // nome do laboratório como aparece na descrição -> código de 3 letras da base (o fabricante vem do código)
 const LAB_ALIAS = { GERMED: 'GER', LEGRAND: 'LEG', 'NEO QUIMICA': 'NEO', NEOQUIMICA: 'NEO', 'NOVA QUIMICA': 'NVQ', NOVAQUIMICA: 'NVQ',
   PRATI: 'PRD', 'PRATI DONADUZZI': 'PRD', EURO: 'EUR', SANOFI: 'SNF', MULTILAB: 'MUL', MANTECORP: 'MAN', KLEY: 'KLE', 'KLEY HERTZ': 'KLE' };
 // nome de laboratório que é palavra comum na descrição (NIVEA SUN não é SUN FARMACEUTICA)
-const LAB_NOME_NAO = new Set('SUN GOLD BLUE LIGHT ICE TOQUE HOUSE CARE BEM VIDA NATURAL NATURE LIFE PLUS MAX PRO DRY FORTE'.split(' '));
+const LAB_NOME_NAO = new Set('SUN GOLD BLUE LIGHT ICE TOQUE HOUSE CARE BEM VIDA NATURAL NATURE LIFE PLUS MAX PRO DRY FORTE VIT VITA VITAMINA KIDS MULTI'.split(' '));
 let LABS = null;
 function labIndex() {
   if (LABS) return LABS;
@@ -1389,11 +1395,11 @@ function canonFab(f) {
 // sigla do laboratório (3 letras, siglas.py -> K.farmaSiglas): código/nome do laboratório na descrição (GERMED -> GER),
 // código da marca na DIMA ("DORFLEX (OPE)", "SUNDOWN NES"), senão a sigla padrão do fabricante
 const SIG = () => K.farmaSiglas || { codigos: {}, fab: {} };
-const ehSigla = x => /^(?=.*[A-Z])[A-Z0-9]{3}$/.test(x) && !!SIG().codigos[x]; // 1FA (1FARMA) também
+const ehSigla = x => /^(?=.*[A-Z])[A-Z0-9]{3}$/.test(x) && !/^\d+(G|L|ML|MG|UN|KG)$/.test(x) && !LAB_COD_NAO.has(x) && !['VIT', 'MAG', 'ZIN', 'CAL', 'FER', 'OMG', 'MAX'].includes(x) && !!SIG().codigos[x]; // 1FA (1FARMA) sim; 54G (quantidade) e VIT (palavra) não
 const codDe = m => { const x = /\(([A-Z0-9]{3})\)\s*$/.exec(String(m || '').toUpperCase()) || /\s([A-Z0-9]{3})$/.exec(N(m)); return x && ehSigla(x[1]) ? x[1] : ''; };
 // sigla escrita na descrição (código no fim, "(NES)", ou nome do laboratório)
 function siglaTexto(T, D) {
-  for (const d of D || []) { const x = /\(((?=[A-Z0-9]*[A-Z])[A-Z0-9]{3})\)\s*$/.exec(String(d).toUpperCase()); if (x && !LAB_COD_NAO.has(x[1])) return x[1]; } // o padrão do cliente já na descrição: "... (NES)"
+  for (const d of D || []) { const x = /\(((?=[A-Z0-9]*[A-Z])[A-Z0-9]{3})\)\s*$/.exec(String(d).toUpperCase()); if (x && !LAB_COD_NAO.has(x[1]) && !/^\d+(G|L|ML|MG|UN|KG)$/.test(x[1])) return x[1]; } // o padrão do cliente já na descrição: "... (NES)"
   for (const t of T) { const w = t.split(' '), l = w[w.length - 1]; if (w.length > 1 && ehSigla(l)) return l; }
   const lab = labAchado(T);
   // código no fim da descrição vale como está (FER = Ferring)
@@ -1446,7 +1452,7 @@ const FARMA_NAO_MARCA = new Set(('GENERICO GENERICA GENERICOS SIMILAR MEDICAMENT
   'MONOIDRATADO MONOIDRATADA DI TRI HIDRATADO HIDRATADA ASSOCIACAO COMPOSTO COMPOSTA ' +
   'COMPRIMIDO COMPRIMIDOS CAPSULA CAPSULAS DRAGEA DRAGEAS SOLUCAO SUSPENSAO XAROPE GOTAS POMADA CREME GEL LOCAO SPRAY COLIRIO AMPOLA INJETAVEL ' +
   'DIA MCG MG ML UI ' +
-  'MULT MULTI POLI POLIVIT MULTIVIT POLIVITAMINICO MULTIVITAMINICO SUPL SUPLEMENTO ALIM ALIMENTAR ' + // SUPL ALIM MULT (padrão do descritivo) não é marca
+  'MULT MULTI POLI POLIVIT MULTIVIT POLIVITAMINICO MULTIVITAMINICO SUPL SUPLEMENTO ALIM ALIMENTAR OLEO OLEOS GOMA GOMAS GUMMY GUMMIES ' + // SUPL ALIM MULT (padrão do descritivo) não é marca
   'EFERVESCENTE REVESTIDO ORAL NASAL TOPICO TOPICA OFTALMICO OFTALMICA SACHE SACHES PO FRASCO BISNAGA CAIXA CX FR').split(' '));
 // palavras dos princípios ativos escritos na descrição (HIDROXIDO DE ALUMINIO, OLEO MINERAL)
 function palavrasPA(T, C) { const out = new Set(); for (const P of [C.pa, C.pb]) { if (!P) continue; for (const t of T) { let m; P.rx.lastIndex = 0; while ((m = P.rx.exec(t))) m[0].split(' ').forEach(w => out.add(w)); } } return out; }
@@ -1685,6 +1691,7 @@ async function runAll(opts = {}) {
     AGG[i] = Object.assign({}, a, { cat: c, cmedTrocou: a.cat }); });
   // suplemento de vitamina/mineral: VITAMINA OUTRO / MULTIVITAMINICO (ganha dos grupos ATC A11/A12/A13 e de palavra solta como ÓLEO)
   if (C.vit) items.forEach((it, i) => { const a = AGG[i], cc = byName.get(a.cat); it.vit = null;
+    if (it.ia && it.ia.cat && a.cat === it.ia.cat) return; // categoria dada pela IA/revisão: fica
     const TT = a.T || it.T;
     // de outra cesta (LARANJA pelo sabor, ROUPA INFANTIL pelo KIDS, SUPLEMENTO CAES E GATOS) só com prova forte de suplemento
     // humano: SUPL ou marca de vitamina, com forma/dose ou nutriente escrito, e sem falar de animal
@@ -1830,6 +1837,14 @@ async function runAll(opts = {}) {
     if (farma && !valido(fab)) { const l = labPorEAN(it.barcode, !!it.vit || a.cat === 'VITAMINA OUTRO' || a.cat === 'MULTIVITAMINICO'); if (l) { fab = l; alerts0.push(`Fabricante pelo código de barras (prefixo da empresa nas bases): ${l}`); } } // remédio sempre tem fabricante
     // Farmácia que não é remédio (dermocosmético, correlato, suplemento): marca própria do fabricante vale (MASSIME, NATURALHELF);
     // fabricante conhecido sem marca não deve acontecer: marca da DIMA na descrição, senão o nome do fabricante escrito nela
+    const nomeCom = () => { const fw0 = new Set(N(fab).split(' '));
+      const T3 = T.map(t => t.split(' ').filter(w => !VIT_NAO.has(w) && !fw0.has(w) && !palavraLab(w) && !/^(SUPL|SUPLEMENTO|ALIM|ALIMENTAR|MULT|VIT|VITAMINA|VITAMINAS|KIT|COM|C|B|D|E)$/.test(w)).join(' '));
+      const nc = nomeComercial(T3, C, vocab, palavrasPA(T, C));
+      if (nc && !ehLab(nc) && !NUTRI_W[nc] && !paPorPrefixo(nc) && !farmaNaoMarca(nc, C)) { marca = nc; bn = nc; alerts0.push(`Marca ${nc} pelo nome comercial da descrição`); } };
+    // laboratório de remédio (ACHE, EMS): o nome comercial escrito vem antes do nome do laboratório (ACHE SITOL -> SITOL)
+    const labRem = f => ehLab(f) || ehLab(N(f).split(' ').filter(w => !LAB_LIXO.has(w) && !FAB_LIXO.has(w)).join(' ')); // ACHE LABORATORIOS FARMACEUTICOS SA -> ACHE
+    if (farma && (!valido(marca) || marca === 'OUTRA MARCA') && valido(fab) && labRem(fab)) nomeCom();
+    else if (farma && valido(marca) && marca !== 'OUTRA MARCA' && valido(fab) && labRem(fab) && labRem(marca) && !marcaArq) { const m0 = marca, b0 = bn; marca = 'OUTRA MARCA'; nomeCom(); if (marca === 'OUTRA MARCA') { marca = m0; bn = b0; } }
     if (farma && (!/^[A-Z]\d\d[A-Z]/.test(nomeOf(a.cat)) || !ehLab(fab)) && (!valido(marca) || marca === 'OUTRA MARCA') && valido(fab)) { // OLDVITTA, ETTERNA: marca própria mesmo em categoria de remédio
       const d = findBrand(T, [], '', C.black, data.dima, null);
       const fw = N(fab).split(' ').filter(w => w.length >= 3 && !LAB_LIXO.has(w));
@@ -1852,6 +1867,8 @@ async function runAll(opts = {}) {
       if (g && /^(A ?Z|MULT|MULTI|POLI|POLIVIT|MULTIVIT|POLIVITAMINICOS?|MULTIVITAMINICOS?|SUPL|SUPLEMENTO)( |$)/.test(g)) g = null; // indica multivitamínico, não é marca
       if (g) { marca = g; bn = g; alerts0.push(`Marca ${g}: nome genérico com a sigla do fabricante (o item não tem marca)`); }
     }
+    // quantidade não faz parte da marca (FLOPI KIDS 54G -> FLOPI KIDS)
+    if (farma && valido(marca)) { const m0 = marca.replace(/\s+\d+([.,]\d+)?\s*(G|KG|ML|L|MG|MCG|UI|UN|CPS|CAPS|CPR|CPRS)(?![A-Z0-9])/g, '').trim(); if (m0 && m0 !== marca) { marca = m0; bn = bn && N(m0); } }
     // nunca, em nenhuma cesta: POR DEFECTO vira OUTRA MARCA e SIN PROVEEDOR ASOCIADO vira OUTRO FABRICANTE (e não vão no descritivo)
     if (!valido(marca)) { marca = 'OUTRA MARCA'; bn = null; BD = null; }
     if (farma) fab = canonFab(fab);
@@ -2012,6 +2029,20 @@ async function runAll(opts = {}) {
       if (!dono) dono = mais(fs);
       for (const r of rs) if (r.fab !== dono) { r.alerts.push(`Fabricante unificado: a marca ${m} tem um fabricante só (${dono}); estava ${r.fab}`); r.fab = dono; r.status = statusCadastro(r.marca, r.fab, r.farma); r.pri = r.pri || 2; }
     } }
+  // mesmo código de barras com produtos distintos: vai para CODIGO INTERNO, OUTRA MARCA e OUTRO FABRICANTE (o cadastro
+  // decide qual produto é) e a coluna PRODUTOS DISTINTOS NO CODIGO mostra as descrições do outro produto
+  // só vira CODIGO INTERNO quando a outra descrição é de OUTRA CESTA (NEOSALDINA x BRIGADEIRO, RODO x MOMETASONA); da mesma
+  // cesta (SUPER OMEGA 3 TG x ESSENTIAL NUTRITION 1000MG) é o mesmo produto escrito de outro jeito: fica e pede verificação
+  const cestaDe = c => { const x = byName.get(c); return x ? (x.cesta || x.nome) : ''; };
+  for (const r of res) if (r.distintos && r.distintos.length) {
+    const c0 = cestaDe(r.cat);
+    const sinal = t => sinalFarma(t) || RX_SUPL.test(t) || RX_FORMA_SUPL.test(t) || /(?<![A-Z])(\d+\s*(ML|CPR|CP|CAP|CAPS|CPS)|GOTAS|GTS|FLORA\w*|FLORAIS)(?![A-Z])/.test(t);
+    const outra = r.distintos.filter(t => { const n = N(t); if (c0 === 'FARMACIA' && sinal(n)) return false; // OS-CAL D GO LIM 10ML: o mesmo remédio
+      const c = classifyDesc(n, C); return c && c !== OUT && c0 && cestaDe(c) && cestaDe(c) !== c0; });
+    if (!outra.length) { r.distintosTipo = 'VERIFICAR'; continue; }
+    r.distintosTipo = 'SIM';
+    r.alerts.unshift(`Produtos distintos no mesmo código (outra cesta): categoria CODIGO INTERNO, OUTRA MARCA e OUTRO FABRICANTE (era ${nomeOf(r.cat)}, ${r.marca}, ${r.fab})`);
+    r.cat = CODIGO_INTERNO; r.marca = 'OUTRA MARCA'; r.fab = 'OUTRO FABRICANTE'; r.status = ''; r.pri = r.pri || 2; }
   if (quiet) return res;
   data.results = res;
   const secs = ((performance.now() - t0) / 1000).toFixed(1);
@@ -2080,7 +2111,7 @@ function statusCadastro(marca, fab, farma) {
   return semFab ? (out ? out + '; SEM FABRICANTE' : 'SEM FABRICANTE') : out;
 }
 // mesmo código de barras com descrições de outro produto (não usadas na classificação): SIM: descrições
-const distintosTxt = r => r.distintos && r.distintos.length ? 'SIM: ' + r.distintos.slice(0, 5).join(' | ').slice(0, 300) : '';
+const distintosTxt = r => r.distintos && r.distintos.length ? (r.distintosTipo === 'SIM' ? 'SIM: ' : 'VERIFICAR: ') + r.distintos.slice(0, 5).join(' | ').slice(0, 300) : '';
 function buildWorkbook() {
   const R = data.results; const wb = XLSX.utils.book_new();
   const num = v => (v === null || v === undefined || isNaN(v)) ? null : (Math.abs(v - Math.round(v)) < 1e-9 ? Math.round(v) : v);
@@ -2193,8 +2224,9 @@ function renderResults() {
 }
 // ---- Completar com IA: itens em OUTRA CATEGORIA ou (Farmácia) OUTRA MARCA -> o Claude sugere categoria/marca/fabricante pelo
 // conhecimento dele (não navega na internet); o app usa a sugestão como se viesse no arquivo e reclassifica só esses itens
+const CODIGO_INTERNO = 'CODIGO INTERNO';
 const IA_LOTE = 25, IA_MAX = 400;
-function iaPendentes() { return (data.results || []).filter(r => !r.it.ia && !r.it.iaVisto && (r.cat === OUT || (r.farma && r.marca === 'OUTRA MARCA'))); }
+function iaPendentes() { return (data.results || []).filter(r => !r.it.ia && !r.it.iaVisto && r.cat !== CODIGO_INTERNO && (r.cat === OUT || (r.farma && r.marca === 'OUTRA MARCA'))); }
 let iaCtl = null;
 $('#btnIAStop').addEventListener('click', () => iaCtl?.abort());
 $('#btnIA').addEventListener('click', async () => {
