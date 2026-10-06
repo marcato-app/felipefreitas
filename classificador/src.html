@@ -1154,7 +1154,7 @@ async function runCore(pfx = '') {
       : bala ? bala.ini : (cc && cc.dinamico) ? (tipoIni(T, a.per, a.cat, C) || nounOutra(T, bn)) : a.cat === OUT ? nounOutra(T, bn) : (cc.inicio || cc.nome);
     const keepT = T.filter((t, j) => a.per[j] === a.cat); const T2 = keepT.length ? keepT : T;
     const brandTxt = bn ? cleanD(marca) : '';
-    const comp = complement(T2, a.cat, bala ? ini + ' ' + bala.w : ini, bn || '', groupOf(a.cat), cc);
+    const comp = complement(T2, a.cat, bala ? ini + ' ' + bala.w + ' BALAS BALINHA BALINHAS' : ini, bn || '', groupOf(a.cat), cc);
     // o descritivo é sempre padronizado pelo app (já com a categoria, marca e conteúdo mantidos do arquivo)
     // descritivo com no máximo 60 caracteres: início, marca e conteúdo são obrigatórios e ficam inteiros;
     // só o complemento (entre a marca e o conteúdo) é abreviado e, se ainda passar, perde palavras do fim

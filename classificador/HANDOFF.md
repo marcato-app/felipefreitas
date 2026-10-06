@@ -196,3 +196,4 @@ Pontos pra checar, em ordem:
 - Modo só descritivo: categoria nunca é trocada (aviso POSSÍVEL CATEGORIA ERRADA + CATEGORIA SUGERIDA APP).
 - `rodar.js`: roda o app em Chromium headless para backlogs grandes (200 mil+).
 - DUN-14: código de barras com 14 dígitos é tratado como caixa (`packCaixa`): pack NxQ na descrição, ou CX/FD/DP/PCT/C/ + número de unidades combinado com o conteúdo da unidade (ex.: "350ML FD C/12" → 12X350ML). Sem pack na descrição: alerta "Código de 14 dígitos (caixa) sem quantidade de unidades na descrição; revisar".
+- BALA PASTILHA só com indicação clara (PASTILHA, PASTILHAS, DROPS, BALA DURA); BALA/BALAS/BALINHA/JUJUBA/BALA DE GOMA… vão para CARAMELO MASTIGAVEL (libPatch `bala-pastilha-2026-10`).
