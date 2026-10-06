@@ -201,3 +201,5 @@ Pontos pra checar, em ordem:
 - CONFEITO sozinho vai para CARAMELO MASTIGAVEL (BALA MASTIGAVEL…); CHOCOLATE CONFEITO só com indicação de chocolate (CONFEITO DE CHOCOLATE, CONFETI, DISQUETI, M&M, CONFEITO MM, DRAGEADO…); CONFEITARIA OUTROS não pega mais CONFEITO solto (libPatch `confeito-2026-10`). Atenção: "MM" sozinho é milímetro, nunca usar como termo.
 - Ao carregar o backlog, categorias que o arquivo traz e estão desligadas são ativadas automaticamente (aviso no status do backlog).
 - DUN-14: também reconhece o número antes da embalagem ("36PCTX", "12 CX", "24 PACOTES") via `RX_NCX` → ex.: 36PCTX + 190G = 36X190G.
+- `aggregate`: descrições divididas entre categoria de objeto (cesta BAZAR/TEXTIL/ELETRO/CONSTRUCAO) ou nada e uma categoria de consumo, num produto com peso/volume (G/ML) → vence a de consumo (flag CONSUMO_VENCE). Ex.: "FINI OCULOS HARRY POTTER 70G" + "BALA DE GELATINA FINI 70G" → CARAMELO MASTIGAVEL.
+- `balaTipo`: tipo escrito logo depois de BALA ("BALA DE GELATINA") tem prioridade sobre a ordem da lista.

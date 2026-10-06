@@ -633,7 +633,16 @@ function coerentes(T) {
 }
 function aggregate(T0, sug, C, main) {
   const K = coerentes(T0); const T = K ? K.T : T0;
-  const r = aggregate0(T, sug, C); r.T = T; r.misturadas = K ? K.drop : 0; return r;
+  const r = aggregate0(T, sug, C); r.T = T; r.misturadas = K ? K.drop : 0;
+  // descrições divididas entre objeto (óculos, bazar…) ou nada, e uma categoria de consumo (bala, alimento…), num produto vendido
+  // a peso/volume ("BALA DE GELATINA FINI 70G" x "FINI OCULOS 70G"): vence a de consumo
+  const cestaOf = n => { const x = C.cats.find(y => y.c.nome === n); return x ? x.c.cesta : ''; };
+  if (r.cat === OUT || CESTA_NAO_CONSUMO.has(cestaOf(r.cat))) {
+    const cons = new Map(); (r.per || []).forEach(c => { if (c && c !== OUT && cestaOf(c) && !CESTA_NAO_CONSUMO.has(cestaOf(c))) cons.set(c, (cons.get(c) || 0) + 1); });
+    const peso = T.some(t => parseQ(textoQtd(t)).some(x => x[1] === 'G' || x[1] === 'ML'));
+    if (cons.size && peso) { const c = [...cons].sort((a, b) => b[1] - a[1])[0][0]; return Object.assign(r, { cat: c, flag: 'CONSUMO_VENCE' }); }
+  }
+  return r;
 }
 function aggregate0(T, sug, C) {
   const votes = new Map(); const per = [];
@@ -1015,6 +1024,8 @@ const BALA_TIPOS = [['GOMA', /^(GOMA|GOMAS|GOMINHA|GOMINHAS|GOMET|GOMETS|GUMMY|G
   ['RECHEADA', /^(RECHEADA|RECHEADAS|RECH)$/], ['DURA', /^(DURA|DURAS)$/], ['MASTIGAVEL', /^(MAST|MASTIG|MASTIGAVEL|MASTIGAVEIS|CHEWY|TOFFEE)$/]];
 function balaTipo(T) {
   const W = T.flatMap(t => t.split(' '));
+  // tipo escrito logo depois de BALA ("BALA DE GELATINA", "BALA GOMA") tem prioridade
+  for (const t of T) { const m = /(?<![A-Z])BALAS? (?:DE )?([A-Z]+)/.exec(t); if (m) for (const [tipo, rx] of BALA_TIPOS) if (rx.test(m[1])) return { ini: 'BALA ' + tipo, w: m[1] }; }
   for (const [tipo, rx] of BALA_TIPOS) { const w = W.find(x => rx.test(x)); if (w) return { ini: 'BALA ' + tipo, w }; }
   return W.some(x => /^(BALA|BALAS|BALINHA|BALINHAS|CONFEITO|CONFEITOS)$/.test(x)) ? { ini: 'BALA MASTIGAVEL', w: '' } : null; // sem cara de bala: regra normal
 }
