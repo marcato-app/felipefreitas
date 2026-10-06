@@ -619,10 +619,17 @@ function headPos(t, H) {
 const TOK_STOP = new Set('COM SEM PARA POR UND UNID UNIDADE CAIXA PACOTE PCT KIT NOVO NOVA TAM TAMANHO COR CORES SORTIDO SORTIDA SORTIDOS MOD MODELO REF COD'.split(' '));
 function toksDesc(t) { return new Set(t.split(' ').filter(w => w.length >= 3 && !/\d/.test(w) && !SKIPH.has(w) && !SKIPTIPO.has(w) && !TOK_STOP.has(w) && !ATTR.has(w) && !CONNECT.has(w))); }
 function parecidas(a, b) { for (const x of a) for (const y of b) if (x === y || (x.length >= 4 && y.length >= 4 && (x.startsWith(y) || y.startsWith(x)))) return true; return false; }
-function coerentes(T) {
+function coerentes(T, main) {
   if (T.length < 2) return null;
   const S = T.map(toksDesc);
-  const ref = 0; // a 1ª descrição (ou a da coluna principal, que o loadBacklog põe em 1º) é a do produto
+  // a 1ª descrição (ou a da coluna principal, que o loadBacklog põe em 1º) é a do produto; se ela não combina com quase
+  // nenhuma das outras e outra combina com a maioria, a referência passa a ser essa (ex.: "BISC PASSATEMPO" no meio de 9 balas)
+  let ref = 0;
+  if (!main && T.length >= 3) {
+    const sim = S.map((si, i) => si.size ? S.filter((sj, j) => j !== i && sj.size && parecidas(si, sj)).length : 0);
+    const best = sim.indexOf(Math.max(...sim));
+    if (sim[0] < (T.length - 1) / 3 && sim[best] >= (T.length - 1) / 2) ref = best;
+  }
   if (!S[ref].size) return null;
   const keep = S.map((si, i) => i === ref || !si.size || parecidas(si, S[ref]));
   if (keep.every(Boolean)) return null;
@@ -630,12 +637,23 @@ function coerentes(T) {
   const idx = [ref, ...keep.map((k, i) => k && i !== ref ? i : -1).filter(i => i >= 0)];
   return { T: idx.map(i => T[i]), drop: keep.filter(k => !k).length };
 }
+const FRUTAS = new Set(['MELAO', 'PERA', 'OUTRAS FRUTAS', 'MACA', 'MAMAO', 'MORANGO', 'ABACAXI', 'MELANCIA', 'MANGA', 'MARACUJA', 'UVA', 'ACEROLA', 'AMORA', 'BLUEBERRY', 'CAQUI', 'CARAMBOLA', 'LARANJA', 'FIGO', 'FRAMBOESA', 'GOIABA', 'JABUTICABA', 'LICHIA', 'SERIGUELA', 'LIMAO', 'MEXERICA/TANGERINA', 'AMEIXA', 'CEREJA', 'PESSEGO/NECTARINA', 'KIWI']);
+const DOCES_CAT = new Set(['CARAMELO MASTIGAVEL', 'BALA PASTILHA', 'PIRULITO', 'DOCE OUTROS', 'GOMA DE MASCAR']);
+const CONFUNDE_DOCE = new Set(['DOCINHO', 'GELATINA', 'AROMA E ESSENCIA', 'CARNES PREP CONGELADAS', 'CAFE SOLUVEL', 'LEITE COMUM', 'CHOCOLATE BOMBOM', 'CAPPUCCINO', 'GRELHA E ESPETO']);
 function aggregate(T0, sug, C, main) {
-  const K = coerentes(T0); const T = K ? K.T : T0;
+  const K = coerentes(T0, main); const T = K ? K.T : T0;
   const r = aggregate0(T, sug, C); r.T = T; r.misturadas = K ? K.drop : 0;
   // descrições divididas entre objeto (óculos, bazar…) ou nada, e uma categoria de consumo (bala, alimento…), num produto vendido
   // a peso/volume ("BALA DE GELATINA FINI 70G" x "FINI OCULOS 70G"): vence a de consumo
   const cestaOf = n => { const x = C.cats.find(y => y.c.nome === n); return x ? x.c.cesta : ''; };
+  // bala/pirulito/marshmallow em alguma descrição vence sabor (fruta), docinho, gelatina, aroma, café, leite, carne ou bombom
+  const per = r.per || [];
+  if (r.cat === OUT || FRUTAS.has(r.cat) || CONFUNDE_DOCE.has(r.cat)) {
+    const dc = new Map(); per.forEach(c => { if (DOCES_CAT.has(c)) dc.set(c, (dc.get(c) || 0) + 1); });
+    if (dc.size) { const c = [...dc].sort((a, b) => b[1] - a[1])[0][0]; return Object.assign(r, { cat: c, flag: 'DOCE_VENCE' }); }
+  }
+  // fruta in natura não vem em pack ("BOLIX MORANGO 44X70G"): o sabor não é a categoria
+  if (FRUTAS.has(r.cat) && T.some(t => parseQ(textoQtd(t)).some(x => x[2] > 1))) return Object.assign(r, { cat: OUT, flag: 'SEM_EVIDENCIA' });
   if (r.cat === OUT || CESTA_NAO_CONSUMO.has(cestaOf(r.cat))) {
     const cons = new Map(); (r.per || []).forEach(c => { if (c && c !== OUT && cestaOf(c) && !CESTA_NAO_CONSUMO.has(cestaOf(c))) cons.set(c, (cons.get(c) || 0) + 1); });
     const peso = T.some(t => parseQ(textoQtd(t)).some(x => x[1] === 'G' || x[1] === 'ML'));
@@ -1020,7 +1038,7 @@ function vendidoPorUnidade(cc, T, C) {
 // CARAMELO MASTIGAVEL: o descritivo começa com BALA + tipo da bala (pela descrição; sem tipo, BALA MASTIGAVEL)
 const BALA_TIPOS = [['GOMA', /^(GOMA|GOMAS|GOMINHA|GOMINHAS|GOMET|GOMETS|GUMMY|GUMMIES|JUJUBA|JUJUBAS)$/], ['GELATINA', /^(GELATINA|GELATINAS|JELLY|JELLIES)$/],
   ['LIQUIDA', /^(LIQUIDA|LIQ|ROLLON|SPRAY)$/], ['MARSHMALLOW', /^(MARSHMALLOW|MARSHMALLOWS|MARSHMELLOW)$/], ['ALCACUZ', /^(ALCACUZ|REGALIZ)$/],
-  ['RECHEADA', /^(RECHEADA|RECHEADAS|RECH)$/], ['DURA', /^(DURA|DURAS)$/], ['MASTIGAVEL', /^(MAST|MASTIG|MASTIGAVEL|MASTIGAVEIS|CHEWY|TOFFEE)$/]];
+  ['RECHEADA', /^(RECHEADA|RECHEADAS|RECH)$/], ['DURA', /^(DURA|DURAS)$/], ['MASTIGAVEL', /^(MAST|MASTIG|MASTIGAVEL|MASTIGAVEIS|CHEWY|TOFFEE)$/], ['COCO', /^COCO$/]];
 function balaTipo(T) {
   const W = T.flatMap(t => t.split(' '));
   // tipo escrito logo depois de BALA ("BALA DE GELATINA", "BALA GOMA") tem prioridade
@@ -1165,7 +1183,7 @@ async function runCore(pfx = '') {
     // Farmácia sem início fixo no manual: começa pela marca; sem marca, pelo princípio ativo (ou pelo nome do produto)
     const farmaLivre = cc && cc.cesta === 'FARMACIA' && !cc.inicio;
     const paHit = farmaLivre && !bn && C.pa ? T.map(t => matchPA(t, C.pa)).find(Boolean) : null;
-    const bala = a.cat === 'CARAMELO MASTIGAVEL' ? balaTipo(T) : null;
+    const bala = a.cat === 'CARAMELO MASTIGAVEL' ? balaTipo(T) : a.cat === 'DOCE OUTROS' && T.some(t => /(?<![A-Z])(MARSH\w*|MAXMALLOW|NUAGE)(?![A-Z])/.test(t)) ? { ini: 'DOCE MARSHMALLOW', w: '' } : null;
     const ini = farmaLivre ? (bn ? '' : paHit ? paIni(paHit, T) : nounOutra(T, bn))
       : bala ? bala.ini : (cc && cc.dinamico) ? (tipoIni(T, a.per, a.cat, C) || nounOutra(T, bn)) : a.cat === OUT ? nounOutra(T, bn) : (cc.inicio || cc.nome);
     const keepT = T.filter((t, j) => a.per[j] === a.cat); const T2 = keepT.length ? keepT : T;
