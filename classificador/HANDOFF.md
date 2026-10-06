@@ -207,3 +207,7 @@ Pontos pra checar, em ordem:
 - Marshmallow de verdade (todas as grafias, NUAGE, MAXMALLOW) → DOCE OUTROS, descritivo "DOCE MARSHMALLOW…"; bala de marshmallow (com BALA) → CARAMELO. BALA DE COCO → CARAMELO MASTIGAVEL ("BALA COCO…"), RAHAT/GOMA ARABE/GOMA FINI → CARAMELO; PIR/PIRUL/CHUPETITA → PIRULITO.
 - `coerentes`: se a 1ª descrição não combina com quase nenhuma e outra combina com a maioria, a referência passa a ser essa (ex.: "BISC PASSATEMPO" no meio de 9 descrições de bala).
 - Cestas: `K.cestas` (planilha CATEGORIA x CESTA de 2026-10 + cesta da biblioteca para quem não está na planilha). `migrarCategorias` só preenche categoria **sem cesta**; cesta existente nunca é trocada. As 40 categorias do trabalho padrão (cfg) ganharam cesta.
+- EST MER 6 por categoria: `K.segPadrao` atualizado pela planilha CATEGORIA x SUBCATEGORIA (categoria DIMA → categorias do app; 616 categorias, farmácia fora). `segmentosEstMer6` usa a da planilha **somada** à aprendida das marcas do backlog. Ex.: CARAMELO MASTIGAVEL, BALA PASTILHA, PIRULITO → BALA E PIRULITO (FINI passou a ser reconhecida).
+- Nunca pôr nome de marca em "incluir" de categoria (vira vocabulário da categoria e a marca deixa de ser reconhecida) — foi o caso de GOMA FINI.
+- OUTRA MARCA / OUTRO FABRICANTE do arquivo não travam mais: se a descrição traz marca da EST MER 6, vale ela (também no modo só descritivo).
+- CARAMELO MASTIGAVEL com marca reconhecida e sem a palavra BALA: descritivo BALA MASTIGAVEL….

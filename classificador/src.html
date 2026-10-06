@@ -922,7 +922,7 @@ function segmentosEstMer6(AGG, items, byName, C) {
   const fixo = cat => { const cc = byName.get(cat); if (cc && cc.segmento && cc.segmento.length) return cc.segmento.map(N); return ((K.segPadrao || {})[cat] || []).map(N); };
   const acc = new Map(), n = new Map();
   if (brandDicts().length) AGG.forEach((a, i) => {
-    if (a.cat === OUT || farma(a.cat) || fixo(a.cat).length) return;
+    if (a.cat === OUT || farma(a.cat)) return;
     const vocab = catVocab(C, a.cat); vocab.heads = new Set(a.T.map(t => (headPos(t, C.headIdx) || {}).w).filter(Boolean));
     for (const DD of brandDicts()) { const bn = findBrand(a.T, [], items[i].sugMarca, C.black, DD, vocab); if (!bn) continue;
       const b = DD.map.get(bn); let tot = 0; for (const v of b.em.values()) tot += v; if (!tot) break;
@@ -936,7 +936,8 @@ function segmentosEstMer6(AGG, items, byName, C) {
     if (arr.length) aprendido.set(cat, arr); }
   data.segAprendido = aprendido;
   const f = cat => { if (farma(cat)) { const cc = byName.get(cat); return Object.assign([...(cc.segmento || [])], { livre: true }); }
-    const x = fixo(cat); return x.length ? x : (aprendido.get(cat) || []); };
+    // EST MER 6 da planilha CATEGORIA x SUBCATEGORIA (ou definida na categoria) + a aprendida das marcas do backlog
+    const x = fixo(cat), ap = aprendido.get(cat) || []; return x.length ? [...new Set([...x, ...ap])] : ap; };
   return f;
 }
 /* ---- Farmácia: fabricante é sempre o laboratório escrito na descrição, conferido com o dicionário / DIMA ---- */
@@ -1036,9 +1037,9 @@ function vendidoPorUnidade(cc, T, C) {
   return !!hp && OBJETO_TIPO.has(hp.w);
 }
 // CARAMELO MASTIGAVEL: o descritivo começa com BALA + tipo da bala (pela descrição; sem tipo, BALA MASTIGAVEL)
-const BALA_TIPOS = [['GOMA', /^(GOMA|GOMAS|GOMINHA|GOMINHAS|GOMET|GOMETS|GUMMY|GUMMIES|JUJUBA|JUJUBAS)$/], ['GELATINA', /^(GELATINA|GELATINAS|JELLY|JELLIES)$/],
+const BALA_TIPOS = [['GOMA', /^(GOMA|GOMAS|GOMINHA|GOMINHAS|GOMET|GOMETS|GUMMY|GUMMIES|JUJUBA|JUJUBAS)$/], ['GELATINA', /^(GELATINA|GELATINAS|GELAT|JELLY|JELLIES)$/],
   ['LIQUIDA', /^(LIQUIDA|LIQ|ROLLON|SPRAY)$/], ['MARSHMALLOW', /^(MARSHMALLOW|MARSHMALLOWS|MARSHMELLOW)$/], ['ALCACUZ', /^(ALCACUZ|REGALIZ)$/],
-  ['RECHEADA', /^(RECHEADA|RECHEADAS|RECH)$/], ['DURA', /^(DURA|DURAS)$/], ['MASTIGAVEL', /^(MAST|MASTIG|MASTIGAVEL|MASTIGAVEIS|CHEWY|TOFFEE)$/], ['COCO', /^COCO$/]];
+  ['RECHEADA', /^(RECHEADA|RECHEADAS|RECH)$/], ['DURA', /^(DURA|DURAS)$/], ['MASTIGAVEL', /^(MAST|MASTIG|MASTIGAVEL|MASTIGAVEIS|CHEWY|TOFFEE|TOFFE|TOFFES)$/], ['COCO', /^COCO$/]];
 function balaTipo(T) {
   const W = T.flatMap(t => t.split(' '));
   // tipo escrito logo depois de BALA ("BALA DE GELATINA", "BALA GOMA") tem prioridade
@@ -1102,7 +1103,7 @@ async function runCore(pfx = '') {
     const soD = !!(passe && passe.soDesc) && !(cc && cc.cesta === 'FARMACIA');
     const manter = sempreArq() || arqOk || soD;
     const sm = N(it.sugMarca), marcaArq = prioArq() && valido(it.sugMarca) && (!C.black.has(sm) || arqOk || soD);
-    const outraArq = (arqOk || soD) && sm === 'OUTRA MARCA';
+    const outraArq = false; // OUTRA MARCA do arquivo não trava: se a descrição traz marca da categoria, vale ela
     let marca, fab;
     if (marcaArq && manter && !marcaNaDesc(sm, T)) arqAl.push(`Arquivo (mantido): marca ${it.sugMarca.trim()} não aparece na descrição`);
     if (marcaArq && !manter && !marcaNaDesc(sm, T)) { // marca do arquivo não aparece: troca só se a descrição trouxer outra marca da categoria
@@ -1183,7 +1184,7 @@ async function runCore(pfx = '') {
     // Farmácia sem início fixo no manual: começa pela marca; sem marca, pelo princípio ativo (ou pelo nome do produto)
     const farmaLivre = cc && cc.cesta === 'FARMACIA' && !cc.inicio;
     const paHit = farmaLivre && !bn && C.pa ? T.map(t => matchPA(t, C.pa)).find(Boolean) : null;
-    const bala = a.cat === 'CARAMELO MASTIGAVEL' ? balaTipo(T) : a.cat === 'DOCE OUTROS' && T.some(t => /(?<![A-Z])(MARSH\w*|MAXMALLOW|NUAGE)(?![A-Z])/.test(t)) ? { ini: 'DOCE MARSHMALLOW', w: '' } : null;
+    const bala = a.cat === 'CARAMELO MASTIGAVEL' ? (balaTipo(T) || (bn ? { ini: 'BALA MASTIGAVEL', w: '' } : null)) : a.cat === 'DOCE OUTROS' && T.some(t => /(?<![A-Z])(MARSH\w*|MAXMALLOW|NUAGE)(?![A-Z])/.test(t)) ? { ini: 'DOCE MARSHMALLOW', w: '' } : null;
     const ini = farmaLivre ? (bn ? '' : paHit ? paIni(paHit, T) : nounOutra(T, bn))
       : bala ? bala.ini : (cc && cc.dinamico) ? (tipoIni(T, a.per, a.cat, C) || nounOutra(T, bn)) : a.cat === OUT ? nounOutra(T, bn) : (cc.inicio || cc.nome);
     const keepT = T.filter((t, j) => a.per[j] === a.cat); const T2 = keepT.length ? keepT : T;
@@ -1311,15 +1312,17 @@ function buildWorkbook() {
   const main = [['CODIGO BARRAS', 'DESCRITIVO PADRONIZADO', 'FABRICANTE', 'MARCA', 'CONTENIDO', 'CATEGORIA', 'CODIGO INTERNO']];
   const soD = R.length && R[0].soDesc; if (soD) main[0].push('STATUS SUGESTAO', 'CATEGORIA SUGERIDA APP');
   const arqOu = (v, app) => (v !== null && v !== undefined && String(v).trim() !== '') ? (typeof v === 'number' ? v : String(v).trim()) : app;
+  // OUTRA MARCA / OUTRO FABRICANTE do arquivo dão lugar à marca que o app achou na descrição
+  const semMarca = v => !N(v) || N(v) === 'OUTRA MARCA', semFab = v => !N(v) || N(v) === 'OUTRO FABRICANTE';
   // possível marca para os itens que saem como OUTRA MARCA
-  const marcaSai = r => soD ? N(arqOu(r.it.sugMarca, r.marca)) : N(r.marca);
+  const marcaSai = r => soD ? N(semMarca(r.it.sugMarca) && !semMarca(r.marca) ? r.marca : arqOu(r.it.sugMarca, r.marca)) : N(r.marca);
   const temOM = R.some(r => marcaSai(r) === 'OUTRA MARCA'); const pm = temOM ? possiveisMarcas(R) : null;
   if (temOM) main[0].push('POSSIVEL MARCA', 'ORIGEM POSSIVEL MARCA');
   const temAn = R.some(r => r.it.analista); if (temAn) main[0].push('ANALISTA');
   // modo só descritivo: categoria, marca, fabricante e conteúdo exatamente como vieram no arquivo (vazio no arquivo -> o do app)
   // categoria do arquivo que não bate com a descrição (outra cesta, ex.: estojo como OVO): aí vale o que o app ajustou
   for (const r of R) main.push(soD
-    ? [bc(r.it.barcode), r.desc, arqOu(r.it.sugFab, r.fab), arqOu(r.it.sugMarca, r.marca), (r.qDesc ? num(r.qt) : arqOu(r.it.sugQtOut ?? r.it.sugQt, num(r.qt))), arqOu(r.it.sugCatRaw, nomeOf(r.cat)), ciFlag(r.it.barcode), r.status, r.sugCatApp || '']
+    ? [bc(r.it.barcode), r.desc, (semFab(r.it.sugFab) && !semFab(r.fab) ? r.fab : arqOu(r.it.sugFab, r.fab)), (semMarca(r.it.sugMarca) && !semMarca(r.marca) ? r.marca : arqOu(r.it.sugMarca, r.marca)), (r.qDesc ? num(r.qt) : arqOu(r.it.sugQtOut ?? r.it.sugQt, num(r.qt))), arqOu(r.it.sugCatRaw, nomeOf(r.cat)), ciFlag(r.it.barcode), r.status, r.sugCatApp || '']
     : [bc(r.it.barcode), r.desc, r.fab, r.marca, num(r.qt), nomeOf(r.cat), ciFlag(r.it.barcode), ...(soD ? [r.status, ''] : [])]);
   if (temOM) for (let i = 0; i < R.length; i++) main[i + 1].push(...(marcaSai(R[i]) === 'OUTRA MARCA' ? pm(R[i]) : ['', '']));
   if (temAn) for (let i = 0; i < R.length; i++) main[i + 1].push(R[i].it.analista);
