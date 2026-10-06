@@ -847,7 +847,7 @@ function complement(T, cat, ini, bn, grp, catCfg) {
   const drop = new Set([...(catCfg ? catCfg.remover || [] : []), ...ini.split(' '), ...bw, ...SKIPTIPO]);
   const lists = Tx.slice(0, 6).map(t => {
     let tt = t; if (bn) { tt = tt.replace(new RegExp('(?<![A-Z0-9])' + escRx(bn) + '(?![A-Z0-9])', 'g'), ' ').replace(new RegExp('(?<![A-Z0-9])' + escRx(bn.replace(/ /g, '')) + '(?![A-Z0-9])', 'g'), ' '); }
-    return cleanTokens(tt, drop).filter(w => !bw4.some(x => w.includes(x)) && !(w.length >= 4 && bn && bn.replace(/ /g, '').includes(w)) && !['STA', 'STO', 'SR', 'SRA', 'DONA', 'SEU'].includes(w));
+    return cleanTokens(tt, drop).filter(w => !bw4.some(x => w.includes(x)) && !(w.length >= 4 && bn && bn.replace(/ /g, '').includes(w)) && !['STA', 'STO', 'SR', 'SRA', 'DONA', 'SEU'].includes(w) && !/^(PCTX|PCTS|CXX|FDX|DPX|UNX)$/.test(w));
   });
   const cnt = new Map(); for (const L of lists) for (const w of new Set(L)) cnt.set(w, (cnt.get(w) || 0) + 1);
   const n = lists.length;
@@ -1020,9 +1020,11 @@ function balaTipo(T) {
 }
 // código de barras de 14 dígitos (DUN-14) costuma ser caixa: procura o pack na descrição
 const RX_CXN = /(?<![A-Z0-9])(?:CX|CXA|CAIXA|FD|FDO|FARDO|DP|DISPLAY|PCT|PACOTE|EMB|BDJ)\s*(?:C\/?|COM\s*)?(\d{1,3})(?![0-9.,])(?!\s*(?:G|GR|GRS|KG|K|ML|L|LT|LTS|M|MM|CM)(?![A-Z]))/;
+// número antes da embalagem: "36PCTX", "12 CX", "24 PACOTES", "6FD"
+const RX_NCX = /(?<![0-9.,A-Z])(\d{1,3})\s*(?:PCT|PCTS|PACOTE|PACOTES|PC|PCS|CX|CXS|CAIXA|CAIXAS|FD|FDS|FARDO|FARDOS|DP|DISPLAY|DISPLAYS|SACHE|SACHES|ENV|ENVELOPES|BL|BLISTER|BLISTERS)X?(?![A-Z])/;
 function packCaixa(Tq) {
   for (const t of Tq) { const p = parseQ(t).find(x => x[2] > 1 && (x[4] === 'pack' || x[4] === 'packc')); if (p) return { n: p[2], uv: p[3], base: p[1] }; }
-  for (const t of Tq) { const m = RX_CXN.exec(prepQ(t)); if (m && +m[1] > 1) return { n: +m[1] }; }
+  for (const t of Tq) { const m = RX_CXN.exec(prepQ(t)) || RX_NCX.exec(prepQ(t)); if (m && +m[1] > 1) return { n: +m[1] }; }
   for (const t of Tq) { const n = parseU(t); if (n && n > 1) return { n }; }
   return null;
 }

@@ -200,3 +200,4 @@ Pontos pra checar, em ordem:
 - MIX NUTS não pega mais "MIX" solto (só MIX NUTS, MIX DE CASTANHAS, TRAIL MIX, NUTS…) e exclui BALA/GOMA/CANDY/CHEWY/GUMMY; CARAMELO MASTIGAVEL reconhece CANDY, CHEWY, GULOSEIMA (libPatch `mix-nuts-bala-2026-10`). Tipo da bala (BALA GOMA…) procurado em todas as descrições do código.
 - CONFEITO sozinho vai para CARAMELO MASTIGAVEL (BALA MASTIGAVEL…); CHOCOLATE CONFEITO só com indicação de chocolate (CONFEITO DE CHOCOLATE, CONFETI, DISQUETI, M&M, CONFEITO MM, DRAGEADO…); CONFEITARIA OUTROS não pega mais CONFEITO solto (libPatch `confeito-2026-10`). Atenção: "MM" sozinho é milímetro, nunca usar como termo.
 - Ao carregar o backlog, categorias que o arquivo traz e estão desligadas são ativadas automaticamente (aviso no status do backlog).
+- DUN-14: também reconhece o número antes da embalagem ("36PCTX", "12 CX", "24 PACOTES") via `RX_NCX` → ex.: 36PCTX + 190G = 36X190G.
