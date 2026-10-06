@@ -1015,6 +1015,14 @@ function balaTipo(T) {
   for (const [tipo, rx] of BALA_TIPOS) { const w = W.find(x => rx.test(x)); if (w) return { ini: 'BALA ' + tipo, w }; }
   return W.some(x => /^(BALA|BALAS|BALINHA|BALINHAS)$/.test(x)) ? { ini: 'BALA MASTIGAVEL', w: '' } : null; // sem cara de bala: regra normal
 }
+// código de barras de 14 dígitos (DUN-14) costuma ser caixa: procura o pack na descrição
+const RX_CXN = /(?<![A-Z0-9])(?:CX|CXA|CAIXA|FD|FDO|FARDO|DP|DISPLAY|PCT|PACOTE|EMB|BDJ)\s*(?:C\/?|COM\s*)?(\d{1,3})(?![0-9.,])(?!\s*(?:G|GR|GRS|KG|K|ML|L|LT|LTS|M|MM|CM)(?![A-Z]))/;
+function packCaixa(Tq) {
+  for (const t of Tq) { const p = parseQ(t).find(x => x[2] > 1 && (x[4] === 'pack' || x[4] === 'packc')); if (p) return { n: p[2], uv: p[3], base: p[1] }; }
+  for (const t of Tq) { const m = RX_CXN.exec(prepQ(t)); if (m && +m[1] > 1) return { n: +m[1] }; }
+  for (const t of Tq) { const n = parseU(t); if (n && n > 1) return { n }; }
+  return null;
+}
 const DESC_MAX = 60; // tamanho máximo do descritivo padronizado
 // abreviações de varejo usadas só para caber nos 60 caracteres (primeiro no complemento; no início só se o obrigatório passar)
 const ABREV = new Map(Object.entries({ SORTIDO: 'SORT', SORTIDOS: 'SORT', SORTIDA: 'SORT', SORTIDAS: 'SORT', TRANSPARENTE: 'TRANSP', TRANSPAR: 'TRANSP',
@@ -1121,6 +1129,18 @@ async function runCore(pfx = '') {
       if (q === qf && !qf.base) { // número sem unidade no arquivo: unidade pela contagem da descrição ou pela unidade sugerida da categoria
         const u = countQty(T); const us = cc && cc.unidadeSugerida;
         q = Object.assign({}, qf, { base: u ? u.base : us ? String(us).toUpperCase() : '' }); }
+    }
+    // DUN-14 (caixa): conteúdo como pack quando a descrição traz a quantidade de unidades
+    let cx = null;
+    if (/^\d{14}$/.test(String(it.barcode ?? '').trim())) {
+      const pk = packCaixa(Tq);
+      if (q.n > 1) cx = 'pack ' + qtyText(q);
+      else if (pk && q.base === 'UN' && q.tot === pk.n) cx = qtyText(q);
+      else if (pk && q.base === 'UN' && q.tot === pk.n) cx = qtyText(q);
+      else if (pk && pk.uv && (q.tot === null || (q.base === pk.base && Math.abs(q.tot - pk.uv) < 1e-6) || (q.tot === 1 && q.base === 'UN'))) { q = { tot: pk.n * pk.uv, base: pk.base, n: pk.n, uv: pk.uv, flag: '' }; cx = 'pack ' + qtyText(q); qDesc = true; }
+      else if (pk && q.tot !== null && (q.base === 'G' || q.base === 'ML') && q.n === 1 && !(pk.uv && pk.base !== q.base)) { q = { tot: pk.n * q.tot, base: q.base, n: pk.n, uv: q.tot, flag: '' }; cx = 'pack ' + qtyText(q); qDesc = true; }
+      else if (pk && (q.tot === null || (q.tot === 1 && q.base === 'UN'))) { q = { tot: pk.n, base: 'UN', n: 1, uv: pk.n, flag: '' }; cx = qtyText(q); qDesc = true; }
+      arqAl.push(cx ? `Código de 14 dígitos (caixa): conteúdo ${cx}` : pk ? `Código de 14 dígitos (caixa): a descrição indica ${pk.n} unidades, mas não deu para montar o pack com o conteúdo; revisar` : 'Código de 14 dígitos (caixa) sem quantidade de unidades na descrição; revisar');
     }
     if (q.tot === null) { const u = countQty(Tq); if (u) q = u; else { const d = defaultQty((cc && cc.qtdPadrao) || cfg.qtdPadrao); if (d) q = d; } }
     // sempre sai uma unidade de medida: vendido a quilo (KG/GRANEL sem número) -> 1KG; nada -> 1UN; número sem unidade -> UN
