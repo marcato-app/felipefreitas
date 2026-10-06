@@ -392,6 +392,9 @@ async function loadBacklog(file) {
   data.colunas = `Colunas lidas: categoria <b>${escH(nomeCol(ci.cat))}</b> · subcategoria <b>${escH(nomeCol(ci.sub))}</b> · marca <b>${escH(nomeCol(ci.mar))}</b> · fabricante <b>${escH(nomeCol(ci.fab))}</b> · conteúdo <b>${escH(nomeCol(ci.qt))}</b>${ci.me >= 0 ? ` + medida <b>${escH(nomeCol(ci.me))}</b>` : ''}${ci.uc >= 0 ? ` + unidades <b>${escH(nomeCol(ci.uc))}</b>` : ''}`;
   data.items = items; data.sugCounts = new Map();
   for (const it of items) data.sugCounts.set(it.sugCat, (data.sugCounts.get(it.sugCat) || 0) + 1);
+  // categorias que o arquivo traz e estão desligadas na biblioteca: ativa (senão o item cai em OUTRA CATEGORIA)
+  data.reativadas = 0; for (const c of cfg.categorias) if (c.ativa === false && data.sugCounts.has(c.nome)) { c.ativa = true; data.reativadas++; }
+  if (data.reativadas) saveDraft();
   computeWordSug();
   return items.length;
 }
@@ -1012,7 +1015,7 @@ const BALA_TIPOS = [['GOMA', /^(GOMA|GOMAS|GOMINHA|GOMINHAS|GOMET|GOMETS|GUMMY|G
 function balaTipo(T) {
   const W = T.flatMap(t => t.split(' '));
   for (const [tipo, rx] of BALA_TIPOS) { const w = W.find(x => rx.test(x)); if (w) return { ini: 'BALA ' + tipo, w }; }
-  return W.some(x => /^(BALA|BALAS|BALINHA|BALINHAS)$/.test(x)) ? { ini: 'BALA MASTIGAVEL', w: '' } : null; // sem cara de bala: regra normal
+  return W.some(x => /^(BALA|BALAS|BALINHA|BALINHAS|CONFEITO|CONFEITOS)$/.test(x)) ? { ini: 'BALA MASTIGAVEL', w: '' } : null; // sem cara de bala: regra normal
 }
 // código de barras de 14 dígitos (DUN-14) costuma ser caixa: procura o pack na descrição
 const RX_CXN = /(?<![A-Z0-9])(?:CX|CXA|CAIXA|FD|FDO|FARDO|DP|DISPLAY|PCT|PACOTE|EMB|BDJ)\s*(?:C\/?|COM\s*)?(\d{1,3})(?![0-9.,])(?!\s*(?:G|GR|GRS|KG|K|ML|L|LT|LTS|M|MM|CM)(?![A-Z]))/;
@@ -1427,7 +1430,7 @@ function status(id, html, ok) { const s = $(id); s.innerHTML = html; s.closest('
 const escH = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 setupDrop('#dropBacklog', '#fBacklog', async file => {
   status('#stBacklog', 'Lendo ' + escH(file.name) + '…');
-  try { const n = await loadBacklog(file); status('#stBacklog', `<b>${n.toLocaleString('pt-BR')}</b> itens · ${escH(file.name)}<br>${data.sugCounts.size} categorias sugeridas<br>${data.colunas || ''}`, true); $('#btnRun').disabled = false; $('#runState').textContent = data.dict ? 'Pronto para classificar.' : 'Pronto. Sem o dicionário, a marca vem só da base DIMA embutida.'; autoSegments(); renderCats(); }
+  try { const n = await loadBacklog(file); status('#stBacklog', `<b>${n.toLocaleString('pt-BR')}</b> itens · ${escH(file.name)}<br>${data.sugCounts.size} categorias sugeridas<br>${data.colunas || ''}${data.reativadas ? `<br>${data.reativadas} categorias do arquivo estavam desligadas e foram ativadas` : ''}`, true); $('#btnRun').disabled = false; $('#runState').textContent = data.dict ? 'Pronto para classificar.' : 'Pronto. Sem o dicionário, a marca vem só da base DIMA embutida.'; autoSegments(); renderCats(); }
   catch (e) { status('#stBacklog', 'Não consegui ler: ' + escH(e.message)); }
 });
 setupDrop('#dropDict', '#fDict', async file => {
