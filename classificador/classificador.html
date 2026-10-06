@@ -996,15 +996,24 @@ function textoQtd(t) {
 }
 const CESTA_NAO_CONSUMO = new Set(['BAZAR', 'CONSTRUCAO E FERRAMENTA', 'TEXTIL', 'ELETRO']);
 // objeto físico: conteúdo é sempre contagem (nunca peso/volume), em qualquer cesta
-const DURAVEL = new Set('ESCOVA ESCOVAS PENTE PENTES TESOURA TESOURAS ALICATE ALICATES CORTADOR PINCA PINCAS ESPELHO PRESILHA PRESILHAS TIARA BOBS TOUCA PINCEL PINCEIS ESPONJA ESPONJAS APARELHO BARBEADOR BARBEADORES APLICADOR MAMADEIRA CHUPETA MORDEDOR VASSOURA RODO BALDE LIXEIRA CESTO CABIDE PRENDEDOR LIXA ACESSORIO ACESSORIOS SECADOR CHAPINHA MODELADOR BABYLISS NECESSAIRE'.split(' '));
+const DURAVEL = new Set('ESCOVA ESCOVAS PENTE PENTES TESOURA TESOURAS ALICATE ALICATES CORTADOR PINCA PINCAS ESPELHO PRESILHA PRESILHAS TIARA BOBS TOUCA PINCEL PINCEIS ESPONJA ESPONJAS APARELHO BARBEADOR BARBEADORES APLICADOR MAMADEIRA CHUPETA MORDEDOR VASSOURA RODO BALDE LIXEIRA CESTO CABIDE PRENDEDOR LIXA ACESSORIO ACESSORIOS SECADOR CHAPINHA MODELADOR BABYLISS NECESSAIRE CHINELO CHINELOS SANDALIA SANDALIAS CALCADO CALCADOS SAPATO SAPATOS TENIS BOTA BOTAS BABUCHE BABUCHES PANTUFA RASTEIRA TAMANCO'.split(' '));
 // substância vendida a peso/volume mesmo em cesta de objeto (bazar, construção...)
 const SUBST_RX = /(?<![A-Z0-9])(TINTA|TINTAS|COLA|COLAS|SILICONE|MASSA|ADESIVO|GLITTER|GLITER|PURPURINA|OLEO|GRAXA|CAL|CIMENTO|AREIA|BRITA|ARGAMASSA|REJUNTE|GESSO|ACIDO|THINNER|SOLVENTE|AGUARRAS|VERNIZ|SELADOR|ESMALTE|LUBRIFICANTE|DESENGRIPANTE|ESPUMA|VASELINA|AMONIA|SODA|QUEROSENE|ALCOOL|PARAFINA|CERA|DUREPOX|DUREPOXI|EPOXI|POXIPOL|SOLDA|ESTANHO|LINHA|LINHAS|FIO|FIOS|BARBANTE|BARB|LA|NOVELO|CARVAO|LENHA|ESTERCO|ADUBO|FERTILIZANTE|TERRA|SEMENTE|SEMENTES|SUBSTRATO|GUACHE|AQUARELA|CORANTE|ANILINA|BISCUIT|ARGILA|MASSINHA|PREGO|PREGOS|ARAME|GRAMPO|GRAMPOS|CLIPS|CLIPES|PARAFUSO|PARAFUSOS|REBITE|TACHINHA|VELA|INCENSO|ESSENCIA|AROMATIZANTE|DESINFETANTE|CLORO|BICARBONATO|PIGMENTO|CAFE|ACUCAR|SAL|RACAO|ALPISTE|GRANEL|PO|GEL|SPRAY|AEROSOL|LIQUIDO|LIQUIDA|CREME|CORRETIVO|REABASTECEDOR|ISCA|SELATRINCA|IMPERMEABILIZANTE|PEDRA|PEDRAS|SEIXO|SEIXOS|ELETRODO|ELETRODOS|GRANULADO|SABAO|DETERGENTE|SHAMPOO|CONDICIONADOR)(?![A-Z0-9])/;
 // tipo de produto (1ª palavra) que é objeto: o número com G/ML/L/KG é capacidade ou especificação, não conteúdo
-const OBJETO_TIPO = new Set('ESCOVA PENTE TESOURA ALICATE CORTADOR PINCA ESPELHO PRESILHA TIARA TOUCA PINCEL ESPONJA APARELHO BARBEADOR APLICADOR MAMADEIRA CHUPETA MORDEDOR VASSOURA RODO BALDE LIXEIRA CESTO CABIDE PRENDEDOR REGADOR PULVERIZADOR CARRINHO COPO COPOS TACA TACAS CANECA CANECAS JARRA GARRAFA GARRAFINHA SQUEEZE POTE POTES REGUA TRANSFERIDOR ESQUADRO CALCULADORA ESTOJO PRUMO LONA SACOLA SACOLAS BOBINA LIXA LIXAS BORRACHA ANEL CHIP CAIXA ORGANIZADOR ORGANIZADORA GALAO BOTIJAO FILTRO PANELA FORMA ASSADEIRA TAMPA LANCHEIRA MOCHILA BOLSA MALETA SECADOR CHAPINHA MODELADOR'.split(' '));
+const OBJETO_TIPO = new Set('ESCOVA PENTE TESOURA ALICATE CORTADOR PINCA ESPELHO PRESILHA TIARA TOUCA PINCEL ESPONJA APARELHO BARBEADOR APLICADOR MAMADEIRA CHUPETA MORDEDOR VASSOURA RODO BALDE LIXEIRA CESTO CABIDE PRENDEDOR REGADOR PULVERIZADOR CARRINHO COPO COPOS TACA TACAS CANECA CANECAS JARRA GARRAFA GARRAFINHA SQUEEZE POTE POTES REGUA TRANSFERIDOR ESQUADRO CALCULADORA ESTOJO PRUMO LONA SACOLA SACOLAS BOBINA LIXA LIXAS BORRACHA ANEL CHIP CAIXA ORGANIZADOR ORGANIZADORA GALAO BOTIJAO FILTRO PANELA FORMA ASSADEIRA TAMPA LANCHEIRA MOCHILA BOLSA MALETA SECADOR CHAPINHA MODELADOR SAND SANDALIA CHINELO BABUCH BABUCHE RASTEIRA RASTEIRINHA TAMANCO SAPATO TENIS BOTA PANTUFA'.split(' '));
 function vendidoPorUnidade(cc, T, C) {
   if (cc && N(cc.nome).split(' ').some(w => DURAVEL.has(w)) && !T.some(t => SUBST_RX.test(t))) return true; // categoria de objeto (escova, pente...)
   const hp = T.length ? headPos(T[0], C.headIdx) : null;
   return !!hp && OBJETO_TIPO.has(hp.w);
+}
+// CARAMELO MASTIGAVEL: o descritivo começa com BALA + tipo da bala (pela descrição; sem tipo, BALA MASTIGAVEL)
+const BALA_TIPOS = [['GOMA', /^(GOMA|GOMAS|GOMINHA|GOMINHAS|GOMET|GOMETS|GUMMY|GUMMIES|JUJUBA|JUJUBAS)$/], ['GELATINA', /^(GELATINA|GELATINAS|JELLY|JELLIES)$/],
+  ['LIQUIDA', /^(LIQUIDA|LIQ|ROLLON|SPRAY)$/], ['MARSHMALLOW', /^(MARSHMALLOW|MARSHMALLOWS|MARSHMELLOW)$/], ['ALCACUZ', /^(ALCACUZ|REGALIZ)$/],
+  ['RECHEADA', /^(RECHEADA|RECHEADAS|RECH)$/], ['DURA', /^(DURA|DURAS)$/], ['MASTIGAVEL', /^(MAST|MASTIG|MASTIGAVEL|MASTIGAVEIS|CHEWY|TOFFEE)$/]];
+function balaTipo(T) {
+  const W = T.slice(0, 6).flatMap(t => t.split(' '));
+  for (const [tipo, rx] of BALA_TIPOS) { const w = W.find(x => rx.test(x)); if (w) return { ini: 'BALA ' + tipo, w }; }
+  return W.some(x => /^(BALA|BALAS|BALINHA|BALINHAS)$/.test(x)) ? { ini: 'BALA MASTIGAVEL', w: '' } : null; // sem cara de bala: regra normal
 }
 const DESC_MAX = 60; // tamanho máximo do descritivo padronizado
 // abreviações de varejo usadas só para caber nos 60 caracteres (primeiro no complemento; no início só se o obrigatório passar)
@@ -1094,7 +1103,12 @@ async function runCore(pfx = '') {
     // item que não é de consumo com peso/volume solto e contagem grande ("CARTUCHO 2KG C/500"): o conteúdo é a contagem
     if (q.tot !== null && q.n === 1 && (q.base === 'G' || q.base === 'ML') && (cc ? CESTA_NAO_CONSUMO.has(cc.cesta) : a.cat === OUT)) {
       const u = countQty(Tq); if (u && u.tot >= (cc ? 20 : 100)) q = u; }
-    let qf = prioArq() ? qtdArquivo(it.sugQt) : null;
+    let qf = prioArq() ? qtdArquivo(it.sugQt) : null, qDesc = false;
+    // arquivo com 1 (UN) é o valor padrão: se a descrição traz quantidade de verdade, vale a da descrição
+    if (qf && qf.tot === 1 && (!qf.base || qf.base === 'UN')) {
+      const qd = q.tot !== null ? q : (countQty(Tq) || { tot: null }); // peso/volume ou contagem (C/10, 10UN) da descrição
+      if (qd.tot !== null && qd.flag !== 'QTD_PADRAO' && !(qd.tot === 1 && qd.base === 'UN')) {
+        q = qd; arqAl.push(`Arquivo com 1UN; usada a quantidade da descrição (${qtyText(q)})`); qf = null; qDesc = true; } }
     if (qf && soUN && (qf.base === 'G' || qf.base === 'ML')) { if (manter) arqAl.push(`Arquivo (mantido): conteúdo ${qtyText(qf)} em produto vendido por unidade`); else { arqAl.push(`Arquivo: conteúdo ${qtyText(qf)} não serve para produto vendido por unidade; usado a contagem`); qf = null; } }
     if (qf && (!qf.base || qf.base === 'UN') && qf.tot > 1000) { if (manter) arqAl.push(`Arquivo (mantido): conteúdo ${fmtn(qf.tot)} fora do comum`); else { arqAl.push(`Arquivo: conteúdo ${fmtn(qf.tot)} fora do comum; ignorado`); qf = null; } }
     if (qf) {
@@ -1116,11 +1130,12 @@ async function runCore(pfx = '') {
     // Farmácia sem início fixo no manual: começa pela marca; sem marca, pelo princípio ativo (ou pelo nome do produto)
     const farmaLivre = cc && cc.cesta === 'FARMACIA' && !cc.inicio;
     const paHit = farmaLivre && !bn && C.pa ? T.map(t => matchPA(t, C.pa)).find(Boolean) : null;
+    const bala = a.cat === 'CARAMELO MASTIGAVEL' ? balaTipo(T) : null;
     const ini = farmaLivre ? (bn ? '' : paHit ? paIni(paHit, T) : nounOutra(T, bn))
-      : (cc && cc.dinamico) ? (tipoIni(T, a.per, a.cat, C) || nounOutra(T, bn)) : a.cat === OUT ? nounOutra(T, bn) : (cc.inicio || cc.nome);
+      : bala ? bala.ini : (cc && cc.dinamico) ? (tipoIni(T, a.per, a.cat, C) || nounOutra(T, bn)) : a.cat === OUT ? nounOutra(T, bn) : (cc.inicio || cc.nome);
     const keepT = T.filter((t, j) => a.per[j] === a.cat); const T2 = keepT.length ? keepT : T;
     const brandTxt = bn ? cleanD(marca) : '';
-    const comp = complement(T2, a.cat, ini, bn || '', groupOf(a.cat), cc);
+    const comp = complement(T2, a.cat, bala ? ini + ' ' + bala.w : ini, bn || '', groupOf(a.cat), cc);
     // o descritivo é sempre padronizado pelo app (já com a categoria, marca e conteúdo mantidos do arquivo)
     // descritivo com no máximo 60 caracteres: início, marca e conteúdo são obrigatórios e ficam inteiros;
     // só o complemento (entre a marca e o conteúdo) é abreviado e, se ainda passar, perde palavras do fim
@@ -1160,7 +1175,7 @@ async function runCore(pfx = '') {
     // por que a marca ficou diferente da do arquivo (resumo da planilha e da tela)
     const mMot = !N(it.sugMarca) ? 'arquivo sem marca' : N(marca) === sm ? 'igual ao arquivo' : !prioArq() ? 'prioridade do arquivo desligada'
       : !valido(it.sugMarca) ? 'arquivo com ' + sm : C.black.has(sm) ? 'marca do arquivo é palavra bloqueada' : 'trocada: marca do arquivo não aparece na descrição';
-    res.push({ it, cat: a.cat, marca, fab, qt: q.tot, qbase: q.base, desc, alerts, pri, mMot, catErrada: !!a.arqTrocada, catSuspeita: a.catSuspeita || '' });
+    res.push({ it, cat: a.cat, marca, fab, qt: q.tot, qbase: q.base, desc, alerts, pri, mMot, catErrada: !!a.arqTrocada, catSuspeita: a.catSuspeita || '', qDesc });
     if (i % 250 === 0) { $('#prog').style.width = (50 + 50 * i / items.length).toFixed(1) + '%'; $('#runState').textContent = pfx + `Marca, conteúdo e descritivo: ${i.toLocaleString('pt-BR')} de ${items.length.toLocaleString('pt-BR')}…`; await new Promise(r => setTimeout(r, 0)); }
   }
   $('#prog').style.width = '100%';
@@ -1169,6 +1184,21 @@ async function runCore(pfx = '') {
     for (const [k, v] of med) { v.sort((x, y) => x - y); med.set(k, v.length >= 5 ? v[Math.floor(v.length / 2)] : null); }
     for (const r of res) { const m = med.get(r.cat + '|' + r.qbase); if (m && r.qt && (r.qt > 20 * m || r.qt < m / 20)) { r.alerts.push(`Conteúdo fora do comum para a categoria (típico ${fmtUnit(m, r.qbase)})`); r.pri = r.pri || 2; } } }
   return res;
+}
+// OUTRA MARCA: aponta uma possível marca (base de marcas do app; senão, uma palavra da descrição que não é tipo, sabor, cor nem medida)
+function possiveisMarcas(res) {
+  const voc = new Set([...GENERIC, ...MARCA_NAO, ...SKIPTIPO, 'UN', 'UND', 'UNID', 'PCT', 'PACOTE', 'CX', 'CAIXA', 'KG', 'G', 'GR', 'ML', 'LT', 'L', 'SABOR', 'SABORES', 'TRAD', 'TRADICIONAL', 'COM', 'SEM', 'PARA', 'POTE', 'FRASCO', 'SACHE', 'LATA', 'GARRAFA', 'REFIL', 'KIT', 'MINI', 'MEGA', 'SUPER', 'TIPO', 'INF', 'INFANTIL', 'FEM', 'MASC', 'BABY', 'KIDS', 'GUMMY', 'GUMMIES', 'JELLY', 'JELLIES', 'GOMETS', 'ROLLON', 'CHEWY', 'TOFFEE']);
+  for (const c of cfg.categorias) for (const x of [c.nome, c.inicio || '', ...(c.incluir || []), ...(c.tipo || []), ...(c.forte || [])]) for (const w of N(String(x).replace(/\*/g, '')).split(' ')) if (w) voc.add(w);
+  const spread = new Map(); // palavra que aparece em muitas categorias diferentes não é marca (sabor, cor, adjetivo…)
+  for (const r of res) for (const w of new Set((r.it.T[0] || '').split(' '))) { if (!spread.has(w)) spread.set(w, new Set()); const st = spread.get(w); if (st.size < 8) st.add(r.cat); }
+  const pref = new Set(); for (const w of voc) for (let k = 3; k <= 5 && k <= w.length - 2; k++) pref.add(w.slice(0, k)); // abreviação de tipo (SORV, IOG, SAND)
+  const comum = w => voc.has(w) || pref.has(w) || (spread.get(w) || new Set()).size >= 6 || w.length < 3 || /\d/.test(w);
+  return r => {
+    const app = r.sug ? r.sug.marca : '';
+    if (app && app !== 'OUTRA MARCA' && !app.split(' ').every(comum)) return [app, 'BASE DE MARCAS DO APP'];
+    for (const t of r.it.T.slice(0, 3)) { const w = t.split(' ').find(x => !comum(x)); if (w) return [w, 'PALAVRA DA DESCRICAO (CONFERIR)']; }
+    return ['', ''];
+  };
 }
 // status da sugestão do app contra o arquivo (modo só descritivo)
 const qArqTxt = v => { const q = qtdArquivo(v); return q ? (q.base ? qtyText(q) : fmtn(q.tot)) : String(v ?? '').trim(); };
@@ -1227,13 +1257,18 @@ function buildWorkbook() {
   const bc = v => { const s = String(v).trim(); return /^\d{1,15}$/.test(s) ? Number(s) : s; };
   const main = [['CODIGO BARRAS', 'DESCRITIVO PADRONIZADO', 'FABRICANTE', 'MARCA', 'CONTENIDO', 'CATEGORIA', 'CODIGO INTERNO']];
   const soD = R.length && R[0].soDesc; if (soD) main[0].push('STATUS SUGESTAO', 'CATEGORIA SUGERIDA APP');
+  const arqOu = (v, app) => (v !== null && v !== undefined && String(v).trim() !== '') ? (typeof v === 'number' ? v : String(v).trim()) : app;
+  // possível marca para os itens que saem como OUTRA MARCA
+  const marcaSai = r => soD ? N(arqOu(r.it.sugMarca, r.marca)) : N(r.marca);
+  const temOM = R.some(r => marcaSai(r) === 'OUTRA MARCA'); const pm = temOM ? possiveisMarcas(R) : null;
+  if (temOM) main[0].push('POSSIVEL MARCA', 'ORIGEM POSSIVEL MARCA');
   const temAn = R.some(r => r.it.analista); if (temAn) main[0].push('ANALISTA');
   // modo só descritivo: categoria, marca, fabricante e conteúdo exatamente como vieram no arquivo (vazio no arquivo -> o do app)
-  const arqOu = (v, app) => (v !== null && v !== undefined && String(v).trim() !== '') ? (typeof v === 'number' ? v : String(v).trim()) : app;
   // categoria do arquivo que não bate com a descrição (outra cesta, ex.: estojo como OVO): aí vale o que o app ajustou
   for (const r of R) main.push(soD
-    ? [bc(r.it.barcode), r.desc, arqOu(r.it.sugFab, r.fab), arqOu(r.it.sugMarca, r.marca), arqOu(r.it.sugQtOut ?? r.it.sugQt, num(r.qt)), arqOu(r.it.sugCatRaw, nomeOf(r.cat)), ciFlag(r.it.barcode), r.status, r.sugCatApp || '']
+    ? [bc(r.it.barcode), r.desc, arqOu(r.it.sugFab, r.fab), arqOu(r.it.sugMarca, r.marca), (r.qDesc ? num(r.qt) : arqOu(r.it.sugQtOut ?? r.it.sugQt, num(r.qt))), arqOu(r.it.sugCatRaw, nomeOf(r.cat)), ciFlag(r.it.barcode), r.status, r.sugCatApp || '']
     : [bc(r.it.barcode), r.desc, r.fab, r.marca, num(r.qt), nomeOf(r.cat), ciFlag(r.it.barcode), ...(soD ? [r.status, ''] : [])]);
+  if (temOM) for (let i = 0; i < R.length; i++) main[i + 1].push(...(marcaSai(R[i]) === 'OUTRA MARCA' ? pm(R[i]) : ['', '']));
   if (temAn) for (let i = 0; i < R.length; i++) main[i + 1].push(R[i].it.analista);
   const ws = XLSX.utils.aoa_to_sheet(main); ws['!cols'] = [{ wch: 16 }, { wch: 60 }, { wch: 28 }, { wch: 24 }, { wch: 11 }, { wch: 26 }, { wch: 22 }];
   for (let i = 2; i <= main.length; i++) { const c = ws['A' + i]; if (c && c.t === 'n') c.z = '0'; }

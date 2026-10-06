@@ -186,3 +186,12 @@ Pontos pra checar, em ordem:
 - `arqOk` (runCore): prioridade do arquivo ligada, categoria do arquivo existe e foi mantida (bate com a descrição) e não é Farmácia → `manter` = mesmo comportamento do "sempre usar": marca, fabricante e conteúdo do arquivo ficam, só com aviso "Arquivo (mantido): …". OUTRA MARCA do arquivo também fica. Só quando a categoria não bate (outra cesta, `arqTrocada`) o app ajusta tudo.
 - Modo só descritivo: 2ª passada agora é o "Priorizar" normal; itens com categoria errada (`catErrada`) saem com os valores do app e status "AJUSTADO PELO APP…"; os demais, exatamente como no arquivo.
 - Cores nunca são marca (`MARCA_NAO`: MARINHO, AZUL, TURQUESA, NEON, LILAS, AZUL MARINHO…).
+
+## Ajustes de 2026-10-06 (backlog Scanntech com colunas *_sugerida)
+
+- Colunas: `*_sugerida` têm prioridade sobre o cadastro atual; subcategoria vale no lugar da categoria quando preenchida; POR DEFECTO / SIN FABRICANTE ASOCIADO / 0 viram vazio (`limpaArq`). Conteúdo Scanntech: `quantity_sugerida` (total em g/ml/un) + `measurement_sugerido` + `unit_content_sugerido` (`qtdColunas`). ANALISTA é repassado para Planilha1/SUGESTAO.
+- Quantidade: arquivo com 1 (UN) é tratado como padrão; se a descrição tem peso/volume ou contagem (C/10, 10UN), vale a da descrição (alerta "Arquivo com 1UN…", `qDesc`). Calçado (chinelo, sandália, babuche, tênis…) é vendido por unidade: número da descrição é tamanho.
+- CARAMELO MASTIGAVEL: descritivo começa com BALA + tipo (`BALA_TIPOS`: GOMA, GELATINA, LIQUIDA, MARSHMALLOW, ALCACUZ, RECHEADA, DURA, MASTIGAVEL); com BALA na descrição e sem tipo → BALA MASTIGAVEL; sem cara de bala, regra antiga.
+- OUTRA MARCA: colunas POSSIVEL MARCA / ORIGEM (`possiveisMarcas`): marca da base do app (passada de sugestão) ou a 1ª palavra da descrição que não é tipo/abreviação de tipo, sabor/cor (aparece em ≥6 categorias), medida ou número — "CONFERIR".
+- Modo só descritivo: categoria nunca é trocada (aviso POSSÍVEL CATEGORIA ERRADA + CATEGORIA SUGERIDA APP).
+- `rodar.js`: roda o app em Chromium headless para backlogs grandes (200 mil+).
