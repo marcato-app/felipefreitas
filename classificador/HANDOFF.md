@@ -212,3 +212,4 @@ Pontos pra checar, em ordem:
 - OUTRA MARCA / OUTRO FABRICANTE do arquivo não travam mais: se a descrição traz marca da EST MER 6, vale ela (também no modo só descritivo).
 - CARAMELO MASTIGAVEL com marca reconhecida e sem a palavra BALA: descritivo BALA MASTIGAVEL….
 - Descritivo sem palavra repetida (`mesmaPalavra`): plural ou grafia próxima da mesma palavra (MARSHMALLOW/MARSHMELOWS, CADEADO/CADEADOS, CALCULADORA/CALCULATOR) entra uma vez; palavras ≤3 letras podem repetir; em palavras <8 letras só o plural conta. Conector solto no fim do complemento é retirado.
+- Repetição no descritivo é checada palavra por palavra também dentro de expressões do complemento (LEITE_DE_COCO); conector só fica se as palavras dos dois lados ficarem (ou se se liga ao início).

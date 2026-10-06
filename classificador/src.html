@@ -887,10 +887,15 @@ function complement(T, cat, ini, bn, grp, catCfg) {
   const iw = new Set(ini.split(' '));
   // sem palavra repetida: plural ou grafia diferente da mesma palavra (MARSHMALLOW x MARSHMALLOWS x MARSHMELOWS) entra uma vez só,
   // e não repete o que já está no início ou na marca
-  const vistos = [...iw, ...bw].filter(Boolean); const out = [];
-  for (const w of words.filter(w => !iw.has(w) && !bw.has(w))) { if (w.length > 3 && vistos.some(v => mesmaPalavra(v, w))) continue; vistos.push(w); out.push(w); }
-  const fim = out.slice(0, 9); while (fim.length && /^(E|DE|DA|DO|DOS|DAS|COM|C|P|PARA|EM|SEM|S|OU|A|O|AO)$/.test(fim[fim.length - 1])) fim.pop(); // sem conector solto no fim
-  return fim.join(' ').replace(/_/g, ' ');
+  // palavra por palavra, inclusive dentro de expressões (LEITE_DE_COCO): o que já está no início/marca ou já apareceu não repete;
+  // conector (DE, E, COM…) só fica se as palavras dos dois lados ficarem
+  const vistos = [...ini.split(' '), ...bw].filter(Boolean);
+  const toks = words.slice(0, 9).flatMap(w => w.split('_')).filter(Boolean);
+  const CON = /^(E|DE|DA|DO|DOS|DAS|COM|C|P|PARA|EM|SEM|S|OU|A|O|AO)$/;
+  const ok = toks.map(w => { if (CON.test(w)) return null; if (vistos.some(v => mesmaPalavra(v, w))) return false; vistos.push(w); return true; });
+  // conector logo no começo (ou depois só de palavras repetidas) se liga ao início: LANTERNAS DE LED -> LANTERNA DE LED
+  const fim = toks.filter((w, i) => ok[i] === null ? (ok[i - 1] === true || ok.slice(0, i).every(x => x !== true)) && ok.slice(i + 1).find(x => x !== null) === true : ok[i]);
+  return fim.join(' ');
 }
 // mesma palavra no plural ou com erro de digitação (só palavras de 5+ letras com o mesmo começo; números nunca)
 function mesmaPalavra(a, b) {
