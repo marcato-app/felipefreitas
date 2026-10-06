@@ -886,8 +886,27 @@ function complement(T, cat, ini, bn, grp, catCfg) {
   let words = tidy(keep);
   if (cat.startsWith('CHOCOLATE')) { const p = Tx.map(pct).find(x => x); if (p) words = words.filter(w => w !== 'CACAU').concat([String(p), 'CACAU']); }
   const iw = new Set(ini.split(' '));
-  return words.slice(0, 9).filter(w => !iw.has(w) && !bw.has(w)).join(' ').replace(/_/g, ' ');
+  // sem palavra repetida: plural ou grafia diferente da mesma palavra (MARSHMALLOW x MARSHMALLOWS x MARSHMELOWS) entra uma vez só,
+  // e não repete o que já está no início ou na marca
+  const vistos = [...iw, ...bw].filter(Boolean); const out = [];
+  for (const w of words.filter(w => !iw.has(w) && !bw.has(w))) { if (w.length > 3 && vistos.some(v => mesmaPalavra(v, w))) continue; vistos.push(w); out.push(w); }
+  const fim = out.slice(0, 9); while (fim.length && /^(E|DE|DA|DO|DOS|DAS|COM|C|P|PARA|EM|SEM|S|OU|A|O|AO)$/.test(fim[fim.length - 1])) fim.pop(); // sem conector solto no fim
+  return fim.join(' ').replace(/_/g, ' ');
 }
+// mesma palavra no plural ou com erro de digitação (só palavras de 5+ letras com o mesmo começo; números nunca)
+function mesmaPalavra(a, b) {
+  if (a === b) return true;
+  if (a.length < 5 || b.length < 5 || /\d/.test(a + b) || a.slice(0, 3) !== b.slice(0, 3)) return false;
+  const sing = w => w.replace(/(ES|S)$/, ''); if (sing(a) === sing(b)) return true;
+  if (Math.abs(a.length - b.length) > 3) return false;
+  const lim = Math.min(a.length, b.length) >= 8 ? 2 : 0; // MARSHMALLOW/MARSHMELOW, CALCULADORA/CALCULATOR (2); curtas só plural (TRINCHA x TRINCA são diferentes)
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) { const cur = [i]; let mn = i;
+    for (let j = 1; j <= b.length; j++) { cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); mn = Math.min(mn, cur[j]); }
+    if (mn > lim + 1) return false; prev = cur; }
+  return sing(a) === sing(b) || prev[b.length] <= lim || levS(sing(a), sing(b)) <= lim;
+}
+function levS(a, b) { let p = Array.from({ length: b.length + 1 }, (_, j) => j); for (let i = 1; i <= a.length; i++) { const c = [i]; for (let j = 1; j <= b.length; j++) c[j] = Math.min(p[j] + 1, c[j - 1] + 1, p[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); p = c; } return p[b.length]; }
 const NOUN_MAP = { AMEND: 'AMENDOIM', AMENDOIN: 'AMENDOIM', AMEN: 'AMENDOIM', MIST: 'MISTURA', BISC: 'BISCOITO', MAC: 'MACARRAO', BEB: 'BEBIDA', IOG: 'IOGURTE', TEMP: 'TEMPERO', COND: 'CONDIMENTO', SUPL: 'SUPLEMENTO', SUPLEM: 'SUPLEMENTO', PIC: 'PICOLE', CAM: 'CAMISETA', CR: 'CREME', SALG: 'SALGADINHO', ACHOC: 'ACHOCOLATADO', CAD: 'CADERNO', CADER: 'CADERNO', LAP: 'LAPIS', LAPIS: 'LAPIS', CANET: 'CANETA', BORR: 'BORRACHA', ENV: 'ENVELOPE', EMBAL: 'EMBALAGEM', PAP: 'PAPEL', ESPJ: 'ESPONJA' };
 // Escolhe um nome de produto para itens sem categoria (OUTRA CATEGORIA): a palavra mais
 // frequente/relevante entre TODAS as descrições do código (não só as 3 primeiras), preferindo
@@ -1201,7 +1220,7 @@ async function runCore(pfx = '') {
       // 1) abrevia o complemento, da última palavra para a primeira, até caber
       for (let j = compW.length - 1; j >= 0 && desc.length > DESC_MAX; j--) { const ab = abrevia(compW[j]); if (ab !== compW[j]) { compW[j] = ab; desc = monta(); } }
       // 2) ainda passou: tira palavras do fim do complemento
-      while (desc.length > DESC_MAX && compW.length) { compW.pop(); desc = monta(); descCortado = true; }
+      while (desc.length > DESC_MAX && compW.length) { compW.pop(); while (compW.length && /^(E|DE|DA|DO|DOS|DAS|COM|C|P|PARA|EM|SEM|S|OU|A|O|AO)$/.test(compW[compW.length - 1])) compW.pop(); desc = monta(); descCortado = true; }
       // 3) só o obrigatório já passa: abrevia o início (nunca corta marca nem conteúdo)
       if (desc.length > DESC_MAX && iniTxt) { iniTxt = iniTxt.split(' ').map(abrevia).join(' '); desc = monta(); }
       descLongo = desc.length > DESC_MAX;
