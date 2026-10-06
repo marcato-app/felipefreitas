@@ -892,7 +892,9 @@ function complement(T, cat, ini, bn, grp, catCfg) {
   const vistos = [...ini.split(' '), ...bw].filter(Boolean);
   const toks = words.slice(0, 9).flatMap(w => w.split('_')).filter(Boolean);
   const CON = /^(E|DE|DA|DO|DOS|DAS|COM|C|P|PARA|EM|SEM|S|OU|A|O|AO)$/;
-  const ok = toks.map(w => { if (CON.test(w)) return null; if (vistos.some(v => mesmaPalavra(v, w))) return false; vistos.push(w); return true; });
+  // abreviação de palavra já usada (MAION depois de MAIONESE, BARB depois de BARBANTE) também não repete; termina em consoante
+  // (RATO em RATOEIRA, REMOVE em REMOVEDOR são palavras inteiras e ficam)
+  const ok = toks.map(w => { if (CON.test(w)) return null; if (vistos.some(v => mesmaPalavra(v, w) || (w.length >= 4 && v.length > w.length && v.startsWith(w) && !/[AEIOU]$/.test(w)))) return false; vistos.push(w); return true; });
   // conector logo no começo (ou depois só de palavras repetidas) se liga ao início: LANTERNAS DE LED -> LANTERNA DE LED
   const fim = toks.filter((w, i) => ok[i] === null ? (ok[i - 1] === true || ok.slice(0, i).every(x => x !== true)) && ok.slice(i + 1).find(x => x !== null) === true : ok[i]);
   return fim.join(' ');
