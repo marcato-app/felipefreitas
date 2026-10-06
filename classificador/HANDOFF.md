@@ -197,3 +197,4 @@ Pontos pra checar, em ordem:
 - `rodar.js`: roda o app em Chromium headless para backlogs grandes (200 mil+).
 - DUN-14: código de barras com 14 dígitos é tratado como caixa (`packCaixa`): pack NxQ na descrição, ou CX/FD/DP/PCT/C/ + número de unidades combinado com o conteúdo da unidade (ex.: "350ML FD C/12" → 12X350ML). Sem pack na descrição: alerta "Código de 14 dígitos (caixa) sem quantidade de unidades na descrição; revisar".
 - BALA PASTILHA só com indicação clara (PASTILHA, PASTILHAS, DROPS, BALA DURA); BALA/BALAS/BALINHA/JUJUBA/BALA DE GOMA… vão para CARAMELO MASTIGAVEL (libPatch `bala-pastilha-2026-10`).
+- MIX NUTS não pega mais "MIX" solto (só MIX NUTS, MIX DE CASTANHAS, TRAIL MIX, NUTS…) e exclui BALA/GOMA/CANDY/CHEWY/GUMMY; CARAMELO MASTIGAVEL reconhece CANDY, CHEWY, GULOSEIMA (libPatch `mix-nuts-bala-2026-10`). Tipo da bala (BALA GOMA…) procurado em todas as descrições do código.

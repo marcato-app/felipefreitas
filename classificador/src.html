@@ -1010,7 +1010,7 @@ const BALA_TIPOS = [['GOMA', /^(GOMA|GOMAS|GOMINHA|GOMINHAS|GOMET|GOMETS|GUMMY|G
   ['LIQUIDA', /^(LIQUIDA|LIQ|ROLLON|SPRAY)$/], ['MARSHMALLOW', /^(MARSHMALLOW|MARSHMALLOWS|MARSHMELLOW)$/], ['ALCACUZ', /^(ALCACUZ|REGALIZ)$/],
   ['RECHEADA', /^(RECHEADA|RECHEADAS|RECH)$/], ['DURA', /^(DURA|DURAS)$/], ['MASTIGAVEL', /^(MAST|MASTIG|MASTIGAVEL|MASTIGAVEIS|CHEWY|TOFFEE)$/]];
 function balaTipo(T) {
-  const W = T.slice(0, 6).flatMap(t => t.split(' '));
+  const W = T.flatMap(t => t.split(' '));
   for (const [tipo, rx] of BALA_TIPOS) { const w = W.find(x => rx.test(x)); if (w) return { ini: 'BALA ' + tipo, w }; }
   return W.some(x => /^(BALA|BALAS|BALINHA|BALINHAS)$/.test(x)) ? { ini: 'BALA MASTIGAVEL', w: '' } : null; // sem cara de bala: regra normal
 }
