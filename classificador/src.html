@@ -1728,6 +1728,8 @@ if (K.libSeed && K.libSeed.categorias) mergeInto(cfg, normCfg({ categorias: K.li
 // (uma vez só, marcado em cfg.migracoes, para não voltar se o usuário apagar de propósito).
 function migrarCategorias() {
   let n = 0;
+  // categoria sem cesta: preenche pela planilha CATEGORIA x CESTA (K.cestas); quem já tem cesta fica como está
+  for (const c of cfg.categorias || []) { const v = (K.cestas || {})[c.nome]; if (v && !c.cesta) { c.cesta = v; n++; } }
   for (const c of cfg.categorias || []) {
     const ini = (c.inicio || '').trim();
     if (ini === 'PRODUTO') { c.inicio = ''; c.dinamico = true; n++; }
