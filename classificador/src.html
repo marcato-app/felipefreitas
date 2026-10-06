@@ -646,6 +646,8 @@ function aggregate(T0, sug, C, main) {
   // descrições divididas entre objeto (óculos, bazar…) ou nada, e uma categoria de consumo (bala, alimento…), num produto vendido
   // a peso/volume ("BALA DE GELATINA FINI 70G" x "FINI OCULOS 70G"): vence a de consumo
   const cestaOf = n => { const x = C.cats.find(y => y.c.nome === n); return x ? x.c.cesta : ''; };
+  // papinha/sopinha infantil em alguma descrição vence o ingrediente/sabor (MORANGA, FEIJAO, MANDIOCA, MANGA…)
+  if (r.cat !== 'PAPINHA' && (r.per || []).includes('PAPINHA')) return Object.assign(r, { cat: 'PAPINHA', flag: 'PAPINHA_VENCE' });
   // bala/pirulito/marshmallow em alguma descrição vence sabor (fruta), docinho, gelatina, aroma, café, leite, carne ou bombom
   const per = r.per || [];
   if (r.cat === OUT || FRUTAS.has(r.cat) || CONFUNDE_DOCE.has(r.cat)) {
@@ -724,11 +726,17 @@ function catVocab(C, cat) {
 }
 function findBrand(T, seg, sug, black, DD, vocab) {
   if (!DD) return null;
+  // marca primeiro na categoria DIMA da planilha (EST MER 6 fixa); a aprendida do backlog só se ali não houver nenhuma
+  // se ali só aparece uma abreviação cadastrada (COLOR -> COLORADO) e fora dela a marca está escrita por extenso, vale a por extenso
+  const alias = g => g && DD.map.get(g) && N(DD.map.get(g).canon) !== g;
+  if (seg && seg.extra && seg.extra.length) { const base = Array.from(seg); const rb = findBrand(T, base, sug, black, DD, vocab);
+    if (rb && !alias(rb)) return rb; const ra = findBrand(T, [...base, ...seg.extra], sug, black, DD, vocab); return ra && !alias(ra) ? ra : (rb || ra); }
   const D = DD.map, sugn = N(sug);
   const cov = new Map();
   T.forEach((t, i) => {
     const w = t.split(' '); const seen = new Set(); const wt = Math.pow(0.75, i);
-    for (let n = 1; n <= 6; n++) for (let k = 0; k + n <= w.length; k++) { const g = w.slice(k, k + n).join(' '); if (seen.has(g) || !D.has(g)) continue; seen.add(g); cov.set(g, (cov.get(g) || 0) + wt); }
+    // abreviação cadastrada (COLOR -> COLORADO) vale menos que o nome por extenso
+    for (let n = 1; n <= 6; n++) for (let k = 0; k + n <= w.length; k++) { const g = w.slice(k, k + n).join(' '); if (seen.has(g) || !D.has(g)) continue; seen.add(g); cov.set(g, (cov.get(g) || 0) + wt * (N(D.get(g).canon) !== g ? 0.6 : 1)); }
     for (const tok of new Set(w)) { const gb = DD.glued.get(tok); if (gb && !seen.has(gb)) { seen.add(gb); cov.set(gb, (cov.get(gb) || 0) + wt); } }
     if (sugn && D.has(sugn) && !seen.has(sugn) && validCand(sugn, black)) {
       const key = sugn.split(' ').filter(x => !GENERIC.has(x) && x.length > 2);
@@ -736,7 +744,11 @@ function findBrand(T, seg, sug, black, DD, vocab) {
     }
   });
   const cands = new Map();
-  for (const [g, c] of cov) { if (validCand(g, black)) cands.set(g, c); else if (validCand(g, black, true) && (g === sugn || relSales(g, seg, DD) > 5e5)) cands.set(g, c); }
+  for (const [g, c] of cov) { if (validCand(g, black)) cands.set(g, c); else if (validCand(g, black, true) && (g === sugn || relSales(g, seg, DD) > 5e5 || (seg && seg.length && !seg.livre && relSales(g, seg, DD) > 0))) cands.set(g, c); }
+  // marca curta/genérica (PIC ME) vale se a DIMA a registra na categoria do item; marca de 2+ palavras que parece expressão comum
+  // ("DA VOVO" em PAPINHA) também, mas só como último recurso (se nenhuma marca normal for encontrada)
+  const exDima = new Map();
+  if (seg && seg.length && !seg.livre) for (const [g, c] of cov) if (!cands.has(g) && g.includes(' ') && !black.has(g) && !MARCA_NAO.has(g) && g.split(' ').some(x => x.length >= 3 && !GENERIC.has(x) && !/\d/.test(x)) && relSales(g, seg, DD) > 0) exDima.set(g, c);
   // palavra do vocabulário da própria categoria (CADEADO, PIA, CARIOCA em FEIJAO CARIOCA) só vira marca se não houver
   // outra candidata e se a base registra essa marca numa categoria de nome parecido (NINHO em LEITE..., PILAO em CAFE...)
   if (vocab && vocab.heads) for (const g of [...cands.keys()]) if (!g.includes(' ') && vocab.heads.has(g)) cands.delete(g); // o tipo do produto (1ª palavra) não é marca
@@ -745,7 +757,7 @@ function findBrand(T, seg, sug, black, DD, vocab) {
   const isVoc = g => vocab && !g.includes(' ') && (vocab.has(g) || (vocab.tipos && vocab.tipos.has(g)));
   const outras = new Map([...cands].filter(([g]) => !isVoc(g)));
   const voc = new Map([...cands].filter(([g]) => isVoc(g) && segParecido(g, vocab, DD)));
-  return escolheMarca(outras, seg, sugn, DD) || escolheMarca(voc, seg, sugn, DD);
+  return escolheMarca(outras, seg, sugn, DD) || escolheMarca(voc, seg, sugn, DD) || escolheMarca(exDima, seg, sugn, DD);
 }
 function escolheMarca(cands, seg, sugn, DD) {
   if (!cands.size) return null;
@@ -963,7 +975,7 @@ function segmentosEstMer6(AGG, items, byName, C) {
   data.segAprendido = aprendido;
   const f = cat => { if (farma(cat)) { const cc = byName.get(cat); return Object.assign([...(cc.segmento || [])], { livre: true }); }
     // EST MER 6 da planilha CATEGORIA x SUBCATEGORIA (ou definida na categoria) + a aprendida das marcas do backlog
-    const x = fixo(cat), ap = aprendido.get(cat) || []; return x.length ? [...new Set([...x, ...ap])] : ap; };
+    const x = fixo(cat), ap = aprendido.get(cat) || []; return x.length ? Object.assign([...x], { extra: ap.filter(e => !x.includes(e)) }) : ap; };
   return f;
 }
 /* ---- Farmácia: fabricante é sempre o laboratório escrito na descrição, conferido com o dicionário / DIMA ---- */
