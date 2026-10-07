@@ -715,10 +715,13 @@ function segParecido(g, vocab, DD) {
   for (const e of b.em.keys()) for (const w of N(e).split(' ')) if (!SEG_STOP.has(w) && w.length > 2 && nome.has(w)) return true;
   return false;
 }
+const MARCAS_NA_LISTA = new Set([...(K.marcasNaLista || [])].map(N));
 function catVocab(C, cat) {
   C.vocab = C.vocab || new Map(); if (C.vocab.has(cat)) return C.vocab.get(cat);
   const x = C.cats.find(y => y.c.nome === cat); const v = new Set(N(cat).split(' '));
-  if (x) for (const t of [...(x.c.incluir || []), ...(x.c.tipo || []), ...(x.c.tambem || [])]) for (const w of N(String(t).replace(/\*/g, ' ')).split(' ')) v.add(w);
+  // nome de marca que está na lista da categoria (PRINGLES, LAYS em BATATA; KIT KAT em CHOCOLATE CANDY BAR) ajuda a achar a categoria,
+  // mas não vira vocabulário: continua sendo reconhecido como marca
+  if (x) for (const t of [...(x.c.incluir || []), ...(x.c.tipo || []), ...(x.c.tambem || [])]) { if (MARCAS_NA_LISTA.has(N(t))) continue; for (const w of N(String(t).replace(/\*/g, ' ')).split(' ')) v.add(w); }
   v.nome = new Set(N(cat).split(' ').filter(w => !SEG_STOP.has(w)));
   // palavras soltas de tipo de produto (lista "tipo" de todas as categorias ativas: PIA, RALO, FITA...)
   if (!C.tipos) { C.tipos = new Set(); for (const y of C.cats) for (const t of y.c.tipo || []) C.tipos.add(N(t)); }
@@ -751,7 +754,7 @@ function findBrand(T, seg, sug, black, DD, vocab) {
   if (seg && seg.length && !seg.livre) for (const [g, c] of cov) if (!cands.has(g) && g.includes(' ') && !black.has(g) && !MARCA_NAO.has(g) && g.split(' ').some(x => x.length >= 3 && !GENERIC.has(x) && !/\d/.test(x)) && relSales(g, seg, DD) > 0) exDima.set(g, c);
   // palavra do vocabulário da própria categoria (CADEADO, PIA, CARIOCA em FEIJAO CARIOCA) só vira marca se não houver
   // outra candidata e se a base registra essa marca numa categoria de nome parecido (NINHO em LEITE..., PILAO em CAFE...)
-  if (vocab && vocab.heads) for (const g of [...cands.keys()]) if (!g.includes(' ') && vocab.heads.has(g)) cands.delete(g); // o tipo do produto (1ª palavra) não é marca
+  if (vocab && vocab.heads) for (const g of [...cands.keys()]) if (!g.includes(' ') && vocab.heads.has(g) && !MARCAS_NA_LISTA.has(g)) cands.delete(g); // o tipo do produto (1ª palavra) não é marca
   // 1º sem as palavras de vocabulário/tipo (PIA, CARIOCA...); se não sobrar marca, tenta com elas quando a base
   // registra a marca numa categoria de nome parecido (NINHO em LEITE..., PILAO em CAFE...)
   const isVoc = g => vocab && !g.includes(' ') && (vocab.has(g) || (vocab.tipos && vocab.tipos.has(g)));
