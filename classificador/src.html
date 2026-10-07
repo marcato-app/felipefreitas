@@ -1772,6 +1772,9 @@ if (K.libSeed && K.libSeed.categorias) mergeInto(cfg, normCfg({ categorias: K.li
 // (uma vez só, marcado em cfg.migracoes, para não voltar se o usuário apagar de propósito).
 function migrarCategorias() {
   let n = 0;
+  // palavras que não entram no complemento da categoria: MICROONDAS em PIPOCA MICRO (MICRO já diz)
+  const REMOVER_PATCH = { 'PIPOCA MICRO-ONDAS': ['MICROONDAS', 'MICROONDA', 'MICROWAVE', 'MICROOND', 'ONDAS', 'ONDA'] };
+  for (const c of cfg.categorias || []) { const r = REMOVER_PATCH[c.nome]; if (r) for (const w of r) if (!(c.remover || []).includes(w)) { c.remover = [...(c.remover || []), w]; n++; } }
   // início fixo para categorias que estavam sem início (K.inicioPatch); quem já tem início definido fica como está
   for (const c of cfg.categorias || []) { const v = (K.inicioPatch || {})[c.nome]; if (v && !(c.inicio || '').trim()) { c.inicio = v; c.dinamico = false; n++; } }
   // categoria sem cesta: preenche pela planilha CATEGORIA x CESTA (K.cestas); quem já tem cesta fica como está
