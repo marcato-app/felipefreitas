@@ -204,7 +204,7 @@ Pontos pra checar, em ordem:
 - `aggregate`: descrições divididas entre categoria de objeto (cesta BAZAR/TEXTIL/ELETRO/CONSTRUCAO) ou nada e uma categoria de consumo, num produto com peso/volume (G/ML) → vence a de consumo (flag CONSUMO_VENCE). Ex.: "FINI OCULOS HARRY POTTER 70G" + "BALA DE GELATINA FINI 70G" → CARAMELO MASTIGAVEL.
 - `balaTipo`: tipo escrito logo depois de BALA ("BALA DE GELATINA") tem prioridade sobre a ordem da lista.
 - Balas x sabor x marshmallow (libPatch `balas-sabor-2026-10` + `aggregate`): as 29 categorias de fruta in natura (`FRUTAS`) excluem palavras de doce (BALA, GOMA, DROPS, PIRULITO, MARSHMALLOW, GELATINA, CANDY, SABOR…); fruta em pack (NxQ) vira OUTRA CATEGORIA. Na votação, se alguma descrição aponta `DOCES_CAT` (CARAMELO MASTIGAVEL, BALA PASTILHA, PIRULITO, DOCE OUTROS, GOMA DE MASCAR) e o resultado é OUT/fruta/`CONFUNDE_DOCE` (DOCINHO, GELATINA, AROMA E ESSENCIA, CARNES PREP CONGELADAS, CAFE SOLUVEL, CAPPUCCINO, LEITE COMUM, CHOCOLATE BOMBOM, GRELHA E ESPETO), vence o doce (flag DOCE_VENCE).
-- Marshmallow de verdade (todas as grafias, NUAGE, MAXMALLOW) → DOCE OUTROS, descritivo "DOCE MARSHMALLOW…"; bala de marshmallow (com BALA) → CARAMELO. BALA DE COCO → CARAMELO MASTIGAVEL ("BALA COCO…"), RAHAT/GOMA ARABE/GOMA FINI → CARAMELO; PIR/PIRUL/CHUPETITA → PIRULITO.
+- (substituído em out/2026, ver abaixo) Marshmallow ia para DOCE OUTROS. BALA DE COCO → CARAMELO MASTIGAVEL ("BALA COCO…"), RAHAT/GOMA ARABE/GOMA FINI → CARAMELO; PIR/PIRUL/CHUPETITA → PIRULITO.
 - `coerentes`: se a 1ª descrição não combina com quase nenhuma e outra combina com a maioria, a referência passa a ser essa (ex.: "BISC PASSATEMPO" no meio de 9 descrições de bala).
 - Cestas: `K.cestas` (planilha CATEGORIA x CESTA de 2026-10 + cesta da biblioteca para quem não está na planilha). `migrarCategorias` só preenche categoria **sem cesta**; cesta existente nunca é trocada. As 40 categorias do trabalho padrão (cfg) ganharam cesta.
 - EST MER 6 por categoria: `K.segPadrao` atualizado pela planilha CATEGORIA x SUBCATEGORIA (categoria DIMA → categorias do app; 616 categorias, farmácia fora). `segmentosEstMer6` usa a da planilha **somada** à aprendida das marcas do backlog. Ex.: CARAMELO MASTIGAVEL, BALA PASTILHA, PIRULITO → BALA E PIRULITO (FINI passou a ser reconhecida).
@@ -228,3 +228,9 @@ Pontos pra checar, em ordem:
 - BALA PASTILHA incluir: BALAS DURAS, BALINHA DURA, BALA DUR, RECHEADA DURA etc.; CARAMELO MASTIGAVEL excluir: DURA, DURAS, BALA DUR.
 - `DURA` saiu de BALA_TIPOS (bala dura nunca fica em CARAMELO).
 - REMOVER_PATCH de BALA PASTILHA: DURA/DURAS/DUR/BALA/BALAS/BALINHA(S) — o início "BALA PASTILHA" já diz isso (sem duplicar).
+
+### Marshmallow → CARAMELO MASTIGAVEL (libPatch `marshmallow-caramelo-2026-10`)
+- Todo marshmallow (todas as grafias, MAXMALLOW, NUAGE; bala ou não) vai para CARAMELO MASTIGAVEL (incluir + forte); DOCE OUTROS perde essas palavras (remover_incluir, excluir, remover_forte).
+- libPatches agora aceitam `forte` / `remover_forte`.
+- Descritivo: `MARSHMALLOW + MARCA + demais informações` (`RX_MARSH` em `balaTipo`, testado antes dos tipos de bala; se o arquivo mantiver DOCE OUTROS no modo só descritivo, o início também é MARSHMALLOW). BALA/BALAS/BALINHA saem do complemento.
+- Complemento: palavra retirada leva junto o conector logo depois (BALA DE COCO → "DECARLI RECHEADA", não "DECARLI DE RECHEADA"); só na descrição escolhida, a escolha da descrição não muda.

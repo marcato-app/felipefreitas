@@ -886,14 +886,18 @@ function complement(T, cat, ini, bn, grp, catCfg) {
   const Tx = T.filter(t => t && t !== 'SEM DESCRICAO').map(t => expand(t, grp)); if (!Tx.length) return '';
   const bw = new Set(bn ? bn.split(' ') : []); const bw4 = [...bw].filter(x => x.length >= 4);
   const drop = new Set([...(catCfg ? catCfg.remover || [] : []), ...ini.split(' '), ...bw, ...SKIPTIPO]);
-  const lists = Tx.slice(0, 6).map(t => {
+  // semConector: palavra retirada leva junto o conector que vinha logo depois (BALA DE COCO -> COCO, nunca "DECARLI DE RECHEADA")
+  const toksDe = (t, semConector) => {
     let tt = t; if (bn) { tt = tt.replace(new RegExp('(?<![A-Z0-9])' + escRx(bn) + '(?![A-Z0-9])', 'g'), ' ').replace(new RegExp('(?<![A-Z0-9])' + escRx(bn.replace(/ /g, '')) + '(?![A-Z0-9])', 'g'), ' '); }
+    if (semConector) tt = tt.replace(/(?<![A-Z0-9_])([A-Z]{2,})\s+(?:DE|DA|DO|DOS|DAS|E)(?=\s)/g, (m, w) => drop.has(w) && !CONNECT.has(w) ? w : m);
     return cleanTokens(tt, drop).filter(w => !bw4.some(x => w.includes(x)) && !(w.length >= 4 && bn && bn.replace(/ /g, '').includes(w)) && !['STA', 'STO', 'SR', 'SRA', 'DONA', 'SEU'].includes(w) && !/^(PCTX|PCTS|CXX|FDX|DPX|UNX)$/.test(w));
-  });
+  };
+  const lists = Tx.slice(0, 6).map(t => toksDe(t));
   const cnt = new Map(); for (const L of lists) for (const w of new Set(L)) cnt.set(w, (cnt.get(w) || 0) + 1);
   const n = lists.length;
   const score = L => [...new Set(L)].reduce((a, w) => a + ((cnt.get(w) >= 2) ? 1 : 0) + (FLAVORS.has(w) ? 1 : 0), 0) - 0.05 * L.length;
-  const base = lists.slice(0, 4).reduce((a, L) => score(L) > score(a) ? L : a, lists[0]);
+  const bi = lists.slice(0, 4).reduce((a, L, i) => score(L) > score(lists[a]) ? i : a, 0);
+  const base = toksDe(Tx[bi], true);
   const keep = [];
   for (const w of base) { const good = FLAVORS.has(w) || w.includes('_') || (n <= 2 && w.length >= 3) || cnt.get(w) >= 2 || CONNECT.has(w) || ATTR.has(w); if (!good) continue; if (w.length <= 2 && !CONNECT.has(w)) continue; keep.push(w); }
   for (const [w, c] of [...cnt].sort((a, b) => b[1] - a[1])) if (FLAVORS.has(w) && !keep.includes(w) && c >= Math.max(2, Math.floor(n / 2) + 1)) keep.push(w);
@@ -1079,10 +1083,13 @@ function vendidoPorUnidade(cc, T, C) {
 }
 // CARAMELO MASTIGAVEL: o descritivo começa com BALA + tipo da bala (pela descrição; sem tipo, BALA MASTIGAVEL)
 const BALA_TIPOS = [['GOMA', /^(GOMA|GOMAS|GOMINHA|GOMINHAS|GOMET|GOMETS|GUMMY|GUMMIES|JUJUBA|JUJUBAS)$/], ['GELATINA', /^(GELATINA|GELATINAS|GELAT|JELLY|JELLIES)$/],
-  ['LIQUIDA', /^(LIQUIDA|LIQ|ROLLON|SPRAY)$/], ['MARSHMALLOW', /^(MARSHMALLOW|MARSHMALLOWS|MARSHMELLOW)$/], ['ALCACUZ', /^(ALCACUZ|REGALIZ)$/],
+  ['LIQUIDA', /^(LIQUIDA|LIQ|ROLLON|SPRAY)$/], ['ALCACUZ', /^(ALCACUZ|REGALIZ)$/],
   ['RECHEADA', /^(RECHEADA|RECHEADAS|RECH)$/], ['MASTIGAVEL', /^(MAST|MASTIG|MASTIGAVEL|MASTIGAVEIS|CHEWY|TOFFEE|TOFFE|TOFFES)$/], ['COCO', /^COCO$/]];
+const RX_MARSH = /^(MARSH\w*|MARRSH\w*|MARSMALLOW\w*|MAXMALLOW|NUAGE)$/;
 function balaTipo(T) {
   const W = T.flatMap(t => t.split(' '));
+  // marshmallow (bala ou não) fica em CARAMELO MASTIGAVEL e o descritivo é MARSHMALLOW + MARCA + demais informações
+  { const w = W.find(x => RX_MARSH.test(x)); if (w) return { ini: 'MARSHMALLOW', w }; }
   // tipo escrito logo depois de BALA ("BALA DE GELATINA", "BALA GOMA") tem prioridade
   for (const t of T) { const m = /(?<![A-Z])BALAS? (?:DE )?([A-Z]+)/.exec(t); if (m) for (const [tipo, rx] of BALA_TIPOS) if (rx.test(m[1])) return { ini: 'BALA ' + tipo, w: m[1] }; }
   for (const [tipo, rx] of BALA_TIPOS) { const w = W.find(x => rx.test(x)); if (w) return { ini: 'BALA ' + tipo, w }; }
@@ -1225,12 +1232,12 @@ async function runCore(pfx = '') {
     // Farmácia sem início fixo no manual: começa pela marca; sem marca, pelo princípio ativo (ou pelo nome do produto)
     const farmaLivre = cc && cc.cesta === 'FARMACIA' && !cc.inicio;
     const paHit = farmaLivre && !bn && C.pa ? T.map(t => matchPA(t, C.pa)).find(Boolean) : null;
-    const bala = a.cat === 'CARAMELO MASTIGAVEL' ? (balaTipo(T) || (bn ? { ini: 'BALA MASTIGAVEL', w: '' } : null)) : a.cat === 'DOCE OUTROS' && T.some(t => /(?<![A-Z])(MARSH\w*|MAXMALLOW|NUAGE)(?![A-Z])/.test(t)) ? { ini: 'DOCE MARSHMALLOW', w: '' } : null;
+    const bala = a.cat === 'CARAMELO MASTIGAVEL' ? (balaTipo(T) || (bn ? { ini: 'BALA MASTIGAVEL', w: '' } : null)) : a.cat === 'DOCE OUTROS' ? (w => w ? { ini: 'MARSHMALLOW', w } : null)(T.flatMap(t => t.split(' ')).find(x => RX_MARSH.test(x))) : null;
     const ini = farmaLivre ? (bn ? '' : paHit ? paIni(paHit, T) : nounOutra(T, bn))
       : bala ? bala.ini : (cc && cc.dinamico) ? (tipoIni(T, a.per, a.cat, C) || nounOutra(T, bn)) : a.cat === OUT ? nounOutra(T, bn) : (cc.inicio || cc.nome);
     const keepT = T.filter((t, j) => a.per[j] === a.cat); const T2 = keepT.length ? keepT : T;
     const brandTxt = bn ? cleanD(marca) : '';
-    const comp = complement(T2, a.cat, bala ? ini + ' ' + bala.w + ' BALAS BALINHA BALINHAS' : ini, bn || '', groupOf(a.cat), cc);
+    const comp = complement(T2, a.cat, bala ? ini + ' ' + bala.w + ' BALA BALAS BALINHA BALINHAS' : ini, bn || '', groupOf(a.cat), cc);
     // o descritivo é sempre padronizado pelo app (já com a categoria, marca e conteúdo mantidos do arquivo)
     // descritivo com no máximo 60 caracteres: início, marca e conteúdo são obrigatórios e ficam inteiros;
     // só o complemento (entre a marca e o conteúdo) é abreviado e, se ainda passar, perde palavras do fim
@@ -1796,7 +1803,7 @@ function migrarCategorias() {
       const add = (k, l) => { c[k] = c[k] || []; for (const t of l || []) if (!c[k].includes(t)) { c[k].push(t); n++; } };
       const del = (k, l) => { const rm = new Set(l || []); if (!rm.size || !c[k]) return; const k0 = c[k].length; c[k] = c[k].filter(t => !rm.has(t)); n += k0 - c[k].length; };
       add('tipo', p.tipo); del('tipo', p.remover_tipo);
-      if (!cfg.migracoes.includes(pid)) { add('incluir', p.incluir); add('excluir', p.excluir); del('incluir', p.remover_incluir); del('excluir', p.remover_excluir); }
+      if (!cfg.migracoes.includes(pid)) { add('incluir', p.incluir); add('excluir', p.excluir); add('forte', p.forte); del('incluir', p.remover_incluir); del('excluir', p.remover_excluir); del('forte', p.remover_forte); }
     }
     if (!cfg.migracoes.includes(pid)) { cfg.migracoes.push(pid); n++; }
   }
