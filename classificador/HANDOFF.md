@@ -223,3 +223,8 @@ Pontos pra checar, em ordem:
 - `K.marcasNaLista` (MARCAS_NA_LISTA): nomes de marca que estão na lista "incluir" de categorias (PRINGLES, LAYS, RUFFLES, STAX, DORITOS, CHEETOS em BATATA/salgadinho; KIT KAT, TWIX, BIS, SONHO DE VALSA… nos chocolates; NESCAFE) ajudam a achar a categoria mas não viram vocabulário nem "tipo do produto": continuam sendo reconhecidos como marca. Ao pôr marca em "incluir", acrescentar também nesta lista.
 - Exceção: balas de gengibre, mel e própolis → BALA PASTILHA (BALA DE GENGIBRE, BALA GENG, BALA MEL, BALA PROPOLIS, MEL E GENGIBRE…); CARAMELO MASTIGAVEL exclui GENGIBRE/GENG/PROPOLIS/PROP (libPatch `bala-gengibre-2026-10`).
 - AZEITONA só para azeitona (libPatch `azeitona-2026-10`): sem "AZEIT" solto (pegava AZEITE) nem "AZ VERDE/AZ PRETA" (AZ = azul em calçado); exclui molho, creme, pimenta, alho, pesto, biscoito, grissini, focaccia, sardinha, atum, azeite/oliva, tempero, queijo, salame, calçados e SABOR.
+
+### Bala dura → BALA PASTILHA (libPatch `bala-dura-2026-10`)
+- BALA PASTILHA incluir: BALAS DURAS, BALINHA DURA, BALA DUR, RECHEADA DURA etc.; CARAMELO MASTIGAVEL excluir: DURA, DURAS, BALA DUR.
+- `DURA` saiu de BALA_TIPOS (bala dura nunca fica em CARAMELO).
+- REMOVER_PATCH de BALA PASTILHA: DURA/DURAS/DUR/BALA/BALAS/BALINHA(S) — o início "BALA PASTILHA" já diz isso (sem duplicar).

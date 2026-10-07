@@ -1080,7 +1080,7 @@ function vendidoPorUnidade(cc, T, C) {
 // CARAMELO MASTIGAVEL: o descritivo começa com BALA + tipo da bala (pela descrição; sem tipo, BALA MASTIGAVEL)
 const BALA_TIPOS = [['GOMA', /^(GOMA|GOMAS|GOMINHA|GOMINHAS|GOMET|GOMETS|GUMMY|GUMMIES|JUJUBA|JUJUBAS)$/], ['GELATINA', /^(GELATINA|GELATINAS|GELAT|JELLY|JELLIES)$/],
   ['LIQUIDA', /^(LIQUIDA|LIQ|ROLLON|SPRAY)$/], ['MARSHMALLOW', /^(MARSHMALLOW|MARSHMALLOWS|MARSHMELLOW)$/], ['ALCACUZ', /^(ALCACUZ|REGALIZ)$/],
-  ['RECHEADA', /^(RECHEADA|RECHEADAS|RECH)$/], ['DURA', /^(DURA|DURAS)$/], ['MASTIGAVEL', /^(MAST|MASTIG|MASTIGAVEL|MASTIGAVEIS|CHEWY|TOFFEE|TOFFE|TOFFES)$/], ['COCO', /^COCO$/]];
+  ['RECHEADA', /^(RECHEADA|RECHEADAS|RECH)$/], ['MASTIGAVEL', /^(MAST|MASTIG|MASTIGAVEL|MASTIGAVEIS|CHEWY|TOFFEE|TOFFE|TOFFES)$/], ['COCO', /^COCO$/]];
 function balaTipo(T) {
   const W = T.flatMap(t => t.split(' '));
   // tipo escrito logo depois de BALA ("BALA DE GELATINA", "BALA GOMA") tem prioridade
@@ -1776,7 +1776,7 @@ if (K.libSeed && K.libSeed.categorias) mergeInto(cfg, normCfg({ categorias: K.li
 function migrarCategorias() {
   let n = 0;
   // palavras que não entram no complemento da categoria: MICROONDAS em PIPOCA MICRO (MICRO já diz)
-  const REMOVER_PATCH = { 'PIPOCA MICRO-ONDAS': ['MICROONDAS', 'MICROONDA', 'MICROWAVE', 'MICROOND', 'ONDAS', 'ONDA'] };
+  const REMOVER_PATCH = { 'BALA PASTILHA': ['DURA', 'DURAS', 'DUR', 'BALA', 'BALAS', 'BALINHA', 'BALINHAS'], 'PIPOCA MICRO-ONDAS': ['MICROONDAS', 'MICROONDA', 'MICROWAVE', 'MICROOND', 'ONDAS', 'ONDA'] };
   for (const c of cfg.categorias || []) { const r = REMOVER_PATCH[c.nome]; if (r) for (const w of r) if (!(c.remover || []).includes(w)) { c.remover = [...(c.remover || []), w]; n++; } }
   // início fixo para categorias que estavam sem início (K.inicioPatch); quem já tem início definido fica como está
   for (const c of cfg.categorias || []) { const v = (K.inicioPatch || {})[c.nome]; if (v && !(c.inicio || '').trim()) { c.inicio = v; c.dinamico = false; n++; } }
