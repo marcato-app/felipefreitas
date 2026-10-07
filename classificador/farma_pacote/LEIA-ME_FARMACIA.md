@@ -632,3 +632,12 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   - DIMA: OUTRA CATEGORIA 82, EST MER 6 1.534, fabricante 1.900;
   - Hoja: marca 1.415, fabricante 1.434;
   - vitaminas: EST MER 7 7.516, marca 7.200, fabricante 7.176.
+
+### 3.6b Número sozinho nunca é marca de Farmácia
+- Exemplo: 7897947709584, RINGER da Fresenius (CMED "(8,6+0,33+0,30) MG/ML").
+  - O "8.6" da dose batia na marca de cerveja BAVARIA 8.6 da DIMA e virava a marca "8.6 FRI".
+  - farmaNaoMarca agora recusa marca sem duas letras seguidas. O item sai RINGER FRI.
+- Base de vitaminas, só 2 itens mudaram:
+  - K2 CLI → VITAL Z MR8;
+  - Q10 KAN → COEZIMA RTK.
+- DIMA e Hoja sem mudança.

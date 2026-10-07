@@ -1,5 +1,5 @@
 {
- "versao": "2026-10-06",
+ "versao": "2026-10-07",
  "descricao": "Agente de Farmácia do Classificador de Backlog: algoritmo, regras e listas. Os dicionários estão em farma_dicionarios.json.",
  "entrada": {
   "codigoBarras": "string",

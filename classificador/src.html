@@ -1486,6 +1486,7 @@ PALAVRA_DESCRITIVA.forEach(w => FARMA_NAO_MARCA.add(w));
 function palavrasPA(T, C) { const out = new Set(); for (const P of [C.pa, C.pb]) { if (!P) continue; for (const t of T) { let m; P.rx.lastIndex = 0; while ((m = P.rx.exec(t))) m[0].split(' ').forEach(w => out.add(w)); } } return out; }
 function farmaNaoMarca(m, C, paW) {
   const n = N(m); if (!n) return true;
+  if (!/[A-Z]{2}/.test(n)) return true; // número/dose sozinho não é marca de Farmácia (8.6 do RINGER 8,6MG/ML batia na cerveja BAVARIA 8.6 da DIMA)
   if (paW && n.split(' ').every(w => paW.has(w) || CONNECT.has(w))) return true;
   const L = labIndex(); const P = C.pa;
   if (L.chave.has(n) || L.codigo.has(n) || LAB_ALIAS[n] || FARMA_NAO_MARCA.has(n)) return true; // laboratório (EMS, CIM, MEDLEY...) não é marca
