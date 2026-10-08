@@ -280,3 +280,8 @@ Pontos pra checar, em ordem:
 - `pipocaCat` olha TODAS as descrições do item (SINHA CHOCOLATE 100G + PIPOCA MICRO SINHA…): micro-ondas em qualquer uma vence; aceita PIP/PIPOC e MIC, M ONDAS, MO.
 - POP / CORN de "POP CORN" nunca é marca. REMOVER PIPOCA MICRO-ONDAS ganhou MIC, PIP, PIPOC, POPCORN, MO.
 - `testes/regras_ensinadas.csv` (111 exemplos que o usuário ensinou, com categoria e marca esperadas; marca * = não confere) e `testes/testar_regras.js`. **Rodar antes de publicar**: `NODE_PATH=/opt/node22/lib/node_modules node testes/testar_regras.js classificador.html <xlsx.full.min.js>` — deve dar 111 de 111. Todo exemplo novo que o usuário mandar entra nesse arquivo.
+
+### Vinagre de álcool não é ALCOOL LIMPEZA (libPatch `vinagre-alcool-2026-10`)
+- ALCOOL LIMPEZA, ALCOOL ANTISSEPTICO e MISTURA ALCOOLICA OUTROS excluem VINAGRE/VINAG.
+- VINAGRE ALCOOL: incluir VINAGRE (padrão sem tipo), VINAGRE ALC, VINAGRE BCO, VINAG…; remover ALC/VINAG no descritivo. Balsâmico, fruta, cereal, vinho, mel seguem nas suas categorias.
+- 14 exemplos adicionados em `testes/regras_ensinadas.csv` (125 no total).
