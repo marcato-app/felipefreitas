@@ -1401,6 +1401,7 @@ const DESC_MAX = 60;
 const FAB_LIXO = new Set([...LAB_LIXO, ...'LABORATORIOS FARMACETICA FARMACEUTICAS IMPORTACAO EXPORTACAO IMP EXP MEDICAMENTOS DISTRIBUIDORA CIA GRUPO'.split(' ')]);
 const FAB_ALIAS = { GLAXOSMITHKLINE: 'GSK' };
 let FAB_CANON = null;
+const FAB_ORIGEM = new Map(); // nome curto -> razão social de onde veio (CMED)
 function canonFab(f) {
   if (!valido(f) || f === 'OUTRO FABRICANTE') return f;
   const C = K.farmaFabs || {};
@@ -1416,7 +1417,8 @@ function canonFab(f) {
   const um = (x, y) => { if (Math.abs(x.length - y.length) !== 1) return false; let i = 0; while (i < x.length && x[i] === y[i]) i++; return x.slice(i) === y.slice(i + 1) || x.slice(i + 1) === y.slice(i); };
   const c = [...new Set(Object.keys(C).filter(x => x.length >= 6 && um(k, x)).map(x => C[x]))];
   if (c.length === 1) return c[0];
-  const cu = fabCurto(f); return C[N(cu)] || cu; // nome curto que já existe nas bases (PRODUTOS ROCHE ... -> ROCHE): a grafia cadastrada
+  { const m = fabMesmoNome(f); if (m) return m; } // mesmo nome escrito diferente no Hoja/DIMA (ZANOTTI = GRUPO ZANOTTI): usa o existente
+  const cu = fabCurto(f); const r = C[N(cu)] || fabMesmoNome(cu) || cu; if (N(r) !== N(f)) FAB_ORIGEM.set(N(r), f); return r; // nome curto que já existe nas bases (PRODUTOS ROCHE ... -> ROCHE): a grafia cadastrada
 }
 // fabricante novo (fora das bases) com no máximo 2 a 3 palavras: a razão social da CMED vira o nome (VOLPHARMA DISTRIBUIDORA DE
 // PRODUTOS HOSPITALARES -> VOLPHARMA DISTRIBUIDORA; FUNDACAO BAIANA ... BAHIAFARMA -> BAHIAFARMA; FUNDACAO ... FURP -> FURP)
@@ -2194,7 +2196,36 @@ function baseCadastro() {
   if (data.dima) { for (const [k, b] of data.dima.map) { m.add(k); m.add(N(semSigla(k))); if (b.fabAll) for (const ff of b.fabAll.keys()) f.add(N(ff)); } }
   for (const x of (K.farmaVit || {}).marcas || []) { m.add(N(x[0])); m.add(N(x[1])); if (x[2]) f.add(N(x[2])); }
   for (const v of Object.values((K.farmaSiglas || {}).codigos || {})) f.add(N(v));
+  for (const v of Object.values(K.farmaFabs || {})) f.add(N(v));
+  for (const v of K.hojaFabs || []) f.add(N(v)); // Hoja de todas as cestas + fabricantes cadastrados pelo cliente
   BASE_CAD = { m, f }; return BASE_CAD;
+}
+// fabricante novo: nomes parecidos que já existem (Hoja de todas as cestas, DIMA, vitaminas, cadastrados), para não duplicar
+// mesmo nome sem LTDA/LAB/espaço, um contém o outro, mesma 1ª palavra, ou 1-2 letras de diferença
+let FAB_IDX = null;
+function fabParecidos(nome) {
+  const core = x => N(x).split(' ').filter(w => !FAB_LIXO.has(w) && !FAB_ENCHE.has(w) && !FAB_GENERICO.has(w)).join(' ');
+  if (!FAB_IDX) { const todos = new Set([...(K.hojaFabs || []), ...Object.values(K.farmaFabs || {})]); baseCadastro();
+    if (data.dima) for (const b of data.dima.map.values()) if (b.fabAll) for (const ff of b.fabAll.keys()) if (valido(ff)) todos.add(ff);
+    FAB_IDX = { L: [], w1: new Map() };
+    for (const t of todos) { if (!valido(t) || t === 'OUTRO FABRICANTE') continue; const c = core(t); if (!c) continue; const e = [t, c, c.replace(/ /g, '')]; FAB_IDX.L.push(e);
+      const w = c.split(' ')[0]; if (w.length >= 4) { if (!FAB_IDX.w1.has(w)) FAB_IDX.w1.set(w, []); FAB_IDX.w1.get(w).push(e); } } }
+  const c = core(nome), cs = c.replace(/ /g, ''); if (!c) return [];
+  const ed = (a, b) => { if (Math.abs(a.length - b.length) > 2) return 9; const d = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i++) { let p = d[0]; d[0] = i; for (let j = 1; j <= b.length; j++) { const t = d[j]; d[j] = Math.min(d[j] + 1, d[j - 1] + 1, p + (a[i - 1] === b[j - 1] ? 0 : 1)); p = t; } } return d[b.length]; };
+  const out = [], vis = new Set(), add = (t, tipo) => { if (!vis.has(t) && N(t) !== N(nome)) { vis.add(t); out.push(t + ' (' + tipo + ')'); } };
+  const w0 = c.split(' ')[0];
+  for (const [t, tc, ts] of FAB_IDX.L) {
+    if (ts === cs) add(t, 'mesmo nome');
+    else if (cs.length >= 4 && (ts.startsWith(cs) || cs.startsWith(ts)) && Math.min(ts.length, cs.length) >= 4) add(t, 'um contém o outro');
+    else if (cs.length >= 6 && ed(cs, ts) <= (cs.length >= 9 ? 2 : 1)) add(t, 'escrita parecida');
+    if (out.length >= 8) break; }
+  if (w0.length >= 5) for (const [t] of FAB_IDX.w1.get(w0) || []) { if (out.length >= 8) break; add(t, 'mesma 1ª palavra'); }
+  return out.slice(0, 6);
+}
+function fabMesmoNome(nome) { // um único fabricante existente com o mesmo nome sem LTDA/GRUPO/LAB/espaços
+  fabParecidos('X'); const core = N(nome).split(' ').filter(w => !FAB_LIXO.has(w) && !FAB_ENCHE.has(w) && !FAB_GENERICO.has(w)).join(''); if (core.length < 4) return null;
+  const hit = [...new Set(FAB_IDX.L.filter(e => e[2] === core).map(e => e[0]))]; return hit.length === 1 ? hit[0] : null;
 }
 function statusCadastro(marca, fab, farma) {
   const B = baseCadastro(), st = [];
@@ -2224,6 +2255,14 @@ function buildWorkbook() {
   const ws2 = XLSX.utils.aoa_to_sheet(rv); ws2['!cols'] = [{ wch: 16 }, { wch: 22 }, { wch: 26 }, { wch: 24 }, { wch: 18 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 50 }, { wch: 55 }, { wch: 80 }, { wch: 10 }];
   ws2['!autofilter'] = { ref: 'A1:O' + rv.length };
   XLSX.utils.book_append_sheet(wb, ws2, 'REVISAO');
+  { // fabricantes que o app mandou criar: confira os parecidos antes de cadastrar (não duplicar)
+    const nv = new Map(); for (const r of R) if (/CRIAR (MARCA E )?FABRICANTE/.test(r.status || '')) { const k = r.fab; if (!nv.has(k)) nv.set(k, []); nv.get(k).push(r); }
+    const fn = [['FABRICANTE NOVO', 'QTD ITENS', 'NOME DE ORIGEM (CMED/DESCRICAO)', 'JA EXISTE PARECIDO? (conferir antes de criar)', 'EXEMPLO DE ITEM']];
+    for (const [f, rs] of [...nv].sort((a, b) => b[1].length - a[1].length)) { const p = fabParecidos(f);
+      fn.push([f, rs.length, FAB_ORIGEM.get(N(f)) || '', p.length ? p.join(' | ') : 'NENHUM - pode criar', rs[0].it.D[0] || '']); }
+    const ws4 = XLSX.utils.aoa_to_sheet(fn); ws4['!cols'] = [{ wch: 34 }, { wch: 10 }, { wch: 45 }, { wch: 90 }, { wch: 60 }]; ws4['!autofilter'] = { ref: 'A1:E' + fn.length };
+    XLSX.utils.book_append_sheet(wb, ws4, 'FABRICANTES NOVOS');
+  }
   const cnt = new Map(); for (const r of R) { const k = nomeOf(r.cat); if (!cnt.has(k)) cnt.set(k, [0, 0, 0]); const x = cnt.get(k); x[0]++; if (r.marca === 'OUTRA MARCA') x[1]++; if (r.qt === null) x[2]++; }
   const sm = [['CATEGORIA', 'QTD ITENS', 'SEM MARCA', 'SEM CONTENIDO']]; for (const [k, v] of [...cnt].sort((a, b) => b[1][0] - a[1][0])) sm.push([k, ...v]);
   const ciCnt = new Map(); for (const r of R) { const f = ciFlag(r.it.barcode); ciCnt.set(f, (ciCnt.get(f) || 0) + 1); }

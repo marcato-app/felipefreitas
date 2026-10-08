@@ -694,3 +694,15 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   7898564 dava ABL para a farinha de maca da BEM ESTAR.
 - Cabeçalho de planilha (MARCA, FABRICANTE) nunca é marca nem fabricante (RX_INVALIDO).
 - Base de vitaminas: fabricante certo foi de 7.177 para 7.189. DIMA e Hoja sem mudança.
+
+### 3.6f Trava contra fabricante duplicado
+- `K.hojaFabs` reúne os fabricantes que já existem: o Hoja de todas as cestas (38 mil) mais os cadastrados.
+  - O STATUS não marca CRIAR FABRICANTE para nome que já existe ali.
+- Mesmo nome escrito diferente (sem LTDA/GRUPO/LAB/espaços), quando há um único existente: o app usa o existente sozinho
+  (fabMesmoNome). Exemplos: ZANOTTI → GRUPO ZANOTTI; SOMARLIFE → SOMAR LIFE.
+- Arquivo baixado, aba nova FABRICANTES NOVOS:
+  - uma linha por fabricante que o app mandou criar;
+  - colunas: quantidade de itens, nome de origem (razão social da CMED), parecidos que já existem (mesmo nome, um
+    contém o outro, escrita parecida, mesma 1ª palavra) e exemplo de item;
+  - conferir essa aba antes de cadastrar.
+- Base de vitaminas: 164 fabricantes novos, 71 com parecido para conferir.

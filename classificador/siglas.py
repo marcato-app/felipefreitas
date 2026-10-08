@@ -170,6 +170,13 @@ def main():
                 k = chave_fab(f)
                 if k and k not in canon: canon[k] = f
                 canon.setdefault(N(f), canon.get(k, f))
+    # lista completa de fabricantes que já existem (Hoja de todas as cestas + cadastrados): o app confere todo fabricante
+    # novo contra ela e mostra os parecidos (aba FABRICANTES NOVOS), para não duplicar
+    todos_f = set()
+    for arq in ('hoja_fabricantes_todos.txt', 'fabricantes_cadastrados.txt'):
+        pa = here / 'dados' / arq
+        if pa.exists(): todos_f |= {l.strip() for l in open(pa, encoding='utf-8') if l.strip() and not l.startswith('#')}
+    c['hojaFabs'] = sorted(todos_f)
     c['farmaFabs'] = canon
     c['farmaSiglas'] = {'codigos': codigos, 'fab': fab, 'marcas': marcas}
     (here / 'consts.json').write_text(json.dumps(c, ensure_ascii=False), encoding='utf-8')
