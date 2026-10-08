@@ -1977,6 +1977,11 @@ async function runAll(opts = {}) {
     }
     if (cc && cc.cesta === 'FARMACIA' && (q.base === 'G' || q.base === 'ML') && Tq.some(t => /\d\s*(G|ML)\s+(COMP|COMPR|COMPRIMIDOS?|CPR|CP|CAP|CAPS|CAPSULAS?|DRG|DRAGEAS?)(?![A-Z])/.test(t))) {
       const u = countQty(Tq); if (u) q = u; } // é a dose por comprimido, não o conteúdo
+    // DUZOR 1000MG 1G 30 COMPRIMIDOS / 80X1G: o "1G" é a dose (1000MG = 1G), não o peso; com comprimido/cápsula contável vale a contagem
+    if (cc && cc.cesta === 'FARMACIA' && q.base === 'G' && q.uv <= 5 && Tq.some(t => RX_FORMA_CONTA.test(t))) {
+      const mg = new Set(); for (const t of T) for (const m of t.matchAll(/(?<![0-9.])(\d+(?:\.\d+)?)\s*MG(?![A-Z])/g)) mg.add(+m[1] / 1000);
+      const u = countQty(Tq.map(t => t.replace(/(?<![0-9.])\d+(?:\.\d+)?\s*X\s*(?=\d+(?:\.\d+)?\s*G(?![A-Z]))/g, '')));
+      if (u && (mg.has(q.uv) || q.uv <= 2)) q = u; }
     if (q.tot === null && cc && cc.cesta === 'FARMACIA') { const u = countQty(Tq) || contagemSolta(Tq, it); if (u) { q = u; if (u.solta) alerts0.push(`Quantidade pelo número ${u.tot} da descrição (sem unidade escrita)`); } }
     if (q.tot === null) { const u = countQty(Tq); if (u) q = u; else { const d = defaultQty((cc && cc.qtdPadrao) || cfg.qtdPadrao); if (d) q = d; } }
     // sempre sai uma unidade de medida: vendido a quilo (KG/GRANEL sem número) -> 1KG; nada -> 1UN; número sem unidade -> UN
@@ -2006,7 +2011,7 @@ async function runAll(opts = {}) {
       if (bn && N(marca) === N(bn) && palavrasPA([N(marca)], C).size) { const w = comp.split(' ').filter(x => !SAIS_DCB.has(x)); while (w.length && CONNECT.has(w[0])) w.shift(); while (w.length && CONNECT.has(w[w.length - 1])) w.pop(); comp = w.join(' '); }
       if (fu) qTxt = fmtn(q.tot) + fu[1];
       const D2 = it.D.filter(d => T2.includes(N(d)));
-      dose = dosagemRaw(D2.length ? D2 : it.D) || dosagem(T2);
+      dose = dosagemRaw(D2.length ? D2 : it.D) || dosagem(T2) || dosagemRaw(it.D); // dose da CMED mesmo quando ela não é a descrição escolhida (DUZOR ... X 80 (EMB MULT))
     }
     // o descritivo é sempre padronizado pelo app (já com a categoria, marca e conteúdo mantidos do arquivo)
     // no máximo 60 caracteres com espaços: sai palavra do complemento (do fim) antes de mexer em marca, dose, quantidade e sigla

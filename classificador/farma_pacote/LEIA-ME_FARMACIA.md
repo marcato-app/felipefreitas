@@ -641,3 +641,15 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   - K2 CLI → VITAL Z MR8;
   - Q10 KAN → COEZIMA RTK.
 - DIMA e Hoja sem mudança.
+
+### 3.6c "1G" é dose, não conteúdo (DUZOR 1000MG 1G 30 COMPRIMIDOS)
+- Caso: DUZOR 1000MG 1G 30 COMPRIMIDOS. O conteúdo saía 1G (ou 80X1G) e o descritivo ficava sem CPRS.
+- Regra nova, só em Farmácia, quando o texto tem forma contável (comprimido, cápsula, drágea, sachê...):
+  - peso em G de até 2, ou igual a uma dose em MG (1000MG = 1G), é dose;
+  - nesses casos o conteúdo é a contagem: 30UN → DUZOR 1000MG 30CPRS (PRD).
+- A dose vem de qualquer descrição do código, inclusive da CMED, mesmo quando ela não é a escolhida
+  (ex.: DUZOR ... X 80 (EMB MULT)).
+- Base de vitaminas:
+  - conteúdo certo foi de 10.845 para 11.046 (90% → 92%);
+  - exemplos: CEBION 1G 30 comprimidos 1G → 30CPRS; TARGIFOR C → 32CPRS.
+- DIMA e Hoja: sem mudança.

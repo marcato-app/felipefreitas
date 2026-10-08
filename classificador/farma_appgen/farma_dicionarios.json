@@ -1,5 +1,5 @@
 {
- "versao": "2026-10-07",
+ "versao": "2026-10-08",
  "formatos": {
   "fabricantes": "objeto: chave/variação do nome → nome canônico do fabricante",
   "siglas.fab": "fabricante → sigla de 3 caracteres",
