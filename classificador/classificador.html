@@ -643,7 +643,7 @@ function coerentes(T, main) {
 const FRUTAS = new Set(['MELAO', 'PERA', 'OUTRAS FRUTAS', 'MACA', 'MAMAO', 'MORANGO', 'ABACAXI', 'MELANCIA', 'MANGA', 'MARACUJA', 'UVA', 'ACEROLA', 'AMORA', 'BLUEBERRY', 'CAQUI', 'CARAMBOLA', 'LARANJA', 'FIGO', 'FRAMBOESA', 'GOIABA', 'JABUTICABA', 'LICHIA', 'SERIGUELA', 'LIMAO', 'MEXERICA/TANGERINA', 'AMEIXA', 'CEREJA', 'PESSEGO/NECTARINA', 'KIWI']);
 const DOCES_CAT = new Set(['CARAMELO MASTIGAVEL', 'BALA PASTILHA', 'PIRULITO', 'DOCE OUTROS', 'GOMA DE MASCAR']);
 const CONFUNDE_DOCE = new Set(['DOCINHO', 'GELATINA', 'AROMA E ESSENCIA', 'CARNES PREP CONGELADAS', 'CAFE SOLUVEL', 'LEITE COMUM', 'CHOCOLATE BOMBOM', 'CAPPUCCINO', 'GRELHA E ESPETO']);
-const RX_PIPOCA = /(?<![A-Z])(PIPOCA|PIPOCAS|POPCORN|POP CORN)(?![A-Z])/, RX_MICRO = /(?<![A-Z])MICR(O|OONDAS?|O ONDAS?|OOND|OWAVE)?(?![A-Z])/;
+const RX_PIPOCA = /(?<![A-Z])(PIPOCA|PIPOCAS|PIPOC|PIP|POPCORN|POP CORN)(?![A-Z])/, RX_MICRO = /(?<![A-Z])(MICR(O|OONDAS?|O ONDAS?|OOND|OWAVE)?|MIC|M ONDAS?|MO)(?![A-Z])/;
 const RX_PIPOCA_NAO = /(?<![A-Z])(PIPOQUEIRA|PIPOQUEIRO|PANELA|MAQUINA|BALDE|SACO|SACOS|SAQUINHO|SAQUINHOS|CARTUCHO|CARTUCHOS|CAIXA|CAIXINHA|PAPEL|EMBALAGEM|EMBALAGENS|EMB|FORNO|TIGELA|POTE PLASTICO|CARRINHO|BRINQUEDO|CHAVEIRO|CAMISETA|PELUCIA|FANTASIA|ESTAMPA|ADESIVO|FORMA)(?![A-Z])/;
 function pipocaCat(t, r, C, cestaOf) {
   if (RX_PIPOCA_NAO.test(t)) return null;
@@ -667,7 +667,9 @@ function aggregate(T0, sug, C, main) {
   // pipoca: o sabor (CALABRESA, PICANHA, QUEIJO, CHOCOLATE, LEITE CONDENSADO, BACON, SAL…) nunca é a categoria.
   // PIPOCA / POPCORN / POP CORN (ou MILHO) + MICRO (MICROONDAS, MICRO-ONDAS, MICROOND…) -> PIPOCA MICRO-ONDAS;
   // PIPOCA / POPCORN sem MICRO que caiu em outro alimento -> categoria de pipoca votada ou PIPOCA PRONTA
-  if (T.length && pipocaCat(T[0], r, C, cestaOf)) return Object.assign(r, { cat: pipocaCat(T[0], r, C, cestaOf), flag: 'PIPOCA_VENCE' });
+  // olha todas as descrições do item ("SINHA CHOCOLATE 100G" + "PIPOCA MICRO SINHA CHOCOLATE"): micro-ondas em qualquer uma vence
+  { const pcs = T.map(t => pipocaCat(t, r, C, cestaOf)).filter(Boolean); const pc = pcs.includes('PIPOCA MICRO-ONDAS') ? 'PIPOCA MICRO-ONDAS' : pcs[0];
+    if (pc) return Object.assign(r, { cat: pc, flag: 'PIPOCA_VENCE', per: r.per.map((c, j) => pipocaCat(T[j], r, C, cestaOf) ? pc : c) }); }
   // papinha/sopinha infantil em alguma descrição vence o ingrediente/sabor (MORANGA, FEIJAO, MANDIOCA, MANGA…)
   if (r.cat !== 'PAPINHA' && (r.per || []).includes('PAPINHA')) return Object.assign(r, { cat: 'PAPINHA', flag: 'PAPINHA_VENCE' });
   // bala/pirulito/marshmallow em alguma descrição vence sabor (fruta), docinho, gelatina, aroma, café, leite, carne ou bombom
@@ -771,6 +773,8 @@ function findBrand(T, seg, sug, black, DD, vocab) {
   });
   const cands = new Map();
   for (const [g, c] of cov) { if (validCand(g, black)) cands.set(g, c); else if (validCand(g, black, true) && (g === sugn || relSales(g, seg, DD) > 5e5 || (seg && seg.length && !seg.livre && relSales(g, seg, DD) > 0))) cands.set(g, c); }
+  // POP / CORN de POP CORN (pipoca) não é marca
+  if (T.some(t => /(?<![A-Z])POP CORN(?![A-Z])/.test(t))) { cands.delete('POP'); cands.delete('CORN'); cands.delete('POP CORN'); }
   // pedaço do nome de um personagem (HELLO de HELLO KITTY, MONICA de TURMA DA MONICA) não é marca
   const persTxt = [...cov.keys()].filter(g => PERSONAGENS.has(g) && g.includes(' '));
   for (const g of [...cands.keys()]) if (!PERSONAGENS.has(g) && g.split(' ').every(x => persTxt.some(p => p.split(' ').includes(x)))) cands.delete(g);
@@ -1837,7 +1841,7 @@ function migrarCategorias() {
   // início cadastrado errado na biblioteca (CREME DE AMENDOIM vinha como CHOCOLATE COBERTURA): corrige sempre
   const INICIO_FIX = { 'CREME DE AMENDOIM': ['CHOCOLATE COBERTURA', 'CREME DE AMENDOIM'] };
   for (const c of cfg.categorias || []) { const f = INICIO_FIX[c.nome]; if (f && N(c.inicio || '') === f[0]) { c.inicio = f[1]; c.dinamico = false; n++; } }
-  const REMOVER_PATCH = { 'CEREAL EM BARRA PROTEICO': ['PROTEINA', 'PROTEINAS', 'PROTEICA', 'PROTEICAS', 'PROTEICO', 'PROTEIN', 'BAR', 'BARS', 'BARRA', 'BARRAS', 'BARRINHA', 'BARRINHAS', 'HIPERPROTEICA'], 'CREME DE AMENDOIM': ['CREME', 'PASTA', 'MANTEIGA', 'AMENDOIM', 'CR'], 'BALA PASTILHA': ['DURA', 'DURAS', 'DUR', 'BALA', 'BALAS', 'BALINHA', 'BALINHAS'], 'PIPOCA MICRO-ONDAS': ['MICROONDAS', 'MICROONDA', 'MICROWAVE', 'MICROOND', 'ONDAS', 'ONDA'] };
+  const REMOVER_PATCH = { 'CEREAL EM BARRA PROTEICO': ['PROTEINA', 'PROTEINAS', 'PROTEICA', 'PROTEICAS', 'PROTEICO', 'PROTEIN', 'BAR', 'BARS', 'BARRA', 'BARRAS', 'BARRINHA', 'BARRINHAS', 'HIPERPROTEICA'], 'CREME DE AMENDOIM': ['CREME', 'PASTA', 'MANTEIGA', 'AMENDOIM', 'CR'], 'BALA PASTILHA': ['DURA', 'DURAS', 'DUR', 'BALA', 'BALAS', 'BALINHA', 'BALINHAS'], 'PIPOCA MICRO-ONDAS': ['MICROONDAS', 'MICROONDA', 'MICROWAVE', 'MICROOND', 'ONDAS', 'ONDA', 'MIC', 'PIP', 'PIPOC', 'POPCORN', 'MO'] };
   for (const c of cfg.categorias || []) { const r = REMOVER_PATCH[c.nome]; if (r) for (const w of r) if (!(c.remover || []).includes(w)) { c.remover = [...(c.remover || []), w]; n++; } }
   // início fixo para categorias que estavam sem início (K.inicioPatch); quem já tem início definido fica como está
   for (const c of cfg.categorias || []) { const v = (K.inicioPatch || {})[c.nome]; if (v && !(c.inicio || '').trim()) { c.inicio = v; c.dinamico = false; n++; } }

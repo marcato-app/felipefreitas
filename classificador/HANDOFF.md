@@ -275,3 +275,8 @@ Pontos pra checar, em ordem:
 - `pipocaCat`: PIPOCA / POPCORN / POP CORN em qualquer posição; + MICRO… → PIPOCA MICRO-ONDAS; MILHO + MICRO (sem VERDE/LATA/CONSERVA/CANJICA…) → PIPOCA MICRO-ONDAS ("DOCE MILHO MICRO"); sem MICRO e caiu em outro alimento → PIPOCA PRONTA; sem categoria só com peso (G). Bloqueia PIPOQUEIRA, CARTUCHO, SAQUINHO, CAIXA, EMBALAGEM, BRINQUEDO…
 - `REGRA_FORTE` (PIPOCA_VENCE, EMBALAGEM_OVO, PAPINHA_VENCE, DOCE_VENCE) em `categoriaArquivo`: no modo priorizar arquivo a categoria do app vence a do arquivo (QUEIJO OUTROS / BACON em pipoca); no modo só descritivo continua a do arquivo com POSSÍVEL CATEGORIA ERRADA + CATEGORIA SUGERIDA APP.
 - (atualização) Também no modo só descritivo a `REGRA_FORTE` troca a categoria do arquivo (`regraForte`): exportação usa a categoria do app, EST.MER. dela, e STATUS = "CATEGORIA TROCADA PELA REGRA (ARQUIVO: <categoria do arquivo>)". Pedido do usuário depois de KANTY/TORDILHO PIPOCA MICRO QUEIJO saírem em QUEIJO OUTROS.
+
+### Pipoca (3ª rodada) + base de regressão dos exemplos ensinados
+- `pipocaCat` olha TODAS as descrições do item (SINHA CHOCOLATE 100G + PIPOCA MICRO SINHA…): micro-ondas em qualquer uma vence; aceita PIP/PIPOC e MIC, M ONDAS, MO.
+- POP / CORN de "POP CORN" nunca é marca. REMOVER PIPOCA MICRO-ONDAS ganhou MIC, PIP, PIPOC, POPCORN, MO.
+- `testes/regras_ensinadas.csv` (111 exemplos que o usuário ensinou, com categoria e marca esperadas; marca * = não confere) e `testes/testar_regras.js`. **Rodar antes de publicar**: `NODE_PATH=/opt/node22/lib/node_modules node testes/testar_regras.js classificador.html <xlsx.full.min.js>` — deve dar 111 de 111. Todo exemplo novo que o usuário mandar entra nesse arquivo.
