@@ -1094,6 +1094,9 @@ function vendidoPorUnidade(cc, T, C) {
   return !!hp && OBJETO_TIPO.has(hp.w);
 }
 // CARAMELO MASTIGAVEL: o descritivo começa com BALA + tipo da bala (pela descrição; sem tipo, BALA MASTIGAVEL)
+// categorias de acessório PET com início pelo tipo do produto: sempre com PET no descritivo
+const PET_ACESSORIO = new Set(['COLEIRA E GUIA PET', 'CASA E CAMA PET', 'ACESSORIO PET OUTROS', 'ACESSORIO HIGIENE PET', 'ACESSORIO ALIMENTO PET', 'HIGIENE E LIMPEZA PET OUTROS']);
+const PET_TIPO_EXT = { PEIT: 'PEITORAL', PEITORAIS: 'PEITORAL', COL: 'COLEIRA', COLEIRAS: 'COLEIRA', COMED: 'COMEDOURO', BEBED: 'BEBEDOURO', CAM: 'CAMA', TRANSP: 'TRANSPORTE' };
 const BALA_TIPOS = [['GOMA', /^(GOMA|GOMAS|GOMINHA|GOMINHAS|GOMET|GOMETS|GUMMY|GUMMIES|JUJUBA|JUJUBAS)$/], ['GELATINA', /^(GELATINA|GELATINAS|GELAT|JELLY|JELLIES)$/],
   ['LIQUIDA', /^(LIQUIDA|LIQ|ROLLON|SPRAY)$/], ['ALCACUZ', /^(ALCACUZ|REGALIZ)$/],
   ['RECHEADA', /^(RECHEADA|RECHEADAS|RECH)$/], ['MASTIGAVEL', /^(MAST|MASTIG|MASTIGAVEL|MASTIGAVEIS|CHEWY|TOFFEE|TOFFE|TOFFES)$/], ['COCO', /^COCO$/]];
@@ -1249,9 +1252,15 @@ async function runCore(pfx = '') {
     const farmaLivre = cc && cc.cesta === 'FARMACIA' && !cc.inicio;
     const paHit = farmaLivre && !bn && C.pa ? T.map(t => matchPA(t, C.pa)).find(Boolean) : null;
     const bala = a.cat === 'CARAMELO MASTIGAVEL' ? (balaTipo(T) || (bn ? { ini: 'BALA MASTIGAVEL', w: '' } : null)) : a.cat === 'DOCE OUTROS' ? (w => w ? { ini: 'MARSHMALLOW', w } : null)(T.flatMap(t => t.split(' ')).find(x => RX_MARSH.test(x))) : null;
-    const ini = farmaLivre ? (bn ? '' : paHit ? paIni(paHit, T) : nounOutra(T, bn))
+    let ini = farmaLivre ? (bn ? '' : paHit ? paIni(paHit, T) : nounOutra(T, bn))
       : bala ? bala.ini : (cc && cc.dinamico) ? (tipoIni(T, a.per, a.cat, C) || nounOutra(T, bn)) : a.cat === OUT ? nounOutra(T, bn) : (cc.inicio || cc.nome);
-    const keepT = T.filter((t, j) => a.per[j] === a.cat); const T2 = keepT.length ? keepT : T;
+    if (bn && ini && ini.replace(/ /g, '') === bn.replace(/ /g, '')) ini = ''; // início igual à marca colada (ZEEDOG = ZEE DOG): não repete
+    // acessório PET: o descritivo leva PET logo depois do tipo, com o tipo por extenso (PEIT -> PEITORAL PET ZEE DOG ...)
+    const petAc = PET_ACESSORIO.has(a.cat);
+    if (petAc && ini) { ini = ini.split(' ').map(w => PET_TIPO_EXT[w] || w).join(' '); if (!/(?<![A-Z])PET(?![A-Z])/.test(ini)) ini += ' PET'; }
+    const keepT0 = T.filter((t, j) => a.per[j] === a.cat); let T2 = keepT0.length ? keepT0 : T;
+    // tamanho solto (P, M, G, GG…, sem número antes) em acessório/roupa PET: TAM G
+    if (petAc || a.cat === 'VESTUARIO PET') T2 = T2.map(t => t.replace(/(?<![A-Z0-9.,])(PP|P|M|G|GG|XG|XGG|EG|EGG|XP)(?![A-Z0-9])/g, (m, z, off, str) => /\d\s*$/.test(str.slice(0, off)) ? m : 'TAM_' + z));
     const brandTxt = bn ? cleanD(marca) : '';
     const comp = complement(T2, a.cat, bala ? ini + ' ' + bala.w + ' BALA BALAS BALINHA BALINHAS' : ini, bn || '', groupOf(a.cat), cc);
     // o descritivo é sempre padronizado pelo app (já com a categoria, marca e conteúdo mantidos do arquivo)

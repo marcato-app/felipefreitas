@@ -243,3 +243,9 @@ Pontos pra checar, em ordem:
 - Arquivo com marca = personagem e outra marca na descrição: usa a da descrição, inclusive no modo só descritivo (`persArq`, alerta).
 - COLEIRA E GUIA PET: PEIT/PEITORAL (libPatch `coleira-peitoral-2026-10`, exclui FRANGO/PERU/CARNE…).
 - `qtdColunas`: medida KG/L com valor ≤ 60 vira G/ML ×1000 (15 KG → 15000G); valores maiores já estão em gramas (padrão da base).
+
+### Acessório PET com PET no descritivo + tamanho
+- `PET_ACESSORIO` (COLEIRA E GUIA PET, CASA E CAMA PET, ACESSORIO PET OUTROS, ACESSORIO HIGIENE PET, ACESSORIO ALIMENTO PET, HIGIENE E LIMPEZA PET OUTROS): início = tipo por extenso (`PET_TIPO_EXT`: PEIT→PEITORAL, COMED→COMEDOURO…) + PET. Ex.: PEIT.ZEEDOG H NEOPRO MATCHA G → PEITORAL PET ZEE DOG NEOPRO MATCHA TAM G 1UN.
+- Tamanho solto (P, M, G, GG, XG…, sem número antes) nessas categorias e em VESTUARIO PET vira "TAM G".
+- CHA SOLUVEL / CHA CAPSULA excluem PEIT, COLEIRA, ZEEDOG, NEOPRO, CAO, GATO… (MATCHA é cor) — libPatch `matcha-pet-2026-10`.
+- Início igual à marca colada (ZEEDOG = ZEE DOG, STAROFFICE = STAR OFFICE) sai, para não repetir.
