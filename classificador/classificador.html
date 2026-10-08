@@ -1071,7 +1071,7 @@ function categoriaArquivo(it, a, byName) {
   const c0 = byName.get(a.cat);
   // regra ensinada (pipoca com sabor, embalagem de ovo, papinha, bala x sabor): o sabor/ingrediente do arquivo não vale como categoria
   if (REGRA_FORTE.has(a.flag)) {
-    if (passe && passe.soDesc) return Object.assign({}, a, { cat: s, per: a.per.map(() => s), flag: 'ARQUIVO', arqCat: true, catSuspeita: a.cat }); // só descritivo: nunca troca, só avisa
+    if (passe && passe.soDesc) return Object.assign({}, a, { regraForte: s }); // só descritivo também troca: é regra ensinada (status avisa)
     if (!sempreArq()) return Object.assign({}, a, { arqTrocada: s });
   }
   if (!bateCategoria(c1, a.T) && c0 && c0.cesta && c1.cesta && c0.cesta !== c1.cesta) {
@@ -1328,7 +1328,7 @@ async function runCore(pfx = '') {
     // por que a marca ficou diferente da do arquivo (resumo da planilha e da tela)
     const mMot = !N(it.sugMarca) ? 'arquivo sem marca' : N(marca) === sm ? 'igual ao arquivo' : !prioArq() ? 'prioridade do arquivo desligada'
       : !valido(it.sugMarca) ? 'arquivo com ' + sm : C.black.has(sm) ? 'marca do arquivo é palavra bloqueada' : 'trocada: marca do arquivo não aparece na descrição';
-    res.push({ it, cat: a.cat, marca, fab, qt: q.tot, qbase: q.base, qn: q.tot === null ? null : (q.n || 1), quv: q.tot === null ? null : (q.n > 1 ? q.uv : q.tot), desc, alerts, pri, mMot, catErrada: !!a.arqTrocada, catSuspeita: a.catSuspeita || '', qDesc, persArq: !!persArq });
+    res.push({ it, cat: a.cat, marca, fab, qt: q.tot, qbase: q.base, qn: q.tot === null ? null : (q.n || 1), quv: q.tot === null ? null : (q.n > 1 ? q.uv : q.tot), desc, alerts, pri, mMot, catErrada: !!a.arqTrocada, catSuspeita: a.catSuspeita || '', regraForte: a.regraForte || '', qDesc, persArq: !!persArq });
     if (i % 250 === 0) { $('#prog').style.width = (50 + 50 * i / items.length).toFixed(1) + '%'; $('#runState').textContent = pfx + `Marca, conteúdo e descritivo: ${i.toLocaleString('pt-BR')} de ${items.length.toLocaleString('pt-BR')}…`; await new Promise(r => setTimeout(r, 0)); }
   }
   $('#prog').style.width = '100%';
@@ -1371,7 +1371,7 @@ async function runAll() {
     try {
       passe = { prio: false, sempre: false }; const sug = await runCore('Passada 1/2 (sugestão do app) · ');
       passe = { prio: true, sempre: false, soDesc: true }; res = await runCore('Passada 2/2 (arquivo + descritivo) · ');
-      for (let i = 0; i < res.length; i++) { const r = res[i], g = sug[i]; r.sug = { cat: g.cat, marca: g.marca, fab: g.fab, qt: g.qt, qbase: g.qbase }; r.sugCatApp = r.it.sugCat && g.cat !== r.it.sugCat ? nomeOf(g.cat) : ''; r.status = r.catSuspeita ? 'POSSÍVEL CATEGORIA ERRADA' + (statusSug(r.it, g).includes('ARQUIVO VAZIO') ? ' | ' + statusSug(r.it, g).split(' | ')[1] : '') : statusSug(r.it, g); r.soDesc = true; }
+      for (let i = 0; i < res.length; i++) { const r = res[i], g = sug[i]; r.sug = { cat: g.cat, marca: g.marca, fab: g.fab, qt: g.qt, qbase: g.qbase }; r.sugCatApp = r.it.sugCat && g.cat !== r.it.sugCat ? nomeOf(g.cat) : ''; r.status = r.regraForte ? 'CATEGORIA TROCADA PELA REGRA (ARQUIVO: ' + r.regraForte + ')' : r.catSuspeita ? 'POSSÍVEL CATEGORIA ERRADA' + (statusSug(r.it, g).includes('ARQUIVO VAZIO') ? ' | ' + statusSug(r.it, g).split(' | ')[1] : '') : statusSug(r.it, g); r.soDesc = true; }
     } finally { passe = null; }
   } else res = await runCore();
   data.results = res;
@@ -1424,7 +1424,7 @@ function buildWorkbook() {
   // modo só descritivo: categoria, marca, fabricante e conteúdo exatamente como vieram no arquivo (vazio no arquivo -> o do app)
   // categoria do arquivo que não bate com a descrição (outra cesta, ex.: estojo como OVO): aí vale o que o app ajustou
   for (const r of R) main.push(soD
-    ? [bc(r.it.barcode), r.desc, ((semFab(r.it.sugFab) || r.persArq) && !semFab(r.fab) ? r.fab : arqOu(r.it.sugFab, r.fab)), ((semMarca(r.it.sugMarca) || r.persArq) && !semMarca(r.marca) ? r.marca : arqOu(r.it.sugMarca, r.marca)), r.qn, num(r.quv), (r.qDesc ? num(r.qt) : arqOu(r.it.sugQtOut ?? r.it.sugQt, num(r.qt))), arqOu(r.it.sugCatRaw, nomeOf(r.cat)), estMerOf(arqOu(r.it.sugCatRaw, nomeOf(r.cat)), r.it.sugCat || r.cat), ciFlag(r.it.barcode), r.status, r.sugCatApp || '']
+    ? [bc(r.it.barcode), r.desc, ((semFab(r.it.sugFab) || r.persArq) && !semFab(r.fab) ? r.fab : arqOu(r.it.sugFab, r.fab)), ((semMarca(r.it.sugMarca) || r.persArq) && !semMarca(r.marca) ? r.marca : arqOu(r.it.sugMarca, r.marca)), r.qn, num(r.quv), (r.qDesc ? num(r.qt) : arqOu(r.it.sugQtOut ?? r.it.sugQt, num(r.qt))), (r.regraForte ? nomeOf(r.cat) : arqOu(r.it.sugCatRaw, nomeOf(r.cat))), (r.regraForte ? estMerOf(nomeOf(r.cat), r.cat) : estMerOf(arqOu(r.it.sugCatRaw, nomeOf(r.cat)), r.it.sugCat || r.cat)), ciFlag(r.it.barcode), r.status, r.sugCatApp || '']
     : [bc(r.it.barcode), r.desc, r.fab, r.marca, r.qn, num(r.quv), num(r.qt), nomeOf(r.cat), estMerOf(nomeOf(r.cat), r.cat), ciFlag(r.it.barcode), ...(soD ? [r.status, ''] : [])]);
   if (temOM) for (let i = 0; i < R.length; i++) main[i + 1].push(...(marcaSai(R[i]) === 'OUTRA MARCA' ? pm(R[i]) : ['', '']));
   if (temAn) for (let i = 0; i < R.length; i++) main[i + 1].push(R[i].it.analista);
