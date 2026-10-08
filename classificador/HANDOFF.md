@@ -260,3 +260,8 @@ Pontos pra checar, em ordem:
 ### Embalagem para ovo de páscoa / doces → EMBALAGEM ALIMENTO
 - `aggregate`: 1ª descrição com EMBALAGEM/EMBALAGENS/EMBALAGEN (ou EMB como 1ª palavra) + OVO/PASCOA/TRUFA/BOMBOM/BRIGADEIRO/DOCE/CHOCOLATE → EMBALAGEM ALIMENTO (flag EMBALAGEM_OVO), antes das outras regras. "OVOS BRANCOS EMB C/12" continua ovo.
 - libPatch `embalagem-ovo-2026-10`: EMBALAGEM ALIMENTO incluir/forte EMBALAGEM OVO DE PASCOA, SACO OVO DE PASCOA…; chocolates e OVO DE PASCOA excluem EMBALAGEM/CELOFANE/CROMUS; EMBALAGEM OUTROS exclui OVO/PASCOA.
+
+### Massa para sopa → MASSA TRADICIONAL (libPatch `massa-sopa-2026-10`)
+- SOPA E CREME exclui MASSA/MASSAS e MASSA (PARA) SOPA, MACARRAO (PARA) SOPA (mas não MACARRAO solto: "SOPA INSTANTANEA COM MACARRAO VONO" segue sopa).
+- MASSA TRADICIONAL incluir/forte essas expressões + GUELA. Formatos soltos (AVE MARIA, ESTRELINHA, LETRINHA) não entram: são ambíguos (bíblia, decoração, SOPA LETRINHA).
+- PHRASE protege "AVE MARIA" (TOK expandia AVE → AVELA): BIBLIA AVE MARIA e massa AVE MARIA não viram "AVELA MARIA".
