@@ -670,3 +670,13 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
 - Testes:
   - na base de vitaminas mudaram só 14 nomes de fabricante, e as siglas ficaram iguais;
   - DIMA e Hoja sem mudança.
+- Ordem para escolher o nome do fabricante (o que já existe sempre ganha):
+  1. o dicionário de Farmácia (DIMA > Hoja > vitaminas), com prefixo e erro de 1 letra;
+  2. o Hoja completo, com todas as cestas (`dados/hoja_fabricantes_todos.txt`, 38 mil fabricantes): o siglas.py
+     liga a razão social da CMED ao fabricante de mesmo nome. Exemplos: VASCONCELOS, CIPLA, NIPRO, PIERRE FABRE,
+     VERTEX. Órgão público (ESTADO, UNIVERSIDADE) não entra;
+  3. nome que já existe na DIMA fica como está, mesmo comprido;
+  4. só então o nome curto da regra acima. Se esse nome curto já existir, vale a grafia cadastrada.
+- Das 263 razões sociais da CMED:
+  - 171 caem num fabricante existente;
+  - 92 viram nome novo curto.

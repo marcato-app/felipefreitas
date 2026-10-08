@@ -1408,10 +1408,11 @@ function canonFab(f) {
   for (let n = w.length; n >= 1; n--) { const k = w.slice(0, n).join(' '); // nome da CMED mais comprido que o cadastrado
     if (C[k] && (n === w.length || n >= 2 || k.length >= 5)) return C[k]; }
   // letra ou espaço a mais/a menos (PRATI DONADUZI, FLORA VIDA): o nome que já existe, se for um só
-  const k = w.join(' '); if (k.length < 6) return f;
+  const k = w.join(' '); if (k.length < 6) return fabCurto(f);
   const um = (x, y) => { if (Math.abs(x.length - y.length) !== 1) return false; let i = 0; while (i < x.length && x[i] === y[i]) i++; return x.slice(i) === y.slice(i + 1) || x.slice(i + 1) === y.slice(i); };
   const c = [...new Set(Object.keys(C).filter(x => x.length >= 6 && um(k, x)).map(x => C[x]))];
-  return c.length === 1 ? c[0] : fabCurto(f);
+  if (c.length === 1) return c[0];
+  const cu = fabCurto(f); return C[N(cu)] || cu; // nome curto que já existe nas bases (PRODUTOS ROCHE ... -> ROCHE): a grafia cadastrada
 }
 // fabricante novo (fora das bases) com no máximo 2 a 3 palavras: a razão social da CMED vira o nome (VOLPHARMA DISTRIBUIDORA DE
 // PRODUTOS HOSPITALARES -> VOLPHARMA DISTRIBUIDORA; FUNDACAO BAIANA ... BAHIAFARMA -> BAHIAFARMA; FUNDACAO ... FURP -> FURP)
@@ -1421,8 +1422,15 @@ const FAB_GENERICO = new Set(('PRODUTOS PRODUTO PROD QUIMICA QUIMICAS QUIMICOS Q
   'HOSPITALARES HOSPITALAR MEDICAMENTOS MEDICOS MEDICO MEDICAS IMPORTACAO EXPORTACAO IMPORTADORA EXPORTADORA DISTRIBUICAO FORNECIMENTO ' +
   'COMERCIO COMERCIAL INDUSTRIA IND COM BRASIL BRAZIL BRASILEIRA NACIONAL PESQ PESQUISA PESQUISAS CIENTIFICA DESENV DESENVOLVIMENTO ' +
   'TECNOLOGICO TECNOLOGIA BIOTECNOLOGIA SERVICOS EQUIPAMENTOS COSMETICOS ALIMENTOS NATURAIS SUPLEMENTOS ALIMENTARES ESTADO').split(' '));
+let FAB_DIMA = null;
+function fabExiste(f) {
+  if (!FAB_DIMA && data.dima) { FAB_DIMA = new Set(); for (const b of data.dima.map.values()) if (b.fabAll) for (const x of b.fabAll.keys()) FAB_DIMA.add(N(x)); }
+  return !!(FAB_DIMA && FAB_DIMA.has(N(f)));
+}
 function fabCurto(f) {
-  const w = N(f).split(' ').filter(Boolean); if (w.length <= 3) return f;
+  if (fabExiste(f)) return f; // nome que já existe na DIMA: fica como está (prioridade do que já está cadastrado)
+  const w = N(f).split(' ').filter(Boolean); while (w.length > 1 && FAB_ENCHE.has(w[w.length - 1])) w.pop(); // VASCONCELOS FARMACEUTICA E
+  if (w.length <= 3) return w.length === N(f).split(' ').length ? f : w.join(' ');
   const gen = x => FAB_GENERICO.has(x) || FAB_INST.has(x) || /^LABORATORIOS?$/.test(x);
   const inst = FAB_INST.has(w[0]) || /^LABORATORIOS?$/.test(w[0]);
   let k = w.slice(inst ? 1 : 0).filter(x => !FAB_ENCHE.has(x));

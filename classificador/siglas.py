@@ -130,6 +130,36 @@ def main():
         if pk[top] >= 3 * pk[k] and pk[top] >= 0.8 * tot and nivel[top] <= nivel[k]:
             juntou.append((canon[k], canon[top])); canon[k] = canon[top]
     print('juntados pelo começo do nome:', juntou)
+    # razão social da CMED que não está nas bases de Farmácia: o fabricante do Hoja completo (todas as cestas) com o
+    # mesmo nome vale antes de criar nome novo (VASCONCELOS FARMACEUTICA E -> VASCONCELOS)
+    hf = here / 'dados' / 'hoja_fabricantes_todos.txt'
+    cmed_hoja = []
+    if hf.exists():
+        hk = defaultdict(set)
+        for f in open(hf, encoding='utf-8'):
+            f = f.strip(); k = chave_fab(f)
+            if k: hk[k].add(f)
+        labs = set()
+        for p in sorted((here / 'dados' / 'cmed').glob('*.xlsx')):
+            for row in openpyxl.load_workbook(p, read_only=True).active.iter_rows(values_only=True):
+                if len(row) > 5 and row[2] and str(row[5] or '').strip()[:1].isdigit(): labs.add(str(row[2]).strip())
+        tira = lambda f: re.sub(r'\b(LTDA|S A|SA|EIRELI|ME|EPP|INDUSTRIA|COMERCIO|IND|COM|E|DE|DO|DA|DOS|DAS)\b', ' ', N(f))
+        GEN = set(('PRODUTOS PRODUTO QUIMICA QUIMICAS QUIMICOS QUIMICO FARMACO HOSPITALARES HOSPITALAR MEDICOS MEDICO MEDICAS GERAIS '
+                   'IMPORTADORA EXPORTADORA DISTRIBUICAO FORNECIMENTO COMERCIAL NACIONAL BRASILEIRA PESQUISA CIENTIFICA SERVICOS '
+                   'EQUIPAMENTOS MATERIAIS COSMETICOS ALIMENTOS NATURAIS FUNDACAO INSTITUTO EMPRESA CENTRO ESTADO').split())
+        for k in [k for k in hk if len(k) < 4 or all(x in GEN for x in k.split())]: del hk[k]  # PRODUTOS DA DA, DO GERAIS
+        for lab in sorted(labs):
+            if re.search(r'\b(ESTADO|GOVERNADOR|UNIVERSIDADE|COMANDO)\b', N(lab)): continue  # órgão público: nome de lugar não é fabricante do Hoja
+            w = chave_fab(tira(lab)).split()
+            while len(w) > 1 and w[0] in GEN: w.pop(0)  # PRODUTOS ROCHE QUIMICOS -> ROCHE
+            if not w or w[0] in GEN: continue
+            if any(' '.join(w[:n]) in canon and (n == len(w) or n >= 2 or len(' '.join(w[:n])) >= 5) for n in range(len(w), 0, -1)): continue
+            for n in range(len(w), 0, -1):
+                k = ' '.join(w[:n])
+                if not (n == len(w) or n >= 2 or len(k) >= 5): continue
+                if len(hk.get(k, ())) == 1:
+                    canon[' '.join(w)] = next(iter(hk[k])); cmed_hoja.append((lab, canon[' '.join(w)])); break
+    print('CMED -> fabricante do Hoja completo:', len(cmed_hoja), cmed_hoja[:20])
     c['farmaFabs'] = canon
     c['farmaSiglas'] = {'codigos': codigos, 'fab': fab, 'marcas': marcas}
     (here / 'consts.json').write_text(json.dumps(c, ensure_ascii=False), encoding='utf-8')
