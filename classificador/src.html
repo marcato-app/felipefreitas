@@ -1400,9 +1400,13 @@ const DESC_MAX = 60;
 // SANOFI FARMACEUTICA LTDA -> SANOFI FARMACEUTICA, nome da CMED com razão social -> o nome cadastrado
 const FAB_LIXO = new Set([...LAB_LIXO, ...'LABORATORIOS FARMACETICA FARMACEUTICAS IMPORTACAO EXPORTACAO IMP EXP MEDICAMENTOS DISTRIBUIDORA CIA GRUPO'.split(' ')]);
 const FAB_ALIAS = { GLAXOSMITHKLINE: 'GSK' };
+let FAB_CANON = null;
 function canonFab(f) {
   if (!valido(f) || f === 'OUTRO FABRICANTE') return f;
-  const C = K.farmaFabs || {}; let w = N(f).split(' ').filter(x => !FAB_LIXO.has(x));
+  const C = K.farmaFabs || {};
+  if (!FAB_CANON) { FAB_CANON = new Map(); for (const v of Object.values(C)) FAB_CANON.set(N(v), v); }
+  if (FAB_CANON.has(N(f))) return FAB_CANON.get(N(f)); // já existe com esse nome (BEKER PRODUTOS FARMACO HOSPITALARES): fica igual
+  let w = N(f).split(' ').filter(x => !FAB_LIXO.has(x));
   if (!w.length) return f;
   if (FAB_ALIAS[w[0]] && C[FAB_ALIAS[w[0]]]) return C[FAB_ALIAS[w[0]]];
   for (let n = w.length; n >= 1; n--) { const k = w.slice(0, n).join(' '); // nome da CMED mais comprido que o cadastrado
@@ -1569,7 +1573,7 @@ const FORMA_UN = [[/(?<![A-Z])(CAPSULAS?|CAPS|CAP|CPS)(?![A-Z])/, 'CPS', /^(CAPS
 function formaUn(T) { for (const t of T) { const x = prepQ(t).replace(RX_FORMA_COLADA, '$1 $2'); for (const f of FORMA_UN) if (f[0].test(x)) return f; } return null; }
 /* ---- prioridade do arquivo: o que veio no backlog vale; só troca o que estiver bem fora do comum ---- */
 const prioArq = () => cfg.priorizarArquivo !== false;
-const RX_INVALIDO = /^(OUTRA MARCA|OUTRO FABRICANTE|OUTRA CATEGORIA|SEM MARCA|SEM FABRICANTE|NAO INFORMADO|N A|NA|0|NULL|NONE|-|POR DEFECTO|POR DEFEITO|SIN PROVEEDOR( ASOCIADO)?|SEM FORNECEDOR( ASSOCIADO)?|(NAO E )?MARCA PROPRIA|(NO ES )?MARCA PROPIA)$/;
+const RX_INVALIDO = /^(OUTRA MARCA|OUTRO FABRICANTE|OUTRA CATEGORIA|SEM MARCA|SEM FABRICANTE|NAO INFORMADO|N A|NA|0|NULL|NONE|-|POR DEFECTO|POR DEFEITO|SIN PROVEEDOR( ASOCIADO)?|SEM FORNECEDOR( ASSOCIADO)?|(NAO E )?MARCA PROPRIA|(NO ES )?MARCA PROPIA|MARCA|FABRICANTE|MARCA [A-Z0-9]{3})$/; // MARCA/FABRICANTE: cabeçalho de planilha que entrou como dado
 const valido = v => { const n = N(v); return !!n && !RX_INVALIDO.test(n); }; // POR DEFECTO / SIN PROVEEDOR ASOCIADO nunca valem
 const rxCat = new Map();
 function bateCategoria(c, T) {
@@ -1661,7 +1665,9 @@ async function loadCmed(file) {
   const res = montaCmed(L); data.cmedArquivo = file.name; return res;
 }
 // prefixo da empresa no código de barras (789 + 4 a 6 dígitos) -> laboratório da CMED (>= 80% dos códigos daquele prefixo)
-const labCurto = l => N(l).split(' ').filter(w => !LAB_LIXO.has(w) && !/^(INDUSTRIA|INDUSTRIAL|LTDA|EIRELI|S|A|SA|ME|COMERCIO|DO|DA|DE)$/.test(w)).join(' ');
+const labCurto = l => { const r = N(l).split(' ').filter(w => !LAB_LIXO.has(w) && !/^(INDUSTRIA|INDUSTRIAL|LTDA|EIRELI|S|A|SA|ME|COMERCIO|DO|DA|DE)$/.test(w)).join(' ');
+  // ANTIBIOTICOS DO BRASIL (ABL): palavra genérica sozinha não é nome de fabricante; fica o nome sem LTDA
+  return /^(ANTIBIOTICOS?|MEDICAMENTOS?|PRODUTOS?|QUIMICA|NACIONAL|SAUDE)$/.test(r) ? N(l).replace(/\b(LTDA|S A|SA|EIRELI|ME|EPP)\b/g, ' ').replace(/\s+/g, ' ').trim() : r; };
 function montaPrefixos(L) {
   const pre = new Map();
   for (const [eans, e] of L) { if (!e.lab) continue; const k = labCurto(e.lab); if (!k) continue;
@@ -1675,7 +1681,7 @@ function labPorEAN(bc, supl) { const sk = String(bc || '').replace(/\D/g, '').re
   const vp = (K.farmaVit || {}).pref || {};
   const deVit = () => { for (const n of [9, 8, 7]) if (vp[sk.slice(0, n)]) return vp[sk.slice(0, n)]; return null; };
   if (supl) { const l = deVit(); if (l) return l; }
-  for (const n of [9, 8, 7]) { const l = data.cmedPref.get(sk.slice(0, n)); if (l) return labDaDescricao([l]) || l; }
+  for (const n of (supl ? [9, 8] : [9, 8, 7])) { const l = data.cmedPref.get(sk.slice(0, n)); if (l) return labDaDescricao([l]) || l; } // suplemento: prefixo de 7 dígitos da CMED é largo demais (7898564: ABL x maca BEM ESTAR)
   return deVit(); }
 function montaCmed(L) {
   montaPrefixos(L);
@@ -1939,12 +1945,13 @@ async function runAll(opts = {}) {
     // (NUTRA VITTON, PURITANS PRIDE) é o próprio fabricante (STATUS CRIAR FABRICANTE)
     if (farma && valido(marca) && marca !== 'OUTRA MARCA' && (!valido(fab) || fab === 'OUTRO FABRICANTE')) {
       const mk = N(semSigla(marca)); let f = null;
+      const generica = marcaProduto || marcaGen || nomeGenerico(marca) || NUTRI_NOME[mk] || Object.values(NUTRI_NOME).includes(mk) || palavrasPA([mk], C).size || (K.farmaVit && ((K.farmaVit.marcas || []).find(x => x[0] === mk) || [])[5]);
       const b = data.dima && (data.dima.map.get(mk) || data.dima.map.get(N(marca)));
       if (b && b.fabAll) { let v = 0; for (const [ff, vv] of b.fabAll) if (valido(ff) && ff !== 'OUTRO FABRICANTE' && vv > v) { v = vv; f = ff; } }
       if (!f) { const vm2 = ((K.farmaVit || {}).marcas || []).find(x => x[0] === mk && x[2]); if (vm2) f = vm2[2]; }
       if (!f) { const hm = (K.farmaMarcas || []).find(x => N(x[0]) === mk && x[2]); if (hm) f = hm[2]; }
       if (f) { fab = canonFab(f); alerts0.push(`Fabricante ${fab} pela marca ${marca} nas bases`); }
-      else if (marcaProduto || nomeGenerico(marca) || NUTRI_NOME[mk] || Object.values(NUTRI_NOME).includes(mk) || palavrasPA([mk], C).size || (K.farmaVit && ((K.farmaVit.marcas || []).find(x => x[0] === mk) || [])[5])) {
+      else if (generica) {
         alerts0.push(`Marca ${marca} é nome genérico e não há fabricante: sigla OTF (outro fabricante)`); fab = 'OUTRO FABRICANTE'; }
       else { fab = marca; alerts0.push(`Fabricante desconhecido: usada a própria marca ${marca} como fabricante (criar no cadastro)`); }
     }

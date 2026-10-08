@@ -680,3 +680,17 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
 - Das 263 razões sociais da CMED:
   - 171 caem num fabricante existente;
   - 92 viram nome novo curto.
+
+### 3.6e ANTIBIOTICOS / BEKER / fabricantes já cadastrados
+- O nome do fabricante que já existe nas bases (DIMA, Hoja, vitaminas) fica com a grafia exata. Isso é verificado antes de
+  qualquer encurtamento (FAB_CANON em canonFab).
+- `dados/fabricantes_cadastrados.txt`: fabricantes que o cliente já criou no sistema e que ainda não estão nas bases.
+  - Um por linha, com a grafia do cadastro.
+  - Entram no farmaFabs pelo siglas.py e nunca são encurtados.
+  - Exemplo: BEKER PRODUTOS FARMACO HOSPITALARES.
+- ANTIBIOTICOS DO BRASIL (ABL, CMED): palavra genérica sozinha não vira nome do laboratório, então o nome fica
+  ANTIBIOTICOS DO BRASIL (labCurto).
+- Suplemento não pega fabricante pelo prefixo de 7 dígitos da CMED, porque esse prefixo é largo demais. Exemplo: o prefixo
+  7898564 dava ABL para a farinha de maca da BEM ESTAR.
+- Cabeçalho de planilha (MARCA, FABRICANTE) nunca é marca nem fabricante (RX_INVALIDO).
+- Base de vitaminas: fabricante certo foi de 7.177 para 7.189. DIMA e Hoja sem mudança.

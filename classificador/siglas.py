@@ -160,6 +160,16 @@ def main():
                 if len(hk.get(k, ())) == 1:
                     canon[' '.join(w)] = next(iter(hk[k])); cmed_hoja.append((lab, canon[' '.join(w)])); break
     print('CMED -> fabricante do Hoja completo:', len(cmed_hoja), cmed_hoja[:20])
+    # fabricantes que o cliente já cadastrou (dados/fabricantes_cadastrados.txt, um por linha): o nome vale como está
+    # (BEKER PRODUTOS FARMACO HOSPITALARES), sem encurtar
+    cad = here / 'dados' / 'fabricantes_cadastrados.txt'
+    if cad.exists():
+        for f in open(cad, encoding='utf-8'):
+            f = f.strip()
+            if f and not f.startswith('#'):
+                k = chave_fab(f)
+                if k and k not in canon: canon[k] = f
+                canon.setdefault(N(f), canon.get(k, f))
     c['farmaFabs'] = canon
     c['farmaSiglas'] = {'codigos': codigos, 'fab': fab, 'marcas': marcas}
     (here / 'consts.json').write_text(json.dumps(c, ensure_ascii=False), encoding='utf-8')

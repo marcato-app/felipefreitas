@@ -1,0 +1,3 @@
+# Fabricantes já cadastrados no sistema do cliente que não estão nas bases (DIMA, Hoja, vitaminas).
+# Um por linha, com a grafia exata do cadastro. O app usa o nome assim, sem encurtar.
+BEKER PRODUTOS FARMACO HOSPITALARES
