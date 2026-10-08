@@ -256,3 +256,7 @@ Pontos pra checar, em ordem:
 - OVO DE PASCOA: incluir/forte OVO PASC, OVO DE CHOCOLATE, OVO KINDER, KINDER SURPRESA…; não exclui mais BRANCO/VERMELHO (chocolate branco); exclui EMBALAGEM/FORMA/MOLDE…; segPadrao OVO DE PASCOA + CHOCOLATE (KINDER só está em CHOCOLATE na DIMA). Chocolates excluem OVO/PASCOA; ovos de galinha excluem KINDER, SURPRESA, LACTA, GAROTO…
 - KINDER em `marcasNaLista`; `catVocab` agora ignora palavra de marca da lista também dentro de expressão (OVO KINDER).
 - Barra de proteína → CEREAL EM BARRA PROTEICO (sai de SUPLEMENTO OUTROS e demais suplementos); remover PROTEINA/PROTEICA/PROTEIN/BAR/BARRA/BARRINHA no descritivo. libPatches `capuccino-ovo-amendoim-2026-10`, `barra-proteina-2026-10`.
+
+### Embalagem para ovo de páscoa / doces → EMBALAGEM ALIMENTO
+- `aggregate`: 1ª descrição com EMBALAGEM/EMBALAGENS/EMBALAGEN (ou EMB como 1ª palavra) + OVO/PASCOA/TRUFA/BOMBOM/BRIGADEIRO/DOCE/CHOCOLATE → EMBALAGEM ALIMENTO (flag EMBALAGEM_OVO), antes das outras regras. "OVOS BRANCOS EMB C/12" continua ovo.
+- libPatch `embalagem-ovo-2026-10`: EMBALAGEM ALIMENTO incluir/forte EMBALAGEM OVO DE PASCOA, SACO OVO DE PASCOA…; chocolates e OVO DE PASCOA excluem EMBALAGEM/CELOFANE/CROMUS; EMBALAGEM OUTROS exclui OVO/PASCOA.

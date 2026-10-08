@@ -648,6 +648,10 @@ function aggregate(T0, sug, C, main) {
   // descrições divididas entre objeto (óculos, bazar…) ou nada, e uma categoria de consumo (bala, alimento…), num produto vendido
   // a peso/volume ("BALA DE GELATINA FINI 70G" x "FINI OCULOS 70G"): vence a de consumo
   const cestaOf = n => { const x = C.cats.find(y => y.c.nome === n); return x ? x.c.cesta : ''; };
+  // embalagem para ovo de páscoa / trufa / bombom / doce (EMBALAGEM CROMUS OVO PASCOA, EMB TRUFAS) é EMBALAGEM ALIMENTO, nunca ovo nem chocolate;
+  // EMB só vale como primeira palavra (OVOS BRANCOS EMB C/12 é ovo embalado)
+  if (C.names.has('EMBALAGEM ALIMENTO') && T.length && /(?<![A-Z])(EMBALAGEM|EMBALAGENS|EMBALAGEN)(?![A-Z])|^EMB(?![A-Z])/.test(T[0]) && /(?<![A-Z])(OVO|OVOS|PASCOA|TRUFA|TRUFAS|BOMBOM|BOMBONS|BRIGADEIRO|BRIGADEIROS|DOCE|DOCES|CHOCOLATE|CHOCOLATES|BOMBONIERE)(?![A-Z])/.test(T[0]))
+    return Object.assign(r, { cat: 'EMBALAGEM ALIMENTO', flag: 'EMBALAGEM_OVO' });
   // papinha/sopinha infantil em alguma descrição vence o ingrediente/sabor (MORANGA, FEIJAO, MANDIOCA, MANGA…)
   if (r.cat !== 'PAPINHA' && (r.per || []).includes('PAPINHA')) return Object.assign(r, { cat: 'PAPINHA', flag: 'PAPINHA_VENCE' });
   // bala/pirulito/marshmallow em alguma descrição vence sabor (fruta), docinho, gelatina, aroma, café, leite, carne ou bombom
