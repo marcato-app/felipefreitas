@@ -270,3 +270,7 @@ Pontos pra checar, em ordem:
 - 1ª descrição com PIPOCA + MICRO/MICROONDAS/MICRO-ONDAS/MICROOND → PIPOCA MICRO-ONDAS (CALABRESA, PICANHA, QUEIJO, CHOCOLATE, LEITE CONDENSADO, PRESUNTO, PIZZA… não puxam mais para linguiça, carne, queijo, biscoito…).
 - Começa com PIPOCA e a votação caiu em outro alimento → categoria de pipoca votada ou PIPOCA PRONTA.
 - Não vale para PIPOQUEIRA, PANELA, MAQUINA, BALDE, SACO, EMBALAGEM.
+
+### Pipoca (2ª rodada) + regra ensinada vence a categoria do arquivo
+- `pipocaCat`: PIPOCA / POPCORN / POP CORN em qualquer posição; + MICRO… → PIPOCA MICRO-ONDAS; MILHO + MICRO (sem VERDE/LATA/CONSERVA/CANJICA…) → PIPOCA MICRO-ONDAS ("DOCE MILHO MICRO"); sem MICRO e caiu em outro alimento → PIPOCA PRONTA; sem categoria só com peso (G). Bloqueia PIPOQUEIRA, CARTUCHO, SAQUINHO, CAIXA, EMBALAGEM, BRINQUEDO…
+- `REGRA_FORTE` (PIPOCA_VENCE, EMBALAGEM_OVO, PAPINHA_VENCE, DOCE_VENCE) em `categoriaArquivo`: no modo priorizar arquivo a categoria do app vence a do arquivo (QUEIJO OUTROS / BACON em pipoca); no modo só descritivo continua a do arquivo com POSSÍVEL CATEGORIA ERRADA + CATEGORIA SUGERIDA APP.

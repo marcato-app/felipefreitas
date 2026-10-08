@@ -643,6 +643,17 @@ function coerentes(T, main) {
 const FRUTAS = new Set(['MELAO', 'PERA', 'OUTRAS FRUTAS', 'MACA', 'MAMAO', 'MORANGO', 'ABACAXI', 'MELANCIA', 'MANGA', 'MARACUJA', 'UVA', 'ACEROLA', 'AMORA', 'BLUEBERRY', 'CAQUI', 'CARAMBOLA', 'LARANJA', 'FIGO', 'FRAMBOESA', 'GOIABA', 'JABUTICABA', 'LICHIA', 'SERIGUELA', 'LIMAO', 'MEXERICA/TANGERINA', 'AMEIXA', 'CEREJA', 'PESSEGO/NECTARINA', 'KIWI']);
 const DOCES_CAT = new Set(['CARAMELO MASTIGAVEL', 'BALA PASTILHA', 'PIRULITO', 'DOCE OUTROS', 'GOMA DE MASCAR']);
 const CONFUNDE_DOCE = new Set(['DOCINHO', 'GELATINA', 'AROMA E ESSENCIA', 'CARNES PREP CONGELADAS', 'CAFE SOLUVEL', 'LEITE COMUM', 'CHOCOLATE BOMBOM', 'CAPPUCCINO', 'GRELHA E ESPETO']);
+const RX_PIPOCA = /(?<![A-Z])(PIPOCA|PIPOCAS|POPCORN|POP CORN)(?![A-Z])/, RX_MICRO = /(?<![A-Z])MICR(O|OONDAS?|O ONDAS?|OOND|OWAVE)?(?![A-Z])/;
+const RX_PIPOCA_NAO = /(?<![A-Z])(PIPOQUEIRA|PIPOQUEIRO|PANELA|MAQUINA|BALDE|SACO|SACOS|SAQUINHO|SAQUINHOS|CARTUCHO|CARTUCHOS|CAIXA|CAIXINHA|PAPEL|EMBALAGEM|EMBALAGENS|EMB|FORNO|TIGELA|POTE PLASTICO|CARRINHO|BRINQUEDO|CHAVEIRO|CAMISETA|PELUCIA|FANTASIA|ESTAMPA|ADESIVO|FORMA)(?![A-Z])/;
+function pipocaCat(t, r, C, cestaOf) {
+  if (RX_PIPOCA_NAO.test(t)) return null;
+  const pip = RX_PIPOCA.test(t), micro = RX_MICRO.test(t);
+  const milhoMicro = micro && /(?<![A-Z])MILHO(?![A-Z])/.test(t) && !/(?<![A-Z])(VERDE|ESPIGA|LATA|CONSERVA|CANJICA|CREME|CURAU|PAMONHA)(?![A-Z])/.test(t);
+  if ((pip && micro) || milhoMicro) return C.names.has('PIPOCA MICRO-ONDAS') ? 'PIPOCA MICRO-ONDAS' : null;
+  if (pip && r.cat !== OUT && !/PIPOCA/.test(r.cat) && !CESTA_NAO_CONSUMO.has(cestaOf(r.cat))) return (r.per || []).find(c => c && /PIPOCA/.test(c)) || (C.names.has('PIPOCA PRONTA') ? 'PIPOCA PRONTA' : null);
+  if (pip && r.cat === OUT && C.names.has('PIPOCA PRONTA') && parseQ(textoQtd(t)).some(x => x[1] === 'G')) return 'PIPOCA PRONTA'; // sem categoria: só com peso
+  return null;
+}
 function aggregate(T0, sug, C, main) {
   const K = coerentes(T0, main); const T = K ? K.T : T0;
   const r = aggregate0(T, sug, C); r.T = T; r.misturadas = K ? K.drop : 0;
@@ -653,15 +664,10 @@ function aggregate(T0, sug, C, main) {
   // EMB só vale como primeira palavra (OVOS BRANCOS EMB C/12 é ovo embalado)
   if (C.names.has('EMBALAGEM ALIMENTO') && T.length && /(?<![A-Z])(EMBALAGEM|EMBALAGENS|EMBALAGEN)(?![A-Z])|^EMB(?![A-Z])/.test(T[0]) && /(?<![A-Z])(OVO|OVOS|PASCOA|TRUFA|TRUFAS|BOMBOM|BOMBONS|BRIGADEIRO|BRIGADEIROS|DOCE|DOCES|CHOCOLATE|CHOCOLATES|BOMBONIERE)(?![A-Z])/.test(T[0]))
     return Object.assign(r, { cat: 'EMBALAGEM ALIMENTO', flag: 'EMBALAGEM_OVO' });
-  // pipoca: o sabor (CALABRESA, PICANHA, QUEIJO, CHOCOLATE, LEITE CONDENSADO…) nunca é a categoria.
-  // PIPOCA + MICRO (MICROONDAS, MICRO-ONDAS, MICROOND…) -> PIPOCA MICRO-ONDAS; começa com PIPOCA e caiu em outro alimento -> PIPOCA PRONTA
-  if (T.length && /(?<![A-Z])PIPOCA(?![A-Z])/.test(T[0]) && !/(?<![A-Z])(PIPOQUEIRA|PANELA|MAQUINA|BALDE|SACO|SACOS|EMBALAGEM|EMB)(?![A-Z])/.test(T[0])) {
-    if (C.names.has('PIPOCA MICRO-ONDAS') && /(?<![A-Z])MICR(O|OONDAS?|O ONDAS?|OOND|OWAVE)?(?![A-Z])/.test(T[0])) return Object.assign(r, { cat: 'PIPOCA MICRO-ONDAS', flag: 'PIPOCA_VENCE' });
-    if (/^PIPOCA(?![A-Z])/.test(T[0]) && r.cat !== OUT && !/PIPOCA/.test(r.cat) && !CESTA_NAO_CONSUMO.has(cestaOf(r.cat))) {
-      const pc = (r.per || []).find(c => c && /PIPOCA/.test(c)) || (C.names.has('PIPOCA PRONTA') ? 'PIPOCA PRONTA' : null);
-      if (pc) return Object.assign(r, { cat: pc, flag: 'PIPOCA_VENCE' });
-    }
-  }
+  // pipoca: o sabor (CALABRESA, PICANHA, QUEIJO, CHOCOLATE, LEITE CONDENSADO, BACON, SAL…) nunca é a categoria.
+  // PIPOCA / POPCORN / POP CORN (ou MILHO) + MICRO (MICROONDAS, MICRO-ONDAS, MICROOND…) -> PIPOCA MICRO-ONDAS;
+  // PIPOCA / POPCORN sem MICRO que caiu em outro alimento -> categoria de pipoca votada ou PIPOCA PRONTA
+  if (T.length && pipocaCat(T[0], r, C, cestaOf)) return Object.assign(r, { cat: pipocaCat(T[0], r, C, cestaOf), flag: 'PIPOCA_VENCE' });
   // papinha/sopinha infantil em alguma descrição vence o ingrediente/sabor (MORANGA, FEIJAO, MANDIOCA, MANGA…)
   if (r.cat !== 'PAPINHA' && (r.per || []).includes('PAPINHA')) return Object.assign(r, { cat: 'PAPINHA', flag: 'PAPINHA_VENCE' });
   // bala/pirulito/marshmallow em alguma descrição vence sabor (fruta), docinho, gelatina, aroma, café, leite, carne ou bombom
@@ -1058,10 +1064,16 @@ function bateCategoria(c, T) {
   return T.some(t => (inc && inc.test(t)) || (tip && tip.test(t)));
 }
 // categoria do arquivo: fica, a não ser que nenhuma descrição bata com ela E a descrição aponte para outra cesta
+const REGRA_FORTE = new Set(['PIPOCA_VENCE', 'EMBALAGEM_OVO', 'PAPINHA_VENCE', 'DOCE_VENCE']);
 function categoriaArquivo(it, a, byName) {
   const s = it.sugCat; if (!prioArq() || !s || s === a.cat) return a;
   const c1 = byName.get(s); if (!c1) return a; // categoria que não existe na biblioteca
   const c0 = byName.get(a.cat);
+  // regra ensinada (pipoca com sabor, embalagem de ovo, papinha, bala x sabor): o sabor/ingrediente do arquivo não vale como categoria
+  if (REGRA_FORTE.has(a.flag)) {
+    if (passe && passe.soDesc) return Object.assign({}, a, { cat: s, per: a.per.map(() => s), flag: 'ARQUIVO', arqCat: true, catSuspeita: a.cat }); // só descritivo: nunca troca, só avisa
+    if (!sempreArq()) return Object.assign({}, a, { arqTrocada: s });
+  }
   if (!bateCategoria(c1, a.T) && c0 && c0.cesta && c1.cesta && c0.cesta !== c1.cesta) {
     if (!sempreArq() && !(passe && passe.soDesc)) return Object.assign({}, a, { arqTrocada: s });
     if (passe && passe.soDesc) return Object.assign({}, a, { cat: s, per: a.per.map(() => s), flag: 'ARQUIVO', arqCat: true, catSuspeita: a.cat }); // só descritivo: nunca troca, só avisa
