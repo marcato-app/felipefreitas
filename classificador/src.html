@@ -349,9 +349,11 @@ const limpaArq = v => { if (v === null || v === undefined) return ''; const t = 
 function qtdColunas(row, ci) {
   const raw = ci.qt >= 0 && limpaArq(row[ci.qt]) !== '' ? row[ci.qt] : null;
   if (ci.me < 0 || raw === null) return { sugQt: raw };
-  const q = parseFloat(String(raw).replace(',', '.')); const m = N(limpaArq(row[ci.me]));
+  let q = parseFloat(String(raw).replace(',', '.')); const m = N(limpaArq(row[ci.me]));
   if (!(q > 0) || !m) return { sugQt: raw };
   const base = /^(G|GR|KG|KILO|GRAMA)/.test(m) ? 'G' : /^(ML|L|LT|LITRO)/.test(m) ? 'ML' : 'UN';
+  // KG / L: o conteúdo sai em G / ML (15 KG -> 15000G); valor já grande (15000 com KG) já está em gramas
+  if (/^(KG|KILO|QUILO|L|LT|LITRO)/.test(m) && q <= 60) q = Math.round(q * 1000 * 1000) / 1000;
   const uc = ci.uc >= 0 ? parseFloat(String(row[ci.uc] ?? '').replace(',', '.')) : 1;
   const per = uc > 1 && base !== 'UN' && Math.abs(q / uc - Math.round(q / uc)) < 1e-6 ? q / uc : null;
   return { sugQt: per ? `${uc}X${per}${base}` : `${q}${base}`, sugQtOut: q };
@@ -474,7 +476,7 @@ function autoSegments() {
     if (c.segmentoManual) continue;
     const s = new Map();
     for (const it of data.items) {
-      if (it.sugCat !== c.nome) continue; const mn = N(it.sugMarca); if (!mn || black.has(mn) || mn === 'OUTRA MARCA') continue;
+      if (it.sugCat !== c.nome) continue; const mn = N(it.sugMarca); if (!mn || black.has(mn) || mn === 'OUTRA MARCA' || PERSONAGENS.has(mn)) continue; // personagem não define o segmento
       const b = DD.map.get(mn); if (!b) continue;
       for (const [e, v] of b.em) if (e) s.set(e, (s.get(e) || 0) + v);
     }
@@ -688,6 +690,7 @@ function aggregate0(T, sug, C) {
 
 /* brand */
 // atributos que aparecem como "marca" na base DIMA
+const PERSONAGENS = new Set([...(K.personagens || [])].map(N));
 const MARCA_NAO = new Set(['MULTI USO', 'MULTIUSO', 'INOX', 'METAL', 'SUPER UTIL', 'UNIVERSAL', 'PORCELANA', 'PRATA', 'DOURADO', 'DOURADA', 'PRETO', 'BRANCO', 'SORTIDO', 'SORTIDOS', 'COLORIDO',
   // cores nunca são marca
   'MARINHO', 'AZUL', 'VERDE', 'VERMELHO', 'VERMELHA', 'AMARELO', 'AMARELA', 'ROSA', 'PINK', 'LILAS', 'ROXO', 'ROXA', 'CINZA', 'GRAFITE', 'BEGE', 'MARROM', 'LARANJA', 'VINHO', 'BORDO', 'NUDE', 'NEON', 'PRETA', 'BRANCA', 'TRANSPARENTE', 'FUME', 'CHUMBO', 'TURQUESA', 'VIOLETA', 'MAGENTA', 'CIANO',
@@ -748,6 +751,9 @@ function findBrand(T, seg, sug, black, DD, vocab) {
   });
   const cands = new Map();
   for (const [g, c] of cov) { if (validCand(g, black)) cands.set(g, c); else if (validCand(g, black, true) && (g === sugn || relSales(g, seg, DD) > 5e5 || (seg && seg.length && !seg.livre && relSales(g, seg, DD) > 0))) cands.set(g, c); }
+  // pedaço do nome de um personagem (HELLO de HELLO KITTY, MONICA de TURMA DA MONICA) não é marca
+  const persTxt = [...cov.keys()].filter(g => PERSONAGENS.has(g) && g.includes(' '));
+  for (const g of [...cands.keys()]) if (!PERSONAGENS.has(g) && g.split(' ').every(x => persTxt.some(p => p.split(' ').includes(x)))) cands.delete(g);
   // marca curta/genérica (PIC ME) vale se a DIMA a registra na categoria do item; marca de 2+ palavras que parece expressão comum
   // ("DA VOVO" em PAPINHA) também, mas só como último recurso (se nenhuma marca normal for encontrada)
   const exDima = new Map();
@@ -760,6 +766,12 @@ function findBrand(T, seg, sug, black, DD, vocab) {
   const isVoc = g => vocab && !g.includes(' ') && (vocab.has(g) || (vocab.tipos && vocab.tipos.has(g)));
   const outras = new Map([...cands].filter(([g]) => !isVoc(g)));
   const voc = new Map([...cands].filter(([g]) => isVoc(g) && segParecido(g, vocab, DD)));
+  // personagem/licença (MARVEL, THOR, PANTERA NEGRA, WOLVERINE…) não é marca quando a descrição traz a marca de verdade (ZEEDOG,
+  // TILIBRA, MOLIN) registrada na categoria; sem categoria conhecida não dá para separar marca de palavra comum (FUN, AMIGOS): fica como antes
+  if (seg && seg.length && !seg.livre && [...cands.keys()].some(g => PERSONAGENS.has(g))) {
+    const alt = escolheMarca(new Map([...outras].filter(([g]) => !PERSONAGENS.has(g))), seg, sugn, DD);
+    if (alt) return alt;
+  }
   return escolheMarca(outras, seg, sugn, DD) || escolheMarca(voc, seg, sugn, DD) || escolheMarca(exDima, seg, sugn, DD);
 }
 function escolheMarca(cands, seg, sugn, DD) {
@@ -1159,7 +1171,11 @@ async function runCore(pfx = '') {
       if (bn && (bn === sm || N(BD.map.get(bn).canon) === sm)) bn = null; // mesma marca escrita de outro jeito (abreviação): fica a do arquivo
       if (bn && !(seg && seg.length && !seg.livre)) bn = null; // sem EST MER 6 conhecida não dá para ter certeza: fica a do arquivo
     }
-    if (marcaArq && !bn) {
+    // marca do arquivo que é personagem/licença (THOR, MARVEL…) com outra marca na descrição (ZEEDOG): vale a da descrição
+    let persArq = null;
+    if (marcaArq && !bn && PERSONAGENS.has(sm)) for (const DD of brandDicts()) { const b2 = findBrand(T, seg, '', C.black, DD, vocab); if (b2 && !PERSONAGENS.has(b2)) { persArq = b2; bn = b2; BD = DD; break; } }
+    if (persArq) { marca = BD.map.get(bn).canon; fab = fabricante(bn, seg, BD); arqAl.push(`Arquivo: marca ${it.sugMarca.trim()} é personagem/licença; usada ${marca} da descrição`); }
+    else if (marcaArq && !bn) {
       bn = sm; BD = brandDicts().find(D => D.map.has(sm)) || null;
       marca = it.sugMarca.trim();
       const fs = valido(it.sugFab) ? it.sugFab.trim() : '';
@@ -1277,7 +1293,7 @@ async function runCore(pfx = '') {
     // por que a marca ficou diferente da do arquivo (resumo da planilha e da tela)
     const mMot = !N(it.sugMarca) ? 'arquivo sem marca' : N(marca) === sm ? 'igual ao arquivo' : !prioArq() ? 'prioridade do arquivo desligada'
       : !valido(it.sugMarca) ? 'arquivo com ' + sm : C.black.has(sm) ? 'marca do arquivo é palavra bloqueada' : 'trocada: marca do arquivo não aparece na descrição';
-    res.push({ it, cat: a.cat, marca, fab, qt: q.tot, qbase: q.base, qn: q.tot === null ? null : (q.n || 1), quv: q.tot === null ? null : (q.n > 1 ? q.uv : q.tot), desc, alerts, pri, mMot, catErrada: !!a.arqTrocada, catSuspeita: a.catSuspeita || '', qDesc });
+    res.push({ it, cat: a.cat, marca, fab, qt: q.tot, qbase: q.base, qn: q.tot === null ? null : (q.n || 1), quv: q.tot === null ? null : (q.n > 1 ? q.uv : q.tot), desc, alerts, pri, mMot, catErrada: !!a.arqTrocada, catSuspeita: a.catSuspeita || '', qDesc, persArq: !!persArq });
     if (i % 250 === 0) { $('#prog').style.width = (50 + 50 * i / items.length).toFixed(1) + '%'; $('#runState').textContent = pfx + `Marca, conteúdo e descritivo: ${i.toLocaleString('pt-BR')} de ${items.length.toLocaleString('pt-BR')}…`; await new Promise(r => setTimeout(r, 0)); }
   }
   $('#prog').style.width = '100%';
@@ -1366,14 +1382,14 @@ function buildWorkbook() {
   // OUTRA MARCA / OUTRO FABRICANTE do arquivo dão lugar à marca que o app achou na descrição
   const semMarca = v => !N(v) || N(v) === 'OUTRA MARCA', semFab = v => !N(v) || N(v) === 'OUTRO FABRICANTE';
   // possível marca para os itens que saem como OUTRA MARCA
-  const marcaSai = r => soD ? N(semMarca(r.it.sugMarca) && !semMarca(r.marca) ? r.marca : arqOu(r.it.sugMarca, r.marca)) : N(r.marca);
+  const marcaSai = r => soD ? N((semMarca(r.it.sugMarca) || r.persArq) && !semMarca(r.marca) ? r.marca : arqOu(r.it.sugMarca, r.marca)) : N(r.marca);
   const temOM = R.some(r => marcaSai(r) === 'OUTRA MARCA'); const pm = temOM ? possiveisMarcas(R) : null;
   if (temOM) main[0].push('POSSIVEL MARCA', 'ORIGEM POSSIVEL MARCA');
   const temAn = R.some(r => r.it.analista); if (temAn) main[0].push('ANALISTA');
   // modo só descritivo: categoria, marca, fabricante e conteúdo exatamente como vieram no arquivo (vazio no arquivo -> o do app)
   // categoria do arquivo que não bate com a descrição (outra cesta, ex.: estojo como OVO): aí vale o que o app ajustou
   for (const r of R) main.push(soD
-    ? [bc(r.it.barcode), r.desc, (semFab(r.it.sugFab) && !semFab(r.fab) ? r.fab : arqOu(r.it.sugFab, r.fab)), (semMarca(r.it.sugMarca) && !semMarca(r.marca) ? r.marca : arqOu(r.it.sugMarca, r.marca)), r.qn, num(r.quv), (r.qDesc ? num(r.qt) : arqOu(r.it.sugQtOut ?? r.it.sugQt, num(r.qt))), arqOu(r.it.sugCatRaw, nomeOf(r.cat)), estMerOf(arqOu(r.it.sugCatRaw, nomeOf(r.cat)), r.it.sugCat || r.cat), ciFlag(r.it.barcode), r.status, r.sugCatApp || '']
+    ? [bc(r.it.barcode), r.desc, ((semFab(r.it.sugFab) || r.persArq) && !semFab(r.fab) ? r.fab : arqOu(r.it.sugFab, r.fab)), ((semMarca(r.it.sugMarca) || r.persArq) && !semMarca(r.marca) ? r.marca : arqOu(r.it.sugMarca, r.marca)), r.qn, num(r.quv), (r.qDesc ? num(r.qt) : arqOu(r.it.sugQtOut ?? r.it.sugQt, num(r.qt))), arqOu(r.it.sugCatRaw, nomeOf(r.cat)), estMerOf(arqOu(r.it.sugCatRaw, nomeOf(r.cat)), r.it.sugCat || r.cat), ciFlag(r.it.barcode), r.status, r.sugCatApp || '']
     : [bc(r.it.barcode), r.desc, r.fab, r.marca, r.qn, num(r.quv), num(r.qt), nomeOf(r.cat), estMerOf(nomeOf(r.cat), r.cat), ciFlag(r.it.barcode), ...(soD ? [r.status, ''] : [])]);
   if (temOM) for (let i = 0; i < R.length; i++) main[i + 1].push(...(marcaSai(R[i]) === 'OUTRA MARCA' ? pm(R[i]) : ['', '']));
   if (temAn) for (let i = 0; i < R.length; i++) main[i + 1].push(R[i].it.analista);

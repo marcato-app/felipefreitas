@@ -234,3 +234,12 @@ Pontos pra checar, em ordem:
 - libPatches agora aceitam `forte` / `remover_forte`.
 - Descritivo: `MARSHMALLOW + MARCA + demais informações` (`RX_MARSH` em `balaTipo`, testado antes dos tipos de bala; se o arquivo mantiver DOCE OUTROS no modo só descritivo, o início também é MARSHMALLOW). BALA/BALAS/BALINHA saem do complemento.
 - Complemento: palavra retirada leva junto o conector logo depois (BALA DE COCO → "DECARLI RECHEADA", não "DECARLI DE RECHEADA"); só na descrição escolhida, a escolha da descrição não muda.
+
+### Personagem/licença não é marca (`K.personagens`, `PERSONAGENS`)
+- Lista em consts.json (`personagens`): MARVEL, DISNEY, THOR, PANTERA NEGRA, WOLVERINE, TURMA DA MONICA, PATRULHA CANINA, STAR WARS…
+- `findBrand`: se há personagem entre as candidatas e a categoria é conhecida (EST MER 6), vale primeiro a outra marca registrada na categoria (ZEEDOG, TILIBRA, MOLIN, CIRANDA CULTURAL); sem outra, fica como antes (personagem). Sem categoria conhecida não troca (FUN/AMIGOS seriam escolhidas).
+- Pedaço de personagem (HELLO de HELLO KITTY, MONICA, PATROL) nunca é marca.
+- `autoSegments` ignora marcas do arquivo que são personagem (elas puxavam o segmento da categoria para ARROZ/BRINQUEDO…).
+- Arquivo com marca = personagem e outra marca na descrição: usa a da descrição, inclusive no modo só descritivo (`persArq`, alerta).
+- COLEIRA E GUIA PET: PEIT/PEITORAL (libPatch `coleira-peitoral-2026-10`, exclui FRANGO/PERU/CARNE…).
+- `qtdColunas`: medida KG/L com valor ≤ 60 vira G/ML ×1000 (15 KG → 15000G); valores maiores já estão em gramas (padrão da base).
