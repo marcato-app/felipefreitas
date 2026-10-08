@@ -265,3 +265,8 @@ Pontos pra checar, em ordem:
 - SOPA E CREME exclui MASSA/MASSAS e MASSA (PARA) SOPA, MACARRAO (PARA) SOPA (mas não MACARRAO solto: "SOPA INSTANTANEA COM MACARRAO VONO" segue sopa).
 - MASSA TRADICIONAL incluir/forte essas expressões + GUELA. Formatos soltos (AVE MARIA, ESTRELINHA, LETRINHA) não entram: são ambíguos (bíblia, decoração, SOPA LETRINHA).
 - PHRASE protege "AVE MARIA" (TOK expandia AVE → AVELA): BIBLIA AVE MARIA e massa AVE MARIA não viram "AVELA MARIA".
+
+### Pipoca: sabor nunca é a categoria (`aggregate`, flag PIPOCA_VENCE)
+- 1ª descrição com PIPOCA + MICRO/MICROONDAS/MICRO-ONDAS/MICROOND → PIPOCA MICRO-ONDAS (CALABRESA, PICANHA, QUEIJO, CHOCOLATE, LEITE CONDENSADO, PRESUNTO, PIZZA… não puxam mais para linguiça, carne, queijo, biscoito…).
+- Começa com PIPOCA e a votação caiu em outro alimento → categoria de pipoca votada ou PIPOCA PRONTA.
+- Não vale para PIPOQUEIRA, PANELA, MAQUINA, BALDE, SACO, EMBALAGEM.

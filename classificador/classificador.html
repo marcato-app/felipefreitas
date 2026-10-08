@@ -653,6 +653,15 @@ function aggregate(T0, sug, C, main) {
   // EMB só vale como primeira palavra (OVOS BRANCOS EMB C/12 é ovo embalado)
   if (C.names.has('EMBALAGEM ALIMENTO') && T.length && /(?<![A-Z])(EMBALAGEM|EMBALAGENS|EMBALAGEN)(?![A-Z])|^EMB(?![A-Z])/.test(T[0]) && /(?<![A-Z])(OVO|OVOS|PASCOA|TRUFA|TRUFAS|BOMBOM|BOMBONS|BRIGADEIRO|BRIGADEIROS|DOCE|DOCES|CHOCOLATE|CHOCOLATES|BOMBONIERE)(?![A-Z])/.test(T[0]))
     return Object.assign(r, { cat: 'EMBALAGEM ALIMENTO', flag: 'EMBALAGEM_OVO' });
+  // pipoca: o sabor (CALABRESA, PICANHA, QUEIJO, CHOCOLATE, LEITE CONDENSADO…) nunca é a categoria.
+  // PIPOCA + MICRO (MICROONDAS, MICRO-ONDAS, MICROOND…) -> PIPOCA MICRO-ONDAS; começa com PIPOCA e caiu em outro alimento -> PIPOCA PRONTA
+  if (T.length && /(?<![A-Z])PIPOCA(?![A-Z])/.test(T[0]) && !/(?<![A-Z])(PIPOQUEIRA|PANELA|MAQUINA|BALDE|SACO|SACOS|EMBALAGEM|EMB)(?![A-Z])/.test(T[0])) {
+    if (C.names.has('PIPOCA MICRO-ONDAS') && /(?<![A-Z])MICR(O|OONDAS?|O ONDAS?|OOND|OWAVE)?(?![A-Z])/.test(T[0])) return Object.assign(r, { cat: 'PIPOCA MICRO-ONDAS', flag: 'PIPOCA_VENCE' });
+    if (/^PIPOCA(?![A-Z])/.test(T[0]) && r.cat !== OUT && !/PIPOCA/.test(r.cat) && !CESTA_NAO_CONSUMO.has(cestaOf(r.cat))) {
+      const pc = (r.per || []).find(c => c && /PIPOCA/.test(c)) || (C.names.has('PIPOCA PRONTA') ? 'PIPOCA PRONTA' : null);
+      if (pc) return Object.assign(r, { cat: pc, flag: 'PIPOCA_VENCE' });
+    }
+  }
   // papinha/sopinha infantil em alguma descrição vence o ingrediente/sabor (MORANGA, FEIJAO, MANDIOCA, MANGA…)
   if (r.cat !== 'PAPINHA' && (r.per || []).includes('PAPINHA')) return Object.assign(r, { cat: 'PAPINHA', flag: 'PAPINHA_VENCE' });
   // bala/pirulito/marshmallow em alguma descrição vence sabor (fruta), docinho, gelatina, aroma, café, leite, carne ou bombom
