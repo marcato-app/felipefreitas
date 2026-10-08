@@ -1402,6 +1402,14 @@ const FAB_LIXO = new Set([...LAB_LIXO, ...'LABORATORIOS FARMACETICA FARMACEUTICA
 const FAB_ALIAS = { GLAXOSMITHKLINE: 'GSK' };
 let FAB_CANON = null;
 const FAB_ORIGEM = new Map(); // nome curto -> razão social de onde veio (CMED)
+// fabricante vindo do arquivo: palavra genérica/descritiva sozinha não vale (ANTIBIOTICOS, VITAMINA, HOMEM, FARMA),
+// mesmo que o próprio arquivo traga de uma rodada antiga; aí o app procura o fabricante de verdade
+function fabArqOk(f) {
+  if (!valido(f)) return false; const n = N(f);
+  if (/^(ANTIBIOTICOS?|MEDICAMENTOS?|PRODUTOS?|FARMA|PHARMA|LABORATORIOS?|DROGARIA|FARMACIA|QUIMICA|NACIONAL|SAUDE|SUPLEMENTOS?|NATURAIS|NUTRACEUTICA)$/.test(n)) return false;
+  if (!n.includes(' ') && (PALAVRA_DESCRITIVA.has(n) || FARMA_NAO_MARCA.has(n))) return false;
+  return true;
+}
 function canonFab(f) {
   if (!valido(f) || f === 'OUTRO FABRICANTE') return f;
   const C = K.farmaFabs || {};
@@ -1805,6 +1813,12 @@ async function runAll(opts = {}) {
     let bn = null, BD = null;
     const vocab = catVocab(C, a.cat); vocab.heads = new Set(T.map(t => (headPos(t, C.headIdx) || {}).w).filter(Boolean));
     const arqAl = [], alerts0 = [];
+    // fabricante do arquivo recusado (ANTIBIOTICOS): a sigla dele na marca do arquivo (MACA PERUANA ANT) também cai
+    if (valido(it.sugFab) && !fabArqOk(it.sugFab) && valido(it.sugMarca) && / [A-Z0-9]{3}$/.test(N(it.sugMarca)) && !it.sugMarcaLimpa) {
+      const sig = N(it.sugMarca).slice(-3); it.sugMarca = it.sugMarca.trim().replace(/\s+\(?[A-Z0-9]{3}\)?$/i, ''); it.sugMarcaLimpa = true;
+      // e o "(ANT)" do descritivo da rodada antiga
+      it.D = it.D.map(d => String(d).replace(new RegExp('\\s*\\(' + sig + '\\)\\s*$'), '')); it.T = it.D.map(N);
+      for (let k = 0; k < T.length; k++) T[k] = T[k].replace(new RegExp(' ' + sig + '$'), ''); }
     const sm = N(it.sugMarca), marcaArq = prioArq() && valido(it.sugMarca) && !C.black.has(sm);
     let marca, fab;
     if (marcaArq && !marcaNaDesc(sm, T)) { // marca do arquivo não aparece: troca só se a descrição trouxer outra marca da categoria
@@ -1815,7 +1829,7 @@ async function runAll(opts = {}) {
     if (marcaArq && !bn) {
       bn = sm; BD = brandDicts().find(D => D.map.has(sm)) || null;
       marca = it.sugMarca.trim();
-      const fs = valido(it.sugFab) ? it.sugFab.trim() : '';
+      const fs = fabArqOk(it.sugFab) ? it.sugFab.trim() : '';
       const b = BD && BD.map.get(sm);
       const conhecidos = b ? new Set([...b.fabAll.keys()].filter(f => f !== 'OUTRO FABRICANTE').map(N)) : new Set();
       if (fs && (!conhecidos.size || conhecidos.has(N(fs)) || (cc && cc.cesta === 'FARMACIA'))) fab = fs; // Farmácia: fabricante pelo laboratório, logo abaixo
@@ -1824,9 +1838,9 @@ async function runAll(opts = {}) {
     } else {
       if (!marcaArq) for (const DD of brandDicts()) { bn = findBrand(T, seg, it.sugMarca, C.black, DD, vocab); if (bn) { BD = DD; break; } }
       marca = bn ? BD.map.get(bn).canon : 'OUTRA MARCA';
-      fab = bn ? fabricante(bn, seg, BD) : (prioArq() && valido(it.sugFab) ? it.sugFab.trim() : 'OUTRO FABRICANTE'); // sem marca: fica o fabricante do arquivo
+      fab = bn ? fabricante(bn, seg, BD) : (prioArq() && fabArqOk(it.sugFab) ? it.sugFab.trim() : 'OUTRO FABRICANTE'); // sem marca: fica o fabricante do arquivo
       if (marcaArq && bn) arqAl.push(`Arquivo: marca ${it.sugMarca.trim()} não aparece na descrição; usada ${marca}`);
-      if (!marcaArq && bn && prioArq() && valido(it.sugFab) && N(it.sugFab) !== N(fab)) {
+      if (!marcaArq && bn && prioArq() && fabArqOk(it.sugFab) && N(it.sugFab) !== N(fab)) {
         const b = BD.map.get(bn); const conhecidos = new Set([...b.fabAll.keys()].map(N));
         if (conhecidos.has(N(it.sugFab))) fab = it.sugFab.trim(); }
     }
@@ -1845,7 +1859,7 @@ async function runAll(opts = {}) {
         // ordem: DIMA > base de marcas de Farmácia do cliente > dicionário enviado > nome comercial da descrição > princípio ativo
         const paW = palavrasPA(T, C);
         const tenta = DD => { const b2 = DD && findBrand(T, [], '', C.black, DD, vocab); return b2 && !farmaNaoMarca(b2, C, paW) ? b2 : null; };
-        const fabArq = prioArq() && valido(it.sugFab) ? it.sugFab.trim() : '';
+        const fabArq = prioArq() && fabArqOk(it.sugFab) ? it.sugFab.trim() : '';
         bn = null; BD = null; fmHit = null;
         let vm = (it.vit && it.vit.m) || vitMarca(T, C); // remédio registrado (BIO C em A11G1) também usa a marca da base de vitaminas
         if (vm && /^(A ?Z|MULT|MULTI|POLI|POLIVIT|MULTIVIT|POLIVITAMINICOS?|MULTIVITAMINICOS?)( |$)/.test(vm.termo)) vm = null; // A Z / POLIVITAMINICO indica multivitamínico, não é nome de produto
@@ -1885,7 +1899,7 @@ async function runAll(opts = {}) {
     if (farma && !(it.vit && it.vit.m && it.vit.m.fab && !marcaArq)) { // fabricante = laboratório da descrição; sem ele, o laboratório da CMED
       const lab = labDaDescricao(T) || (it.cmed && it.cmed.lab ? (labDaDescricao([N(it.cmed.lab)]) || N(it.cmed.lab).replace(/\b(LTDA|S A|SA|EIRELI|ME|INDUSTRIA|COMERCIO|IND|COM)\b/g, ' ').replace(/\s+/g, ' ').trim()) : null);
       if (lab) {
-        if (prioArq() && valido(it.sugFab) && N(it.sugFab) !== N(lab)) arqAl.push(`Arquivo: fabricante ${it.sugFab.trim()} difere do laboratório na descrição (${lab}); usado ${lab}`);
+        if (prioArq() && fabArqOk(it.sugFab) && N(it.sugFab) !== N(lab)) arqAl.push(`Arquivo: fabricante ${it.sugFab.trim()} difere do laboratório na descrição (${lab}); usado ${lab}`);
         fab = lab;
       }
     }

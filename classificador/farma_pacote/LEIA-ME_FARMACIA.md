@@ -706,3 +706,14 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
     contém o outro, escrita parecida, mesma 1ª palavra) e exemplo de item;
   - conferir essa aba antes de cadastrar.
 - Base de vitaminas: 164 fabricantes novos, 71 com parecido para conferir.
+
+### 3.6g Arquivo rodado de novo com fabricante errado de rodada antiga (ANTIBIOTICOS)
+- O fabricante que vem no arquivo vale (prioridade do arquivo), mas não quando é palavra genérica ou descritiva sozinha:
+  ANTIBIOTICOS, MEDICAMENTOS, FARMA, VITAMINA, HOMEM... (fabArqOk).
+- Nesses casos:
+  - o app procura o fabricante de verdade;
+  - a sigla velha sai da marca e do descritivo do arquivo. Exemplo: "MACA PERUANA ANT" / "(ANT)" → recalculados.
+- Exemplos:
+  - SUPL ALIM MACA PERUANA 100G (ANT) com fabricante ANTIBIOTICOS → EXPLEND NUTRACEUTICOS / MACA PERUANA EXP
+    (igual a uma rodada sem o arquivo);
+  - AMPICILINA da ABL → ANTIBIOTICOS DO BRASIL.
