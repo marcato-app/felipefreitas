@@ -653,3 +653,20 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   - conteúdo certo foi de 10.845 para 11.046 (90% → 92%);
   - exemplos: CEBION 1G 30 comprimidos 1G → 30CPRS; TARGIFOR C → 32CPRS.
 - DIMA e Hoja: sem mudança.
+
+### 3.6d Fabricante novo com no máximo 2 a 3 palavras
+- Vale para fabricante que não existe nas bases, em geral a razão social da CMED. Os nomes que já existem no
+  dicionário ficam como estão.
+- Função fabCurto, chamada no fim de canonFab:
+  - tira LTDA, DE, DO, E...;
+  - tira palavras genéricas: PRODUTOS, FARMACEUTICA, HOSPITALARES, MEDICAMENTOS, DISTRIBUICAO, BRASIL, LABORATORIO...;
+  - fica com as 2 primeiras palavras do nome.
+- Fundação, instituto ou empresa com o nome ou sigla no fim fica só com essa sigla. Exemplos:
+  - VOLPHARMA DISTRIBUIDORA DE PRODUTOS HOSPITALARES E FARMACEUTICOS → VOLPHARMA DISTRIBUIDORA;
+  - FUNDACAO BAIANA DE PESQ CIENTIFICA ... BAHIAFARMA → BAHIAFARMA;
+  - FUNDACAO PARA O REMEDIO POPULAR FURP → FURP;
+  - BEKER PRODUTOS FARMACO HOSPITALARES → BEKER;
+  - GE HEALTHCARE ... → GE HEALTHCARE.
+- Testes:
+  - na base de vitaminas mudaram só 14 nomes de fabricante, e as siglas ficaram iguais;
+  - DIMA e Hoja sem mudança.

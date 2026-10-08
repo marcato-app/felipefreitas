@@ -1411,7 +1411,27 @@ function canonFab(f) {
   const k = w.join(' '); if (k.length < 6) return f;
   const um = (x, y) => { if (Math.abs(x.length - y.length) !== 1) return false; let i = 0; while (i < x.length && x[i] === y[i]) i++; return x.slice(i) === y.slice(i + 1) || x.slice(i + 1) === y.slice(i); };
   const c = [...new Set(Object.keys(C).filter(x => x.length >= 6 && um(k, x)).map(x => C[x]))];
-  return c.length === 1 ? c[0] : f;
+  return c.length === 1 ? c[0] : fabCurto(f);
+}
+// fabricante novo (fora das bases) com no máximo 2 a 3 palavras: a razão social da CMED vira o nome (VOLPHARMA DISTRIBUIDORA DE
+// PRODUTOS HOSPITALARES -> VOLPHARMA DISTRIBUIDORA; FUNDACAO BAIANA ... BAHIAFARMA -> BAHIAFARMA; FUNDACAO ... FURP -> FURP)
+const FAB_INST = new Set('FUNDACAO INSTITUTO EMPRESA CENTRO SECRETARIA ASSOCIACAO COOPERATIVA'.split(' '));
+const FAB_ENCHE = new Set('DE DO DA DOS DAS E O A OS AS PARA EM LTDA S SA ME EPP EIRELI LIMITADA CIA'.split(' '));
+const FAB_GENERICO = new Set(('PRODUTOS PRODUTO PROD QUIMICA QUIMICAS QUIMICOS QUIMICO FARMACEUTICA FARMACEUTICAS FARMACEUTICO FARMACEUTICOS FARMACO ' +
+  'HOSPITALARES HOSPITALAR MEDICAMENTOS MEDICOS MEDICO MEDICAS IMPORTACAO EXPORTACAO IMPORTADORA EXPORTADORA DISTRIBUICAO FORNECIMENTO ' +
+  'COMERCIO COMERCIAL INDUSTRIA IND COM BRASIL BRAZIL BRASILEIRA NACIONAL PESQ PESQUISA PESQUISAS CIENTIFICA DESENV DESENVOLVIMENTO ' +
+  'TECNOLOGICO TECNOLOGIA BIOTECNOLOGIA SERVICOS EQUIPAMENTOS COSMETICOS ALIMENTOS NATURAIS SUPLEMENTOS ALIMENTARES ESTADO').split(' '));
+function fabCurto(f) {
+  const w = N(f).split(' ').filter(Boolean); if (w.length <= 3) return f;
+  const gen = x => FAB_GENERICO.has(x) || FAB_INST.has(x) || /^LABORATORIOS?$/.test(x);
+  const inst = FAB_INST.has(w[0]) || /^LABORATORIOS?$/.test(w[0]);
+  let k = w.slice(inst ? 1 : 0).filter(x => !FAB_ENCHE.has(x));
+  while (k.length > 1 && gen(k[0])) k.shift(); // PRODUTOS ROCHE -> ROCHE, LABORATORIO QUIMICO FARMACEUTICO BERGAMO -> BERGAMO
+  if (!k.length) return f;
+  const ult = w[w.length - 1];
+  if (inst && ult.length >= 3 && !gen(ult) && (k.length > 3 || (k.length === 3 && /^[A-Z]{3,6}$/.test(ult)))) return ult; // nome/sigla da instituição no fim (BAHIAFARMA, FURP, LAFEPE)
+  const out = [k[0]]; for (const x of k.slice(1)) { if (out.length >= 2 || gen(x)) break; out.push(x); }
+  return out.join(' ');
 }
 // sigla do laboratório (3 letras, siglas.py -> K.farmaSiglas): código/nome do laboratório na descrição (GERMED -> GER),
 // código da marca na DIMA ("DORFLEX (OPE)", "SUNDOWN NES"), senão a sigla padrão do fabricante
