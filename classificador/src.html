@@ -724,7 +724,7 @@ function catVocab(C, cat) {
   const x = C.cats.find(y => y.c.nome === cat); const v = new Set(N(cat).split(' '));
   // nome de marca que está na lista da categoria (PRINGLES, LAYS em BATATA; KIT KAT em CHOCOLATE CANDY BAR) ajuda a achar a categoria,
   // mas não vira vocabulário: continua sendo reconhecido como marca
-  if (x) for (const t of [...(x.c.incluir || []), ...(x.c.tipo || []), ...(x.c.tambem || [])]) { if (MARCAS_NA_LISTA.has(N(t))) continue; for (const w of N(String(t).replace(/\*/g, ' ')).split(' ')) v.add(w); }
+  if (x) for (const t of [...(x.c.incluir || []), ...(x.c.tipo || []), ...(x.c.tambem || [])]) { if (MARCAS_NA_LISTA.has(N(t))) continue; for (const w of N(String(t).replace(/\*/g, ' ')).split(' ')) if (!MARCAS_NA_LISTA.has(w)) v.add(w); } // OVO KINDER: KINDER segue marca
   v.nome = new Set(N(cat).split(' ').filter(w => !SEG_STOP.has(w)));
   // palavras soltas de tipo de produto (lista "tipo" de todas as categorias ativas: PIA, RALO, FITA...)
   if (!C.tipos) { C.tipos = new Set(); for (const y of C.cats) for (const t of y.c.tipo || []) C.tipos.add(N(t)); }
@@ -1808,7 +1808,10 @@ if (K.libSeed && K.libSeed.categorias) mergeInto(cfg, normCfg({ categorias: K.li
 function migrarCategorias() {
   let n = 0;
   // palavras que não entram no complemento da categoria: MICROONDAS em PIPOCA MICRO (MICRO já diz)
-  const REMOVER_PATCH = { 'BALA PASTILHA': ['DURA', 'DURAS', 'DUR', 'BALA', 'BALAS', 'BALINHA', 'BALINHAS'], 'PIPOCA MICRO-ONDAS': ['MICROONDAS', 'MICROONDA', 'MICROWAVE', 'MICROOND', 'ONDAS', 'ONDA'] };
+  // início cadastrado errado na biblioteca (CREME DE AMENDOIM vinha como CHOCOLATE COBERTURA): corrige sempre
+  const INICIO_FIX = { 'CREME DE AMENDOIM': ['CHOCOLATE COBERTURA', 'CREME DE AMENDOIM'] };
+  for (const c of cfg.categorias || []) { const f = INICIO_FIX[c.nome]; if (f && N(c.inicio || '') === f[0]) { c.inicio = f[1]; c.dinamico = false; n++; } }
+  const REMOVER_PATCH = { 'CEREAL EM BARRA PROTEICO': ['PROTEINA', 'PROTEINAS', 'PROTEICA', 'PROTEICAS', 'PROTEICO', 'PROTEIN', 'BAR', 'BARS', 'BARRA', 'BARRAS', 'BARRINHA', 'BARRINHAS', 'HIPERPROTEICA'], 'CREME DE AMENDOIM': ['CREME', 'PASTA', 'MANTEIGA', 'AMENDOIM', 'CR'], 'BALA PASTILHA': ['DURA', 'DURAS', 'DUR', 'BALA', 'BALAS', 'BALINHA', 'BALINHAS'], 'PIPOCA MICRO-ONDAS': ['MICROONDAS', 'MICROONDA', 'MICROWAVE', 'MICROOND', 'ONDAS', 'ONDA'] };
   for (const c of cfg.categorias || []) { const r = REMOVER_PATCH[c.nome]; if (r) for (const w of r) if (!(c.remover || []).includes(w)) { c.remover = [...(c.remover || []), w]; n++; } }
   // início fixo para categorias que estavam sem início (K.inicioPatch); quem já tem início definido fica como está
   for (const c of cfg.categorias || []) { const v = (K.inicioPatch || {})[c.nome]; if (v && !(c.inicio || '').trim()) { c.inicio = v; c.dinamico = false; n++; } }

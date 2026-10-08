@@ -249,3 +249,10 @@ Pontos pra checar, em ordem:
 - Tamanho solto (P, M, G, GG, XG…, sem número antes) nessas categorias e em VESTUARIO PET vira "TAM G".
 - CHA SOLUVEL / CHA CAPSULA excluem PEIT, COLEIRA, ZEEDOG, NEOPRO, CAO, GATO… (MATCHA é cor) — libPatch `matcha-pet-2026-10`.
 - Início igual à marca colada (ZEEDOG = ZEE DOG, STAROFFICE = STAR OFFICE) sai, para não repetir.
+
+### Creme de amendoim, cappuccino, ovo de páscoa, barra de proteína
+- CREME DE AMENDOIM: início estava cadastrado como CHOCOLATE COBERTURA → CREME DE AMENDOIM (libSeed + `INICIO_FIX` em migrarCategorias para bibliotecas já salvas); remover CREME/PASTA/MANTEIGA/AMENDOIM/CR; incluir CREME AMENDOIM, PASTA AMENDOIM…; chocolates e amendoins excluem esses termos.
+- CAPPUCCINO (todas as grafias) forte em CAPPUCCINO; todas as categorias CAFE * excluem (inclusive CAFE CAPSULA).
+- OVO DE PASCOA: incluir/forte OVO PASC, OVO DE CHOCOLATE, OVO KINDER, KINDER SURPRESA…; não exclui mais BRANCO/VERMELHO (chocolate branco); exclui EMBALAGEM/FORMA/MOLDE…; segPadrao OVO DE PASCOA + CHOCOLATE (KINDER só está em CHOCOLATE na DIMA). Chocolates excluem OVO/PASCOA; ovos de galinha excluem KINDER, SURPRESA, LACTA, GAROTO…
+- KINDER em `marcasNaLista`; `catVocab` agora ignora palavra de marca da lista também dentro de expressão (OVO KINDER).
+- Barra de proteína → CEREAL EM BARRA PROTEICO (sai de SUPLEMENTO OUTROS e demais suplementos); remover PROTEINA/PROTEICA/PROTEIN/BAR/BARRA/BARRINHA no descritivo. libPatches `capuccino-ovo-amendoim-2026-10`, `barra-proteina-2026-10`.
