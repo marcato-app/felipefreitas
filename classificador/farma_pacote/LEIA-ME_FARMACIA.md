@@ -745,3 +745,14 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   - vitaminas: EST MER 7 certa foi de 7.516 para 8.001; fabricante de 7.188 para 7.202; marca de 7.201 para 7.156
     (o Hoja novo traz grafias de marca diferentes da base de vitaminas);
   - Hoja antigo: marca foi de 1.444 para 1.439.
+
+### 3.6j Forma farmacêutica não é marca
+- Exemplos: XAROPE MELPROP SPECK → MELPROP SPECK OTF; POMADA VICK VAPORUB → VICK; SOLUCAO → MELATONINA MARACUJA;
+  ELIXIR → FIGANSTIN.
+- Constante FORMA_MARCA: XAROPE, POMADA, GOTAS, SPRAY, CREME, GEL, SACHE, CAPSULA(S), COMPRIMIDO, SOLUCAO, SUSPENSAO,
+  AMPOLA, PASTILHA, FLACONETE, ELIXIR, EMULSAO...
+  - No nome do produto (produtoNome), a forma sai de qualquer posição.
+  - Na marca final, sai só do começo, porque no fim ela pode fazer parte do nome (ALTAD CAPS, OHDE CAPS, L CAPS).
+- CHA não entra na lista: CHA VERDE é o produto.
+- Base de vitaminas: 8 marcas mudaram. 6 são produtos UNIFABRA que a própria base do cliente marca como "CAPSULAS OLEO
+  DE CARTAMO" (erro da base).

@@ -810,12 +810,16 @@ const PN_FORA = new Set(('SUP SUPLEMEN SUPLEMENT SUPLEMNETO SUPLEENTO SUPLENTO A
   'DRG DRAGEA DRAGEAS GTS GOTAS UN UND UNID UNIDADES SACHE SACHES FRASCO FR CX CAIXA POTE REFIL COM C X ML G MG MCG UI KG L ' +
   'REV REVEST REVESTIDO REVESTIDOS SOFTGEL SOFTGELS GEL MOLE MOLES MASTIGAVEL MASTIGAVEIS EFERV EFERVESCENTE LIQ LIQUIDO SOL SOLUCAO ORAL ' +
   'SABOR SEM ACUCAR ZERO NOVO NOVA PROMO KIT LEVE PAGUE').split(' '));
+// forma farmacêutica não faz parte da marca (XAROPE MELPROP SPECK -> MELPROP SPECK; POMADA VICK VAPORUB -> VICK VAPORUB)
+const FORMA_MARCA = new Set(('XAROPE XAROPES POMADA POMADAS GOTAS GOTA SPRAY CREME GEL SACHE SACHES SACHET CAPSULA CAPSULAS CAPS COMPRIMIDO COMPRIMIDOS COMP ' +
+  'SOLUCAO SUSPENSAO AMPOLA AMPOLAS PASTILHA PASTILHAS LOCAO FLACONETE FLACONETES EFERVESCENTE EFERVESCENTES DRAGEA DRAGEAS ELIXIR EMULSAO TABLETE TABLETES ' +
+  'UNGUENTO BALSAMO COLIRIO').split(' '));
 function produtoNome(T, fab) {
   const fw = new Set(N(fab || '').split(' '));
   { const l = labAchado(T); if (l) for (const x of l.termo.split(' ')) fw.add(x); } // NEO QUIMICA, FLORA NATIVA: laboratório não é produto
   let best = null;
   for (const t of T) {
-    const w = t.split(' ').filter(x => x && !PN_FORA.has(x) && !fw.has(x) && !/\d/.test(x) && !ehSigla(x) && !palavraLab(x) && !LAB_LIXO.has(x) && x.length >= 2);
+    const w = t.split(' ').filter(x => x && !PN_FORA.has(x) && !FORMA_MARCA.has(x) && !fw.has(x) && !/\d/.test(x) && !ehSigla(x) && !palavraLab(x) && !LAB_LIXO.has(x) && x.length >= 2);
     while (w.length && CONNECT.has(w[0])) w.shift();
     let p = w.slice(0, 3); while (p.length && CONNECT.has(p[p.length - 1])) p.pop();
     if (!p.length || !p.some(x => x.length >= 4)) continue;
@@ -1956,6 +1960,9 @@ async function runAll(opts = {}) {
     }
     // Farmácia com fabricante conhecido NUNCA fica com OUTRA MARCA: 1º nome comercial escrito (FITOPRIME, CAPSDAY), 2º o nome
     // do produto como genérico (OLEO DE LINHACA, ARGININA, ESPINHEIRA SANTA; ganha a sigla do fabricante), 3º o nome do fabricante
+    if (farma && valido(marca) && marca !== 'OUTRA MARCA') { // forma no começo/fim da marca sai (XAROPE MELPROP SPECK, CAPSULAS OLEO DE CARTAMO); só forma -> sem marca
+      const w = marca.split(' '); while (w.length && FORMA_MARCA.has(N(w[0]))) w.shift(); // só no começo: ALTAD CAPS, OHDE CAPS, L CAPS são o nome do produto
+      if (w.join(' ') !== marca) { if (w.length) { marca = w.join(' '); bn = N(marca); } else { marca = 'OUTRA MARCA'; bn = null; BD = null; } } }
     let marcaProduto = false; // marca = nome do produto (genérico): sem fabricante leva a sigla OTF, não vira fabricante
     if (farma && (!valido(marca) || marca === 'OUTRA MARCA')) {
       nomeCom();
