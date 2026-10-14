@@ -73,6 +73,8 @@ def main():
     rx_pa = re.compile(r'(?<![A-Z0-9])(?:' + '|'.join(map(re.escape, termos)) + r')(?![A-Z0-9])') if termos else None
 
     com = defaultdict(lambda: {'cat': defaultdict(float), 'fab': defaultdict(float), 'empresa': False})
+    lx = here / 'dados' / 'farma_marcas_lixo.txt'
+    LIXO = {N(l) for l in open(lx, encoding='utf-8') if l.strip() and not l.startswith('#')} if lx.exists() else set()
     codfab = defaultdict(lambda: defaultdict(float))
     sem_cat, n = set(), 0
     for p in sorted((here / 'dados' / 'farma_marcas').glob('*')):
@@ -80,7 +82,7 @@ def main():
         for fab, marca, e7, v in ler(p):
             n += 1; nome, cod = separa(marca, fab); v = v or 1
             if cod and fab not in SEM_FAB: codfab[cod][fab] += v
-            if not nome or (rx_pa and rx_pa.search(nome)) or nome.split()[0] in SAIS: continue  # genérico: marca = princípio ativo
+            if not nome or nome in LIXO or (rx_pa and rx_pa.search(nome)) or nome.split()[0] in SAIS: continue  # genérico: marca = princípio ativo; LIXO: não é marca
             empresa = N(fab).startswith(nome) or nome.split()[0] == N(fab).split()[0]  # "SANDOZ SDZ", "GEOLAB": nome da empresa
             cat = interna.get(N(e7)) or interna.get(N(COD.sub('', e7)))
             if empresa: com[nome]['empresa'] = True  # vale como marca, mas não decide categoria (a empresa vende de tudo)

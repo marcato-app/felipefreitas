@@ -179,6 +179,8 @@ def main():
         pa = here / 'dados' / arq
         if pa.exists(): todos_f |= {l.strip() for l in open(pa, encoding='utf-8') if l.strip() and not l.startswith('#')}
     c['hojaFabs'] = sorted(todos_f)
+    lx = here / 'dados' / 'farma_marcas_lixo.txt'
+    c['farmaMarcasLixo'] = sorted({N(l) for l in open(lx, encoding='utf-8') if l.strip() and not l.startswith('#')}) if lx.exists() else []
     c['farmaFabs'] = canon
     c['farmaSiglas'] = {'codigos': codigos, 'fab': fab, 'marcas': marcas}
     (here / 'consts.json').write_text(json.dumps(c, ensure_ascii=False), encoding='utf-8')

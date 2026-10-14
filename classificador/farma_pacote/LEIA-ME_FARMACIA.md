@@ -763,3 +763,16 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
 - APLIC, APLICADOR, CANETA, REFIL e CARPULE entram em FARMA_NAO_MARCA e em FORMA_MARCA.
 - Em Farmácia, CAN quer dizer CANETA, e não CANELA.
 - Exemplo: MOUNJARO ELI, descritivo "MOUNJARO SOLUCAO INJETAVEL CANETA 10MG/ML 0.5ML (ELI)".
+
+### 3.6l Marcas lixo do Hoja bloqueadas
+- `dados/farma_marcas_lixo.txt` (uma por linha, editável) lista "marcas" do Hoja que são palavra comum, forma, nutriente,
+  abreviação ou cabeçalho. Exemplos: APLIC, OLEO, SOFTGEL, ELIXIR, FLACONETE, GUMMY, VITA, VIT, MAG, MCG, SEM, MARCA,
+  OUTRA MARCA, POLI (CONSERVAS POLI), VITA C (MONDELEZ), CALCIO, MAGNESIO, VITAMINA C.
+- O farma_marcas.py não usa essas marcas. Elas também ficam em K.farmaMarcasLixo.
+- No app, elas não entram como filtro de palavra: VITA, LIFE e GOLD fazem parte de marcas reais (VITA PREMIUM, NATURAL
+  LIFE), então barrar a palavra solta quebrava essas marcas.
+- Resultados:
+  - vitaminas: marca certa foi de 7.150 para 7.189; fabricante de 7.202 para 7.270; EST MER 7 de 8.001 para 8.019;
+  - DIMA: igual (fabricante 1.908);
+  - Hoja antigo: marca foi de 1.439 para 1.432. A queda é esperada: a referência antiga tem as próprias marcas lixo
+    (OLEO, SOFTGEL, CALCIO).
