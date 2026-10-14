@@ -1411,6 +1411,13 @@ function fabArqOk(f) {
   if (!n.includes(' ') && (PALAVRA_DESCRITIVA.has(n) || FARMA_NAO_MARCA.has(n))) return false;
   return true;
 }
+// nome do produto registrado na CMED: marca (ELÔ -> ELO); genérico -> a substância sem o sal (ACETATO DE CLORMADINONA + ETINILESTRADIOL -> CLORMADINONA)
+function nomeCmed(e) {
+  if (!e || !e.produto) return '';
+  if (/GENERIC/.test(N(e.tipo))) { const w = N(String(e.produto).split('+')[0]).split(' ').filter(x => !SAIS_DCB.has(x) && !/^(DE|DO|DA|ACETATO|SODICO|SODICA|POTASSICO|POTASSICA|CALCICO|CALCICA|MONOIDRATADO|DI|HEMI)$/.test(x)); return w.join(' '); }
+  const lw = new Set(N(e.lab).split(' ').filter(x => x.length >= 4)), w = N(e.produto).split(' '), r = w.filter(x => !lw.has(x));
+  return (r.length ? r : w).join(' '); // ESPINHEIRA SANTA NATULAB -> ESPINHEIRA SANTA: o laboratório não entra na marca
+}
 function canonFab(f) {
   if (!valido(f) || f === 'OUTRO FABRICANTE') return f;
   const C = K.farmaFabs || {};
@@ -1893,9 +1900,9 @@ async function runAll(opts = {}) {
       }
     }
     if (farma && it.cmed && !marcaArq && !/GENERIC/.test(N(it.cmed.tipo))) { // produto de marca na CMED: o nome completo (DTN-FOL, não DTN)
-      const pn = N(it.cmed.produto);
+      const pn = nomeCmed(Object.assign({}, it.cmed, { tipo: '' }));
       const conhecida = bn && ((K.farmaSiglas || {}).marcas || {})[N(bn)] || (bn && data.dima && data.dima.map.has(N(bn))); // ADDERA (Hoja/DIMA) vence ADDERA D3 (CMED)
-      if (pn && !farmaNaoMarca(pn, C, palavrasPA(T, C)) && (!bn || marca === 'OUTRA MARCA' || (!conhecida && pn !== N(bn) && pn.startsWith(N(bn) + ' ')))) { bn = pn; marca = pn; BD = null; }
+      if (pn && (!farmaNaoMarca(pn, C, palavrasPA(T, C)) || !palavrasPA([pn], C).size) && (!bn || marca === 'OUTRA MARCA' || ehLab(marca) || (!conhecida && pn !== N(bn) && pn.startsWith(N(bn) + ' ')))) { bn = pn; marca = pn; BD = null; }
     }
     if (farma && !(it.vit && it.vit.m && it.vit.m.fab && !marcaArq)) { // fabricante = laboratório da descrição; sem ele, o laboratório da CMED
       const lab = labDaDescricao(T) || (it.cmed && it.cmed.lab ? (labDaDescricao([N(it.cmed.lab)]) || N(it.cmed.lab).replace(/\b(LTDA|S A|SA|EIRELI|ME|INDUSTRIA|COMERCIO|IND|COM)\b/g, ' ').replace(/\s+/g, ' ').trim()) : null);
@@ -1984,9 +1991,14 @@ async function runAll(opts = {}) {
       // só remédio (categoria com código ATC): em suplemento, dermocosmético e correlato a marca própria do fabricante vale (FITOPLANT, MASSIME)
       const supl = !!it.vit || a.cat === 'VITAMINA OUTRO' || a.cat === 'MULTIVITAMINICO' || !/^[A-Z]\d\d[A-Z]/.test(nomeOf(a.cat));
       if (marca !== 'OUTRA MARCA' && !supl && ehLab(marca)) {
+        // laboratório não é marca: 1º o princípio ativo, 2º o nome registrado na CMED (AURA, DRY, ELÔ; genérico -> substância),
+        // 3º o nome do produto na descrição; fabricante conhecido nunca fica OUTRA MARCA: sem nada disso, a marca fica (revisar)
         const pa = (C.pa ? T.map(t => matchPA(t, C.pa)).find(Boolean) : null) || T.map(t => matchPB(t, C)).find(Boolean) || null;
-        alerts0.push(`Marca ${marca} é laboratório: usado ${pa ? 'o princípio ativo' : 'OUTRA MARCA'}`);
-        marca = pa ? paIni(pa, T) : 'OUTRA MARCA'; bn = marca === 'OUTRA MARCA' ? null : marca; BD = null;
+        let nova = pa ? paIni(pa, T) : null, como = 'o princípio ativo';
+        if (!nova && it.cmed) { const pc = nomeCmed(it.cmed); if (pc) { nova = pc; como = 'o nome registrado na CMED'; } }
+        if (!nova) { const pn = produtoNome(T, fab); if (pn && !ehLab(pn)) { nova = pn; como = 'o nome do produto'; } }
+        if (!nova && valido(fab) && fab !== 'OUTRO FABRICANTE') alerts0.push(`Marca ${marca} é o nome do laboratório e a descrição não diz o produto: mantida (com fabricante não pode ficar OUTRA MARCA) - revisar`);
+        else { alerts0.push(`Marca ${marca} é laboratório: usado ${nova ? como : 'OUTRA MARCA'}`); marca = nova || 'OUTRA MARCA'; bn = marca === 'OUTRA MARCA' ? null : marca; BD = null; }
       }
       { const pz = marca !== 'OUTRA MARCA' && !marca.includes(' ') && !BD && !fmHit && !(it.vit && it.vit.m) ? paPorPrefixo(N(marca)) : null;
         if (pz) { alerts0.push(`${marca} é abreviação de ${pz}: genérico`); marca = pz; bn = pz; } }

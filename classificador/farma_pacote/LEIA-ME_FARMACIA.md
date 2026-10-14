@@ -717,3 +717,17 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   - SUPL ALIM MACA PERUANA 100G (ANT) com fabricante ANTIBIOTICOS → EXPLEND NUTRACEUTICOS / MACA PERUANA EXP
     (igual a uma rodada sem o arquivo);
   - AMPICILINA da ABL → ANTIBIOTICOS DO BRASIL.
+
+### 3.6h Marca igual ao nome do laboratório não vira OUTRA MARCA quando há fabricante
+- Antes: AURA (AURA PHARMA), DRY (CRISTALIA), ELO (EMS), HEBRON, LIFAR, AVVIO, NAPILLUS... saíam OUTRA MARCA com o
+  fabricante preenchido.
+- Agora, quando a marca é laboratório, a ordem é:
+  1. o princípio ativo;
+  2. o nome registrado na CMED (função nomeCmed). Exemplos: AURA ARP, DRY CRI, ELO EMS. Genérico usa a substância sem o
+     sal (CLORMADINONA EMS), e o nome do laboratório sai do nome registrado (ESPINHEIRA SANTA NATULAB → ESPINHEIRA SANTA);
+  3. o nome do produto escrito na descrição;
+  4. sem nada disso e com fabricante conhecido, a marca fica e entra o alerta "revisar" (HEBRON HEB, LIFAR IND).
+- Testes:
+  - Hoja: marca certa foi de 1.415 para 1.444;
+  - DIMA sem mudança;
+  - vitaminas: marca 7.201, fabricante 7.188.
