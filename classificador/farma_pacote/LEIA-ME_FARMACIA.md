@@ -756,3 +756,10 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
 - CHA não entra na lista: CHA VERDE é o produto.
 - Base de vitaminas: 8 marcas mudaram. 6 são produtos UNIFABRA que a própria base do cliente marca como "CAPSULAS OLEO
   DE CARTAMO" (erro da base).
+
+### 3.6k APLIC não é marca (MOUNJARO, WEGOVY, OZEMPIC)
+- O Hoja novo tem a marca "APLIC" (fabricante APLIC RESOLIT). Por isso o "APLIC" da CMED ("... + APLIC", aplicador) virava
+  a marca APLIC ELI.
+- APLIC, APLICADOR, CANETA, REFIL e CARPULE entram em FARMA_NAO_MARCA e em FORMA_MARCA.
+- Em Farmácia, CAN quer dizer CANETA, e não CANELA.
+- Exemplo: MOUNJARO ELI, descritivo "MOUNJARO SOLUCAO INJETAVEL CANETA 10MG/ML 0.5ML (ELI)".
