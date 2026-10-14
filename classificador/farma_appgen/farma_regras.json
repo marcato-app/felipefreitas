@@ -3608,7 +3608,7 @@
    "regra": "Preparacoes de extrato hepatico associadas ou nao a vitamina B12 para anemia e astenia.",
    "unidadeSugerida": null,
    "nomeOficial": "B03B EXTRATO HEPATICO E ASSOCIACOES COM VIT B12",
-   "estMer7": null
+   "estMer7": ".3.12.3.3.2.1"
   },
   {
    "nome": "ERITROPOIETINAS",
@@ -4920,7 +4920,7 @@
    "regra": "Anticoncepcional oral combinado bifasico (Anteovin) com duas concentracoes hormonais no ciclo.",
    "unidadeSugerida": null,
    "nomeOficial": "G03A3 PREPARADOS BIFASICOS",
-   "estMer7": null
+   "estMer7": ".3.12.6.3.1.3"
   },
   {
    "nome": "PREPARADOS TRIFASICOS",
@@ -6054,7 +6054,7 @@
    "regra": "Antivirais residuais sem indicacao especifica para herpes, influenza ou COVID.",
    "unidadeSugerida": null,
    "nomeOficial": "J05B OUTROS ANTIVIRAIS",
-   "estMer7": null
+   "estMer7": ".3.12.8.4.1.4"
   },
   {
    "nome": "INIBIDORES NUCLEOSIDOS DA TRANSCRIPTASE REVERSA",
@@ -9038,7 +9038,7 @@
    "regra": "Formulações antigripais associadas a antimicrobiano/antiviral.",
    "unidadeSugerida": null,
    "nomeOficial": "R05B ANTIGRIPAIS C ANTIINFECCIOSOS",
-   "estMer7": null
+   "estMer7": ".3.12.14.5.2.1"
   },
   {
    "nome": "EXPECTORANTES",

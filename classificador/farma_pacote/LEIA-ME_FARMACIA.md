@@ -731,3 +731,17 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   - Hoja: marca certa foi de 1.415 para 1.444;
   - DIMA sem mudança;
   - vitaminas: marca 7.201, fabricante 7.188.
+
+### 3.6i Base de marcas de Farmácia atualizada com o Hoja completo (14.379 linhas)
+- Antes, `dados/farma_marcas/hoja_1_46.tsv` tinha 1.881 linhas de Farmácia. Agora traz as 14.379 linhas de Farmácia
+  (EST MER 6 com código ATC, categorias da cesta e VITAMINA E MINERAL) do Hoja completo.
+  - Exemplo do ganho: VICK → P&G, que só existia no Hoja completo.
+- As siglas das marcas continuam vindo do Hoja antigo, já validado (`dados/farma_marcas_siglas/`), porque o novo troca
+  muitas siglas.
+- farma_marcas.py: "VICK P&G" → marca VICK, código P&G.
+- GERM (abreviação de GERMED) → GER / EMS PHARMA. Exemplo: NITAZOXANIDA GERM → NITAZOXANIDA GER.
+- Resultados:
+  - DIMA: OUTRA CATEGORIA foi de 82 para 57; EST MER 6 certa de 1.534 para 1.565; fabricante de 1.900 para 1.908;
+  - vitaminas: EST MER 7 certa foi de 7.516 para 8.001; fabricante de 7.188 para 7.202; marca de 7.201 para 7.156
+    (o Hoja novo traz grafias de marca diferentes da base de vitaminas);
+  - Hoja antigo: marca foi de 1.444 para 1.439.

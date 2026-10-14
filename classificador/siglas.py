@@ -81,7 +81,9 @@ def main():
     marcas = {}
     try:
         from farma_marcas import ler
-        for pz in sorted((here / 'dados' / 'farma_marcas').glob('*')):
+        # sigla de cada marca: do Hoja de Farmácia já validado (dados/farma_marcas_siglas); o Hoja novo tem muita sigla trocada
+        pasta = here / 'dados' / ('farma_marcas_siglas' if (here / 'dados' / 'farma_marcas_siglas').exists() else 'farma_marcas')
+        for pz in sorted(pasta.glob('*')):
             if pz.suffix.lower() not in ('.tsv', '.csv', '.txt'): continue
             for f, m, _e7, v in ler(pz):
                 x = re.match(r'^(.*\S)\s+\(?([A-Z0-9]{3})\)?$', N(m) if '(' not in str(m) else str(m).upper().strip())

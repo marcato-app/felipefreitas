@@ -54,6 +54,7 @@ def separa(marca, fab):
     """'DEXILANT TKD' -> ('DEXILANT', 'TKD'); 'ENTEROGERMINA (OPE)' -> ('ENTEROGERMINA', 'OPE'); 'NEO B EUR' -> ('NEO B', 'EUR')"""
     m = re.match(r'^(.*?)\s*\(([A-Z0-9]{2,4})\)$', marca.strip())
     if m: return N(m.group(1)), m.group(2)
+    if N(fab) and N(marca).endswith(' ' + N(fab)) and len(N(fab)) <= 4: return N(marca)[:-len(N(fab)) - 1].strip(), N(fab).replace(' ', '')  # VICK P&G -> VICK
     w = N(marca).split()
     if len(w) > 1 and (re.fullmatch(r'[A-Z0-9]{3}', w[-1]) or (len(w[-1]) >= 2 and N(fab).replace(' ', '').startswith(w[-1]))):
         return ' '.join(w[:-1]), w[-1]
