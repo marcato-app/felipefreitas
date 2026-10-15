@@ -96,6 +96,7 @@ def main():
         tot = sum(d.values()); f = top(d)
         if d[f] / tot >= 0.8: codlab[cod] = f
     c['farmaMarcas'] = marcas; c['farmaCodLab'] = codlab
+    c['farmaMarcasD01'] = sorted(nome for nome, d in com.items() if 'ANTIFUNGICOS DERMATOLOGICOS TOPICOS' in d['cat'])  # marca com antifúngico de pele
     (here / 'consts.json').write_text(json.dumps(c, ensure_ascii=False), encoding='utf-8')
     print(f"{n} linhas -> {len(marcas)} marcas comerciais ({sum(1 for m in marcas if m[1])} com categoria, "
           f"{sum(1 for m in marcas if m[3] > 1)} em mais de uma), {len(codlab)} códigos de laboratório; "

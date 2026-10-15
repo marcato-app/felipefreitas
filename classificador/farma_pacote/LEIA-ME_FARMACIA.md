@@ -792,3 +792,19 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   - "SOLUCAO ANTISSEPTICA" não entra.
 - Só vale para antifúngico. Psyllium e probiótico de marca de suplemento continuam como na base do cliente.
 - Testes: DIMA, Hoja e vitaminas sem mudança.
+
+### 3.6n Antifúngico de uso na pele vai para D01A1
+- Caso do problema:
+  - "ISOCONAZOL/CLOTRIMAZOL CREME DERMATOLOGICO" saía G01B (ginecológico), pela classe da CMED.
+  - "IZONAX CREME" saía J02A (sistêmico) e "VODOL AEROSOL 200MG" saía D11A, pela categoria de maior venda da marca.
+  - "HIPODERTRAT POMADA" (nistatina + óxido de zinco) saía D03A9, pela CMED. Na DIMA, nistatina + óxido de zinco é D01A.
+- Regra: quando a categoria é G01B, J02A, A01B, D11A ou D03A9 e a forma é de pele, troca para D01A1 e o app avisa.
+  - Formas de pele: creme, pomada, aerossol, spray, pó, loção, dermatológico.
+- Para trocar, a descrição precisa de uma destas condições:
+  - um princípio antifúngico na descrição ou na substância da CMED: CONAZOL, CLOTRIMAZOL, NISTATINA, TERBINAFINA, CICLOPIROX, AMOROLFINA, TOLNAFTATO;
+  - uma marca que tem D01A1 na base do cliente (consts farmaMarcasD01).
+- Não troca nestes casos:
+  - vaginal, gino, aplicador, óvulo, oral, comprimido, cápsula, suspensão, shampoo, gotas;
+  - G01B com "creme" sozinho: precisa estar escrito DERMATOLOGICO ou outra forma de pele;
+  - D11A/D03A9 sem dose (talco e desodorante do VODOL continuam onde estão).
+- Testes: DIMA, Hoja e vitaminas sem mudança.

@@ -947,6 +947,22 @@ const OTC = [
   [/(?<![A-Z])(ADESIVO .*(DENTADURA|DENTAL|PROTESE)|FIXODENT|COREGA|DENTALFIX)(?![A-Z])/, 'ACESSORIO HIGIENE DENTAL'],
   [/(?<![A-Z])((PROTETOR|PROTETORA|PROT|BLOQUEADOR|BLOQUEADORA|LOCAO) .*(SOLAR|FPS|SUN)|(SOLAR|SUN) .*(BLOQUEAD\w*|PROTET\w*)|BLOQUEADORA?|FPS ?\d+|ANASOL)(?![A-Z])/, 'DERMOCOSMETICO SOLAR'],
 ];
+// antifúngico de uso na pele (ver runAll): forma de pele, nada de vaginal/oral/shampoo, e princípio antifúngico ou marca que tem D01A1 na base do cliente
+const ANTIF_DERM = 'ANTIFUNGICOS DERMATOLOGICOS TOPICOS';
+const ANTIF_OUTRA = /^(ANTIMICOTICOS GINECOLOGICOS|AGENTES ANTIMICOTICOS SISTEMICOS EXCLUINDO GRISEOF|ANTIFUNGICOS ORAIS TOPICOS|OUTRAS PREPARACOES DERMATOLOGICAS INCL XAMPUS MED|TODOS OUTROS AGENTES CURATIVOS FERIDAS)$/;
+const RX_PELE = /(?<![A-Z])(CREME|CR|POMADA|POM|AEROSOL|AEROSSOL|AER|SPRAY|PO|LOCAO|DERMATOLOGIC\w*|DERM)(?![A-Z])/;
+const RX_PELE_FORTE = /(?<![A-Z])(AEROSOL|AEROSSOL|AER|SPRAY|PO|LOCAO|DERMATOLOGIC\w*|DERM)(?![A-Z])/; // creme sozinho pode ser vaginal
+const RX_NAO_PELE = /(?<![A-Z])(VAGINAL|VAG|GINEC\w*|GINO\w*|OVULOS?|APLIC\w*|ORAL|BUCAL|COMP|COMPRIMIDOS?|CAPS|CAPSULAS?|CPS|CPR|DRG|SUSP|SUSPENSAO|SHAMPOO|XAMPU|XPE|XAROPE|GOTAS)(?![A-Z])/;
+const RX_ANTIF_PA = /(CONAZOL|TRIMAZOL|NISTATINA|TERBINAFINA|CICLOPIROX|AMOROLFINA|TOLNAFTATO)/;
+let _marcasD01 = null;
+function antifPele(t, cat, C, subst) {
+  if (!RX_PELE.test(t) || RX_NAO_PELE.test(t)) return false;
+  if (cat === 'ANTIMICOTICOS GINECOLOGICOS' && !RX_PELE_FORTE.test(t)) return false;
+  if (/^(OUTRAS PREPARACOES|TODOS OUTROS)/.test(cat) && !/\d\s*(MG|UI|%)/.test(t)) return false; // com dose: remédio, não talco/desodorante
+  if (RX_ANTIF_PA.test(t) || RX_ANTIF_PA.test(N(subst || ''))) return true; // princípio ativo na descrição ou na CMED (HIPODERTRAT = nistatina)
+  if (!_marcasD01) _marcasD01 = new Set((K.farmaMarcasD01 || []).map(N));
+  const f = matchFM([t], C.fm); return !!(f && _marcasD01.has(N(f.nome)));
+}
 function otcCat(t, C) { if (/(?<![A-Z])(LABIAL|LABIOS)(?![A-Z])/.test(t) && !/FPS/.test(t)) return null;
   for (const [rx, cat] of OTC) if (rx.test(t) && C.cesta.has(cat)) return cat; return null; }
 function classifyDesc(t, C) {
@@ -1780,6 +1796,11 @@ async function runAll(opts = {}) {
   items.forEach((it, i) => { const c = it.cmedCat, a = AGG[i]; if (!c || !C.names.has(c) || a.cat === c) return;
     const cc = byName.get(a.cat); if (cc && cc.cesta === 'FARMACIA' && cod4(a.cat) && cod4(a.cat) === cod4(c)) return;
     AGG[i] = Object.assign({}, a, { cat: c, cmedTrocou: a.cat }); });
+  // antifúngico em creme/pomada/aerossol/pó de uso na pele vai para D01A1, mesmo quando a marca, o princípio ativo ou a CMED
+  // dão a classe ginecológica/sistêmica/oral (ISOCONAZOL CREME DERMATOLOGICO, IZONAX CREME, VODOL AEROSOL, NISTATINA + ÓXIDO DE ZINCO)
+  if (C.names.has(ANTIF_DERM)) items.forEach((it, i) => { const a = AGG[i]; if (!ANTIF_OUTRA.test(a.cat)) return;
+    if (it.ia && it.ia.cat && a.cat === it.ia.cat) return;
+    if ((a.T || it.T).some(t => antifPele(t, a.cat, C, it.cmed && it.cmed.subst))) AGG[i] = Object.assign({}, a, { cat: ANTIF_DERM, per: a.per.map(() => ANTIF_DERM), antifTrocou: a.cat }); });
   // suplemento de vitamina/mineral: VITAMINA OUTRO / MULTIVITAMINICO (ganha dos grupos ATC A11/A12/A13 e de palavra solta como ÓLEO)
   if (C.vit) items.forEach((it, i) => { const a = AGG[i], cc = byName.get(a.cat); it.vit = null;
     if (it.ia && it.ia.cat && a.cat === it.ia.cat) return; // categoria dada pela IA/revisão: fica
@@ -2120,6 +2141,7 @@ async function runAll(opts = {}) {
       if (C0) alerts.push('Categoria pelo princípio ativo ' + C0.pa + (C0.corrigido ? ' (destino corrigido em relação à base)' : C0.validar ? ' (base pede validação)' : '')); }
     if (a.regTrocou) alerts.push(`Remédio registrado: ${nomeOf(a.cat)} (o arquivo/regra dizia ${nomeOf(a.regTrocou)})`);
     if (it.cmed) alerts.push(`Categoria pela CMED: ${it.cmed.classe || it.cmed.produto}` + (a.cmedTrocou ? ` (antes ${nomeOf(a.cmedTrocou)})` : '') + (it.cmed.ed ? ` (código de barras só na edição de ${it.cmed.ed.slice(6)}/${it.cmed.ed.slice(4, 6)}/${it.cmed.ed.slice(0, 4)})` : ''));
+    if (a.antifTrocou) alerts.push(`Antifúngico de uso na pele: D01A1 (antes ${nomeOf(a.antifTrocou)})`);
     if (a.arqTrocada) alerts.push(`Arquivo: categoria ${a.arqTrocada} não bate com a descrição (outra cesta); usada ${a.cat}`);
     alerts.push(...arqAl);
     if (a.misturadas) alerts.push(`Descrições de produtos diferentes no mesmo código (${a.misturadas} ignorada${a.misturadas > 1 ? 's' : ''})`);
