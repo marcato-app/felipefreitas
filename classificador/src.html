@@ -926,6 +926,7 @@ function matchFM(T, F) { if (!F) return null; for (const t of T) { const m = t.m
 // produtos de balcão / fitoterápicos / correlatos sem princípio ativo do dicionário: termo forte -> categoria
 // (ganha de palavra de sabor ou de outra cesta: NATULAX LARANJA não é fruta, LUFTGAS GOTAS CEREJA não é cereja)
 const OTC = [
+  [/(?<![A-Z])(ANTIMICOTIC\w*|ANTIFUNG\w*|ANTIMICOSE|MICOSES?|FRIEIRA|PE DE ATLETA|VIOLETA (DE )?GENCIANA|VIOL GENC)(?![A-Z])(?!.*(?<![A-Z])(ORAL|COMP|COMPRIMIDOS?|CAPS|CAPSULAS?|VAGINAL|SHAMPOO|XAMPU)(?![A-Z]))/, 'ANTIFUNGICOS DERMATOLOGICOS TOPICOS'],
   [/(?<![A-Z])(SIMETICONA|LUFTAL|LUFTGAS|LUFSIM|SIMFLUZ|GASLEV|ANTIGASES?|DIMETICONA)(?![A-Z])/, 'ANTIFISETICOS PUROS'],
   [/(?<![A-Z])(LACTULOSE|LACTULONA|LACTU[A-Z]+|LACTBEN)(?![A-Z])/, 'LAXANTES OSMOTICOS'],
   [/(?<![A-Z])(PSYLLIUM|PSILIO|FIBRAS? .*CONST\w*|CONSTLIVRE)(?![A-Z])/, 'INCREMENTADORES DO BOLO INTESTINAL'],
@@ -957,6 +958,8 @@ function classifyDesc(t, C) {
   // marca comercial da base de Farmácia do cliente (EST MER 7 da marca) vem antes do princípio ativo
   if (!r || C.cesta.get(r) === 'FARMACIA' || (C.cesta.get(r) === 'PET' && !RX_PET.test(t))) {
     const f = matchFM([t], C.fm);
+    // marca própria de farmácia em várias categorias (NEEDS, DAUF): o termo forte da descrição (antimicótico) ganha da categoria de maior venda da marca
+    if (f && f.cat && (f.ncat > 1 || /^(VITAMINA OUTRO|MULTIVITAMINICO)$/.test(f.cat))) { const o = otcCat(t, C); if (o && o !== f.cat && o === 'ANTIFUNGICOS DERMATOLOGICOS TOPICOS') return o; } // SINEVIT ANTIFUNGICO não é vitamina (psyllium/probiótico de marca de suplemento continuam na base do cliente)
     if (f && f.cat) { // produto da CMED mais específico da mesma marca (ADDERA D3) contra a categoria da marca (ADDERA = cálcio):
       // as duas passam pela 2ª validação, os nutrientes escritos (D3 sozinho -> VITAMINA D PURA; CALCIO + D3 -> CALCIO)
       const g = matchFC(t, C), cands = [];
@@ -1610,6 +1613,9 @@ function categoriaArquivo(it, a, byName) {
   if (it.ia && it.ia.cat === s && byName.has(s)) return Object.assign({}, a, { cat: s, per: a.per.map(() => s), flag: 'ARQUIVO', arqCat: true });
   if (a.cat === OUT && data.dima) return a; // sem categoria pela descrição: antes a marca na DIMA, depois o arquivo (mais abaixo, no runAll)
   const c1 = byName.get(s); if (!c1) return a; // categoria que não existe na biblioteca
+  // arquivo diz vitamina/suplemento, mas a descrição é de remédio de balcão (SOLUCAO ANTIMICOTICA, VIOLETA DE GENCIANA): vale a descrição
+  if (/^(VITAMINA OUTRO|MULTIVITAMINICO)$/.test(s) && a.cat !== s && a.cat === 'ANTIFUNGICOS DERMATOLOGICOS TOPICOS' && a.T.some(t => { const C0 = { cesta: new Map([[a.cat, 'FARMACIA']]) }; return otcCat(t, C0) === a.cat; }))
+    return Object.assign({}, a, { arqTrocada: s });
   const c0 = byName.get(a.cat);
   // (no arquivo é Farmácia e a descrição tem sinal de remédio -XAROPE, MG, CAPS-: vale o arquivo; NOVOLACT XAROPE AMEIXA não é fruta)
   if (!bateCategoria(c1, a.T) && c0 && c1.cesta && c0.cesta !== c1.cesta && !(c1.cesta === 'FARMACIA' && a.T.some(sinalFarma))) // categoria sem cesta (CHOCOLATE CANDY BAR) também é outra cesta

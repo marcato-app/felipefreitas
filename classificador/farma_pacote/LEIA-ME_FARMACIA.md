@@ -776,3 +776,16 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   - DIMA: igual (fabricante 1.908);
   - Hoja antigo: marca foi de 1.439 para 1.432. A queda é esperada: a referência antiga tem as próprias marcas lixo
     (OLEO, SOFTGEL, CALCIO).
+
+### 3.6m Antimicótico tópico de marca própria não é vitamina (NEEDS, DAUF, SINEVIT)
+- Exemplo: "NEEDS VIOLETA GENCIANA 2% 30ML" saía SUPL ALIM / VITAMINA OUTRO.
+  - NEEDS e DAUF são marcas de farmácia em 11 a 12 categorias, e o app usava a categoria de maior venda da marca.
+  - SINEVIT é marca de vitamina.
+- Regra nova no OTC: ANTIMICOTICO, ANTIFUNGICO, MICOSE, FRIEIRA, PE DE ATLETA e VIOLETA DE GENCIANA →
+  D01A1 ANTIFUNGICOS DERMATOLOGICOS TOPICOS.
+  - Não vale para oral, comprimido, cápsula, vaginal ou shampoo.
+- Esse termo ganha nestes casos:
+  - da categoria de maior venda da marca, quando a marca está em várias categorias ou é marca de vitamina;
+  - da categoria VITAMINA OUTRO/MULTIVITAMINICO que vem no arquivo, e o app avisa.
+- Só vale para antifúngico. Psyllium e probiótico de marca de suplemento continuam como na base do cliente.
+- Testes: DIMA, Hoja e vitaminas sem mudança.
