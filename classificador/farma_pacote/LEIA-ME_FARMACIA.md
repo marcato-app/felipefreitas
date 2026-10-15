@@ -787,5 +787,8 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
 - Esse termo ganha nestes casos:
   - da categoria de maior venda da marca, quando a marca está em várias categorias ou é marca de vitamina;
   - da categoria VITAMINA OUTRO/MULTIVITAMINICO que vem no arquivo, e o app avisa.
+- Abreviações também valem: ANTIMIC..., ANTIFUN..., ANTIF, e SOLUCAO/SOL/LIQ/LIQUIDO seguido de ANT ou ANTI.
+  - Exemplos: "DAUF SOLUCAO ANT 1.0% 30ML", "NEEDS SOLUCAO ANTI 30ML", "SINEVIT LIQ ANTIF 10ML".
+  - "SOLUCAO ANTISSEPTICA" não entra.
 - Só vale para antifúngico. Psyllium e probiótico de marca de suplemento continuam como na base do cliente.
 - Testes: DIMA, Hoja e vitaminas sem mudança.
