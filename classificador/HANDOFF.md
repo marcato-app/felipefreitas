@@ -305,3 +305,10 @@ Pontos pra checar, em ordem:
 - Limitação: número solto no nome do sabor ("LOVE 66") sai do descritivo (cleanTokens tira palavras com dígito).
 - +14 exemplos em `testes/regras_ensinadas.csv` (169).
 - (atualização) `marcasOTP` (consts): marcas de OTP mesmo com segmento errado na DIMA — NAY (cadastrada em CONFEITARIA por engano, segundo o usuário). ESSENCIA + NAY → OTP sempre, com ou sem gramatura. +4 exemplos (173).
+
+### Chocolate em pó / achocolatado / cacau em pó (`chocPoCat`, flag CHOCPO_VENCE, em REGRA_FORTE)
+- Qualquer descrição do item: ACHOC… → ACHOCOLATADO EM PO; CHOC… + PO/EM PO/SOLUVEL (em qualquer posição: "CHOCOLATE CHOCOLATTO EM PO", "PO CHOCOLATE 50%", "CHOC.PO SOL.") → CHOCOLATE EM PO OUTROS; CACAU + PO → CACAU EM PO. Vence CHOCOLATE OUTROS e a categoria do arquivo.
+- Não vale com LIQUIDO, BEBIDA, LACTEA, ML, MISTURA/BOLO, BISCOITO, CEREAL, BARRA, TABLETE, BOMBOM, WAFER, SORVETE, MOUSSE, PUDIM, CAPPUCCINO, CAFE, WHEY, GRANULADO, COBERTURA, RECHEIO, CREME (RX_CHOCPO_NAO).
+- REMOVER CHOCOLATE EM PO OUTROS: SOL.
+- PEIXE OUTROS tinha PIRACANJUBA (peixe) no incluir e pegava laticínio Piracanjuba: agora exclui LEITE, BEBIDA, LACTEA, CREME, QUEIJO, UHT, ML… (libPatch `chocolate-po-2026-10`); PIRACANJUBA em `marcasNaLista`.
+- +23 exemplos em `testes/regras_ensinadas.csv` (196).

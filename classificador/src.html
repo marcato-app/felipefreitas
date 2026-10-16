@@ -683,6 +683,18 @@ function essenciaOTP(T, C) {
       if (!segs.some(e => SEG_NAO_OTP.test(e)) || gramas || MARCAS_OTP.has(N(b.canon))) return true; } }
   return false;
 }
+// chocolate em pó / achocolatado / cacau em pó: nunca CHOCOLATE OUTROS (nem outra categoria de chocolate), em qualquer descrição do item;
+// não vale para bebida pronta (LIQUIDO, ML, BEBIDA LACTEA), mistura para bolo, biscoito, cereal, barra, sorvete…
+const RX_CHOCPO_NAO = /(?<![A-Z])(LIQUIDO|LIQ|BEBIDA|LACTEA|PRONTO|MISTURA|BOLO|BISC\w*|COOKIE\w*|CEREAL|BARRA|TABLETE|BOMBOM|BOMBONS|WAFER|SORVETE|PICOLE|MOUSSE|PUDIM|CAPPUCCINO|CAFE|WHEY|SUPLEMENTO|PROTEIN\w*|GRANULADO|COBERTURA|RECHEIO|CREME|MANTEIGA)(?![A-Z])/;
+function chocPoCat(T, C) {
+  if (T.some(t => RX_CHOCPO_NAO.test(t) || parseQ(textoQtd(t)).some(x => x[1] === 'ML'))) return null;
+  const has = n => C.names.has(n) ? n : null;
+  if (T.some(t => /(?<![A-Z])ACHOC\w*/.test(t))) return has('ACHOCOLATADO EM PO');
+  const po = t => /(?<![A-Z])(PO|EM PO|SOLUVEL)(?![A-Z])/.test(t);
+  if (T.some(t => po(t) && /(?<![A-Z])CHOC\w*/.test(t))) return has('CHOCOLATE EM PO OUTROS');
+  if (T.some(t => po(t) && /(?<![A-Z])(CACAU|CACAO)(?![A-Z])/.test(t))) return has('CACAU EM PO');
+  return null;
+}
 function aggregate(T0, sug, C, main) {
   const K = coerentes(T0, main); const T = K ? K.T : T0;
   const r = aggregate0(T, sug, C); r.T = T; r.misturadas = K ? K.drop : 0;
@@ -696,6 +708,7 @@ function aggregate(T0, sug, C, main) {
   // pipoca: o sabor (CALABRESA, PICANHA, QUEIJO, CHOCOLATE, LEITE CONDENSADO, BACON, SAL…) nunca é a categoria.
   // PIPOCA / POPCORN / POP CORN (ou MILHO) + MICRO (MICROONDAS, MICRO-ONDAS, MICROOND…) -> PIPOCA MICRO-ONDAS;
   // PIPOCA / POPCORN sem MICRO que caiu em outro alimento -> categoria de pipoca votada ou PIPOCA PRONTA
+  { const cp = chocPoCat(T, C); if (cp) return Object.assign(r, { cat: cp, flag: 'CHOCPO_VENCE', per: r.per.map(() => cp) }); }
   if (essenciaOTP(T, C)) return Object.assign(r, { cat: 'OTP - OUTROS TABACO', flag: 'ESSENCIA_OTP', per: r.per.map(() => 'OTP - OUTROS TABACO') });
   { const pc = peixeCat(T, C); if (pc) { const c = /^(SARDINHA|ATUM)/.test(r.cat) ? r.cat : pc; return Object.assign(r, { cat: c, flag: 'PEIXE_VENCE', per: r.per.map(() => c) }); } }
   // olha todas as descrições do item ("SINHA CHOCOLATE 100G" + "PIPOCA MICRO SINHA CHOCOLATE"): micro-ondas em qualquer uma vence
@@ -1103,7 +1116,7 @@ function bateCategoria(c, T) {
   return T.some(t => (inc && inc.test(t)) || (tip && tip.test(t)));
 }
 // categoria do arquivo: fica, a não ser que nenhuma descrição bata com ela E a descrição aponte para outra cesta
-const REGRA_FORTE = new Set(['ESSENCIA_OTP', 'PEIXE_VENCE', 'PIPOCA_VENCE', 'EMBALAGEM_OVO', 'PAPINHA_VENCE', 'DOCE_VENCE']);
+const REGRA_FORTE = new Set(['CHOCPO_VENCE', 'ESSENCIA_OTP', 'PEIXE_VENCE', 'PIPOCA_VENCE', 'EMBALAGEM_OVO', 'PAPINHA_VENCE', 'DOCE_VENCE']);
 function categoriaArquivo(it, a, byName) {
   const s = it.sugCat; if (!prioArq() || !s || s === a.cat) return a;
   const c1 = byName.get(s); if (!c1) return a; // categoria que não existe na biblioteca
@@ -1877,7 +1890,7 @@ function migrarCategorias() {
   // início cadastrado errado na biblioteca (CREME DE AMENDOIM vinha como CHOCOLATE COBERTURA): corrige sempre
   const INICIO_FIX = { 'CREME DE AMENDOIM': ['CHOCOLATE COBERTURA', 'CREME DE AMENDOIM'] };
   for (const c of cfg.categorias || []) { const f = INICIO_FIX[c.nome]; if (f && N(c.inicio || '') === f[0]) { c.inicio = f[1]; c.dinamico = false; n++; } }
-  const REMOVER_PATCH = { 'OTP - OUTROS TABACO': ['ESS', 'ESSENC', 'ESSENCIAS'], 'VINAGRE ALCOOL': ['ALC', 'VINAG', 'VINAGRES'], 'CEREAL EM BARRA PROTEICO': ['PROTEINA', 'PROTEINAS', 'PROTEICA', 'PROTEICAS', 'PROTEICO', 'PROTEIN', 'BAR', 'BARS', 'BARRA', 'BARRAS', 'BARRINHA', 'BARRINHAS', 'HIPERPROTEICA'], 'CREME DE AMENDOIM': ['CREME', 'PASTA', 'MANTEIGA', 'AMENDOIM', 'CR'], 'BALA PASTILHA': ['DURA', 'DURAS', 'DUR', 'BALA', 'BALAS', 'BALINHA', 'BALINHAS'], 'PIPOCA MICRO-ONDAS': ['MICROONDAS', 'MICROONDA', 'MICROWAVE', 'MICROOND', 'ONDAS', 'ONDA', 'MIC', 'PIP', 'PIPOC', 'POPCORN', 'MO'] };
+  const REMOVER_PATCH = { 'CHOCOLATE EM PO OUTROS': ['SOL'], 'OTP - OUTROS TABACO': ['ESS', 'ESSENC', 'ESSENCIAS'], 'VINAGRE ALCOOL': ['ALC', 'VINAG', 'VINAGRES'], 'CEREAL EM BARRA PROTEICO': ['PROTEINA', 'PROTEINAS', 'PROTEICA', 'PROTEICAS', 'PROTEICO', 'PROTEIN', 'BAR', 'BARS', 'BARRA', 'BARRAS', 'BARRINHA', 'BARRINHAS', 'HIPERPROTEICA'], 'CREME DE AMENDOIM': ['CREME', 'PASTA', 'MANTEIGA', 'AMENDOIM', 'CR'], 'BALA PASTILHA': ['DURA', 'DURAS', 'DUR', 'BALA', 'BALAS', 'BALINHA', 'BALINHAS'], 'PIPOCA MICRO-ONDAS': ['MICROONDAS', 'MICROONDA', 'MICROWAVE', 'MICROOND', 'ONDAS', 'ONDA', 'MIC', 'PIP', 'PIPOC', 'POPCORN', 'MO'] };
   for (const c of cfg.categorias || []) { const r = REMOVER_PATCH[c.nome]; if (r) for (const w of r) if (!(c.remover || []).includes(w)) { c.remover = [...(c.remover || []), w]; n++; } }
   // início fixo para categorias que estavam sem início (K.inicioPatch); quem já tem início definido fica como está
   for (const c of cfg.categorias || []) { const v = (K.inicioPatch || {})[c.nome]; if (v && !(c.inicio || '').trim()) { c.inicio = v; c.dinamico = false; n++; } }
