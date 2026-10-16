@@ -461,6 +461,8 @@ function loadDima() {
       for (const a of ab) alias.push([N(a), mn]); }
     const D = dictFinish(dict, true);
     for (const [k, mn] of alias) if (k && !D.map.has(k)) D.map.set(k, D.map.get(mn)); // abreviação -> mesma marca
+    // abreviações ensinadas pelo usuário (consts marcaAlias: GOMES COSTA / DA COSTA -> GOMES DA COSTA)
+    for (const [k, mn] of Object.entries(K.marcaAlias || {})) { const kk = N(k), m2 = N(mn); if (kk && D.map.has(m2) && !D.map.has(kk)) D.map.set(kk, D.map.get(m2)); }
     data.dima = D; LABS = null; return D;
   })().catch(e => { console.warn('DIMA', e); return null; });
   return dimaP;
@@ -751,8 +753,12 @@ function catVocab(C, cat) {
   if (!C.tipos) { C.tipos = new Set(); for (const y of C.cats) for (const t of y.c.tipo || []) C.tipos.add(N(t)); }
   v.tipos = C.tipos; C.vocab.set(cat, v); return v;
 }
+const MARCA_ALIAS_RX = Object.entries(K.marcaAlias || {}).map(([k, mn]) => [new RegExp('(?<![A-Z0-9])' + escRx(N(k)) + '(?![A-Z0-9])'), N(mn)]).sort((x, y) => y[0].source.length - x[0].source.length);
+// abreviação ensinada escrita na descrição (ATUM DA COSTA, GOMES COSTA) vira o nome por extenso antes de procurar a marca
+function comAlias(t) { for (const [rx, mn] of MARCA_ALIAS_RX) if (!t.includes(mn) && rx.test(t)) return t.replace(rx, mn); return t; }
 function findBrand(T, seg, sug, black, DD, vocab) {
   if (!DD) return null;
+  if (MARCA_ALIAS_RX.length) T = T.map(comAlias);
   // marca primeiro na categoria DIMA da planilha (EST MER 6 fixa); a aprendida do backlog só se ali não houver nenhuma
   // se ali só aparece uma abreviação cadastrada (COLOR -> COLORADO) e fora dela a marca está escrita por extenso, vale a por extenso
   const alias = g => g && DD.map.get(g) && N(DD.map.get(g).canon) !== g;

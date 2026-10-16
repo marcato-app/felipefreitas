@@ -285,3 +285,9 @@ Pontos pra checar, em ordem:
 - ALCOOL LIMPEZA, ALCOOL ANTISSEPTICO e MISTURA ALCOOLICA OUTROS excluem VINAGRE/VINAG.
 - VINAGRE ALCOOL: incluir VINAGRE (padrão sem tipo), VINAGRE ALC, VINAGRE BCO, VINAG…; remover ALC/VINAG no descritivo. Balsâmico, fruta, cereal, vinho, mel seguem nas suas categorias.
 - 14 exemplos adicionados em `testes/regras_ensinadas.csv` (125 no total).
+
+### Atum / salada de atum / chicharro (libPatch `atum-salada-2026-10`) + abreviações de marca
+- Categorias de ingrediente (BATATA*, LEGUMES, MIX DE LEGUMES, ERVILHA/MILHO/SELETA EM CONSERVA, AZEITONA, PETISCO OUTROS…), todas as QUEIJO*, SHAMPOO* e MOLHO* excluem ATUM/SARDINHA/CHICHARRO/CAVALINHA (QUEIJO e SHAMPOO também PEIXE). "SNACK SALADA ATUM … BAT", "QUEIJO RALADO ATUM", "SH ATUM SOLIDO" → ATUM.
+- ATUM incluir SALADA DE ATUM, ATUM RALADO, ATUM SOLIDO, CHICHARRO (pedido do usuário: chicharro ralado entra em ATUM). SARDINHA incluir SALADA DE SARDINHA.
+- `marcaAlias` (consts) = abreviações de marca ensinadas: GOMES COSTA, DA COSTA, G DA COSTA, GOMES → GOMES DA COSTA. Entra no mapa da DIMA (como as abreviações da DIMA) e `comAlias` reescreve a descrição antes de `findBrand` (DA COSTA sozinho era rejeitado por começar com conector). A marca continua precisando estar registrada na categoria do item.
+- +21 exemplos em `testes/regras_ensinadas.csv` (146 no total).
