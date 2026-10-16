@@ -664,6 +664,23 @@ function peixeCat(T, C) {
   if (T.some(t => /(?<![A-Z])(SARDINHA|SARDINHAS)(?![A-Z])/.test(t))) return ['SARDINHA', 'SARDINHA ENLATADA'].find(n => C.names.has(n)) || null;
   return null;
 }
+// essência de narguilé (IGNITE, ZOMO, ADALYA, ONIX TABACCO…) é OTP - OUTROS TABACO; essência culinária e aromática não.
+// Vale com palavra de narguilé ou com marca que a DIMA registra em OTP; marca também de confeitaria/aroma (NAY) só com gramatura (G)
+const RX_ESS = /(?<![A-Z])(ESSENCIA|ESSENCIAS|ESSENC|ESS)(?![A-Z])/, RX_NARG = /(?<![A-Z])(NARGUILE|NARGUILES|NARGUILLE|NARGHILE|NARGILE|ARGUILE|HOOKAH|SHISHA|ROSH|TABACCO|TOBACCO)(?![A-Z])/;
+const RX_ESS_NAO = /(?<![A-Z])(AMBIENTE|AMBIENTES|DIFUSOR|VARETAS|VELA|AROMATIZADOR|HOME SPRAY|SACHE|CULINARIA|ALIMENTICIA|CONFEITARIA|BOLO|DOCE|LIMPEZA|LIMPADOR|SABONETE|PERFUME|AUTOMOTIVA|CARRO|UMIDIFICADOR|OLEO ESSENCIAL)(?![A-Z])/;
+const OTP_SEG = 'OTP OUTROS TABACO', SEG_NAO_OTP = /CONFEITARIA|AROMA|ESSENCIA|PURIFICADOR|VELA|DOCE|SOBREMESA/;
+function essenciaOTP(T, C) {
+  if (!C.names.has('OTP - OUTROS TABACO') || !T.some(t => RX_ESS.test(t)) || T.some(t => RX_ESS_NAO.test(t))) return false;
+  if (T.some(t => RX_NARG.test(t))) return true;
+  const D = data.dima; if (!D) return false;
+  const gramas = T.some(t => parseQ(textoQtd(t)).some(x => x[1] === 'G'));
+  for (const t of T) { const w = t.split(' ');
+    for (let n = 3; n >= 1; n--) for (let k = 0; k + n <= w.length; k++) { const g = w.slice(k, k + n).join(' ');
+      const b = D.map.get(g) || (n === 1 && D.glued.has(g) ? D.map.get(D.glued.get(g)) : null); if (!b || GENERIC.has(g) || /^(ESSENCIA|ESS|ESSENCIAS)$/.test(g)) continue;
+      const segs = [...b.em.keys()]; if (!segs.includes(OTP_SEG)) continue;
+      if (!segs.some(e => SEG_NAO_OTP.test(e)) || gramas) return true; } }
+  return false;
+}
 function aggregate(T0, sug, C, main) {
   const K = coerentes(T0, main); const T = K ? K.T : T0;
   const r = aggregate0(T, sug, C); r.T = T; r.misturadas = K ? K.drop : 0;
@@ -677,6 +694,7 @@ function aggregate(T0, sug, C, main) {
   // pipoca: o sabor (CALABRESA, PICANHA, QUEIJO, CHOCOLATE, LEITE CONDENSADO, BACON, SAL…) nunca é a categoria.
   // PIPOCA / POPCORN / POP CORN (ou MILHO) + MICRO (MICROONDAS, MICRO-ONDAS, MICROOND…) -> PIPOCA MICRO-ONDAS;
   // PIPOCA / POPCORN sem MICRO que caiu em outro alimento -> categoria de pipoca votada ou PIPOCA PRONTA
+  if (essenciaOTP(T, C)) return Object.assign(r, { cat: 'OTP - OUTROS TABACO', flag: 'ESSENCIA_OTP', per: r.per.map(() => 'OTP - OUTROS TABACO') });
   { const pc = peixeCat(T, C); if (pc) { const c = /^(SARDINHA|ATUM)/.test(r.cat) ? r.cat : pc; return Object.assign(r, { cat: c, flag: 'PEIXE_VENCE', per: r.per.map(() => c) }); } }
   // olha todas as descrições do item ("SINHA CHOCOLATE 100G" + "PIPOCA MICRO SINHA CHOCOLATE"): micro-ondas em qualquer uma vence
   { const pcs = T.map(t => pipocaCat(t, r, C, cestaOf)).filter(Boolean); const pc = pcs.includes('PIPOCA MICRO-ONDAS') ? 'PIPOCA MICRO-ONDAS' : pcs[0];
@@ -1083,7 +1101,7 @@ function bateCategoria(c, T) {
   return T.some(t => (inc && inc.test(t)) || (tip && tip.test(t)));
 }
 // categoria do arquivo: fica, a não ser que nenhuma descrição bata com ela E a descrição aponte para outra cesta
-const REGRA_FORTE = new Set(['PEIXE_VENCE', 'PIPOCA_VENCE', 'EMBALAGEM_OVO', 'PAPINHA_VENCE', 'DOCE_VENCE']);
+const REGRA_FORTE = new Set(['ESSENCIA_OTP', 'PEIXE_VENCE', 'PIPOCA_VENCE', 'EMBALAGEM_OVO', 'PAPINHA_VENCE', 'DOCE_VENCE']);
 function categoriaArquivo(it, a, byName) {
   const s = it.sugCat; if (!prioArq() || !s || s === a.cat) return a;
   const c1 = byName.get(s); if (!c1) return a; // categoria que não existe na biblioteca
@@ -1299,6 +1317,7 @@ async function runCore(pfx = '') {
     const bala = a.cat === 'CARAMELO MASTIGAVEL' ? (balaTipo(T) || (bn ? { ini: 'BALA MASTIGAVEL', w: '' } : null)) : a.cat === 'DOCE OUTROS' ? (w => w ? { ini: 'MARSHMALLOW', w } : null)(T.flatMap(t => t.split(' ')).find(x => RX_MARSH.test(x))) : null;
     let ini = farmaLivre ? (bn ? '' : paHit ? paIni(paHit, T) : nounOutra(T, bn))
       : bala ? bala.ini : (cc && cc.dinamico) ? (tipoIni(T, a.per, a.cat, C) || nounOutra(T, bn)) : a.cat === OUT ? nounOutra(T, bn) : (cc.inicio || cc.nome);
+    if (a.cat === 'OTP - OUTROS TABACO' && T.some(t => RX_ESS.test(t))) ini = 'ESSENCIA'; // essência de narguilé: ESSENCIA + MARCA + informações + gramatura
     if (bn && ini && ini.replace(/ /g, '') === bn.replace(/ /g, '')) ini = ''; // início igual à marca colada (ZEEDOG = ZEE DOG): não repete
     // acessório PET: o descritivo leva PET logo depois do tipo, com o tipo por extenso (PEIT -> PEITORAL PET ZEE DOG ...)
     const petAc = PET_ACESSORIO.has(a.cat);
@@ -1856,7 +1875,7 @@ function migrarCategorias() {
   // início cadastrado errado na biblioteca (CREME DE AMENDOIM vinha como CHOCOLATE COBERTURA): corrige sempre
   const INICIO_FIX = { 'CREME DE AMENDOIM': ['CHOCOLATE COBERTURA', 'CREME DE AMENDOIM'] };
   for (const c of cfg.categorias || []) { const f = INICIO_FIX[c.nome]; if (f && N(c.inicio || '') === f[0]) { c.inicio = f[1]; c.dinamico = false; n++; } }
-  const REMOVER_PATCH = { 'VINAGRE ALCOOL': ['ALC', 'VINAG', 'VINAGRES'], 'CEREAL EM BARRA PROTEICO': ['PROTEINA', 'PROTEINAS', 'PROTEICA', 'PROTEICAS', 'PROTEICO', 'PROTEIN', 'BAR', 'BARS', 'BARRA', 'BARRAS', 'BARRINHA', 'BARRINHAS', 'HIPERPROTEICA'], 'CREME DE AMENDOIM': ['CREME', 'PASTA', 'MANTEIGA', 'AMENDOIM', 'CR'], 'BALA PASTILHA': ['DURA', 'DURAS', 'DUR', 'BALA', 'BALAS', 'BALINHA', 'BALINHAS'], 'PIPOCA MICRO-ONDAS': ['MICROONDAS', 'MICROONDA', 'MICROWAVE', 'MICROOND', 'ONDAS', 'ONDA', 'MIC', 'PIP', 'PIPOC', 'POPCORN', 'MO'] };
+  const REMOVER_PATCH = { 'OTP - OUTROS TABACO': ['ESS', 'ESSENC', 'ESSENCIAS'], 'VINAGRE ALCOOL': ['ALC', 'VINAG', 'VINAGRES'], 'CEREAL EM BARRA PROTEICO': ['PROTEINA', 'PROTEINAS', 'PROTEICA', 'PROTEICAS', 'PROTEICO', 'PROTEIN', 'BAR', 'BARS', 'BARRA', 'BARRAS', 'BARRINHA', 'BARRINHAS', 'HIPERPROTEICA'], 'CREME DE AMENDOIM': ['CREME', 'PASTA', 'MANTEIGA', 'AMENDOIM', 'CR'], 'BALA PASTILHA': ['DURA', 'DURAS', 'DUR', 'BALA', 'BALAS', 'BALINHA', 'BALINHAS'], 'PIPOCA MICRO-ONDAS': ['MICROONDAS', 'MICROONDA', 'MICROWAVE', 'MICROOND', 'ONDAS', 'ONDA', 'MIC', 'PIP', 'PIPOC', 'POPCORN', 'MO'] };
   for (const c of cfg.categorias || []) { const r = REMOVER_PATCH[c.nome]; if (r) for (const w of r) if (!(c.remover || []).includes(w)) { c.remover = [...(c.remover || []), w]; n++; } }
   // início fixo para categorias que estavam sem início (K.inicioPatch); quem já tem início definido fica como está
   for (const c of cfg.categorias || []) { const v = (K.inicioPatch || {})[c.nome]; if (v && !(c.inicio || '').trim()) { c.inicio = v; c.dinamico = false; n++; } }

@@ -297,3 +297,10 @@ Pontos pra checar, em ordem:
 - Não vale com RACAO/SACHE/GATO/CAO/PET/WHISKAS/FRISKIES…, ISCA/PESCA, PIZZA/TORTA/SALGADO/EMPADA/PASTEL/SUSHI… (RX_PEIXE_NAO); ATUM/SARDINHA também excluem essas palavras.
 - PEIXE_VENCE é marcado mesmo quando a votação já deu ATUM, para vencer a categoria do arquivo (ALHO, ERVA FRESCA) nos modos priorizar e só descritivo.
 - +9 exemplos em `testes/regras_ensinadas.csv` (155).
+
+### Essência de narguilé → OTP - OUTROS TABACO (`essenciaOTP`, flag ESSENCIA_OTP, em REGRA_FORTE)
+- ESSENCIA/ESS + (palavra de narguilé: NARGUILE, HOOKAH, SHISHA, ROSH, TABACCO… OU marca que a DIMA registra no segmento "OTP OUTROS TABACO": IGNITE, ZOMO, ADALYA, ONIX TABACCO, ESSENCIA FULL…). Marca também de confeitaria/aroma/vela (NAY) só vai para OTP se tiver gramatura em G.
+- Nunca: AMBIENTE, DIFUSOR, VARETAS, VELA, AROMATIZADOR, CULINARIA, CONFEITARIA, LIMPEZA, PERFUME, OLEO ESSENCIAL… (RX_ESS_NAO). Essência culinária (FLEISCHMANN, MAGO) segue AROMA E ESSENCIA.
+- Descritivo: ESSENCIA + MARCA + complemento + gramatura (ini fixo "ESSENCIA"; REMOVER OTP: ESS, ESSENC). Quantidade: com G sai a gramatura; sem, 1UN.
+- Limitação: número solto no nome do sabor ("LOVE 66") sai do descritivo (cleanTokens tira palavras com dígito).
+- +14 exemplos em `testes/regras_ensinadas.csv` (169).
