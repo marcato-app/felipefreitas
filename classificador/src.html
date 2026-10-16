@@ -668,6 +668,8 @@ function peixeCat(T, C) {
 // Vale com palavra de narguilé ou com marca que a DIMA registra em OTP; marca também de confeitaria/aroma (NAY) só com gramatura (G)
 const RX_ESS = /(?<![A-Z])(ESSENCIA|ESSENCIAS|ESSENC|ESS)(?![A-Z])/, RX_NARG = /(?<![A-Z])(NARGUILE|NARGUILES|NARGUILLE|NARGHILE|NARGILE|ARGUILE|HOOKAH|SHISHA|ROSH|TABACCO|TOBACCO)(?![A-Z])/;
 const RX_ESS_NAO = /(?<![A-Z])(AMBIENTE|AMBIENTES|DIFUSOR|VARETAS|VELA|AROMATIZADOR|HOME SPRAY|SACHE|CULINARIA|ALIMENTICIA|CONFEITARIA|BOLO|DOCE|LIMPEZA|LIMPADOR|SABONETE|PERFUME|AUTOMOTIVA|CARRO|UMIDIFICADOR|OLEO ESSENCIAL)(?![A-Z])/;
+// marcas que são de OTP mesmo com outro segmento errado na DIMA (consts marcasOTP: NAY está em CONFEITARIA por engano)
+const MARCAS_OTP = new Set([...(K.marcasOTP || [])].map(N));
 const OTP_SEG = 'OTP OUTROS TABACO', SEG_NAO_OTP = /CONFEITARIA|AROMA|ESSENCIA|PURIFICADOR|VELA|DOCE|SOBREMESA/;
 function essenciaOTP(T, C) {
   if (!C.names.has('OTP - OUTROS TABACO') || !T.some(t => RX_ESS.test(t)) || T.some(t => RX_ESS_NAO.test(t))) return false;
@@ -678,7 +680,7 @@ function essenciaOTP(T, C) {
     for (let n = 3; n >= 1; n--) for (let k = 0; k + n <= w.length; k++) { const g = w.slice(k, k + n).join(' ');
       const b = D.map.get(g) || (n === 1 && D.glued.has(g) ? D.map.get(D.glued.get(g)) : null); if (!b || GENERIC.has(g) || /^(ESSENCIA|ESS|ESSENCIAS)$/.test(g)) continue;
       const segs = [...b.em.keys()]; if (!segs.includes(OTP_SEG)) continue;
-      if (!segs.some(e => SEG_NAO_OTP.test(e)) || gramas) return true; } }
+      if (!segs.some(e => SEG_NAO_OTP.test(e)) || gramas || MARCAS_OTP.has(N(b.canon))) return true; } }
   return false;
 }
 function aggregate(T0, sug, C, main) {

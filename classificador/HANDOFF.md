@@ -304,3 +304,4 @@ Pontos pra checar, em ordem:
 - Descritivo: ESSENCIA + MARCA + complemento + gramatura (ini fixo "ESSENCIA"; REMOVER OTP: ESS, ESSENC). Quantidade: com G sai a gramatura; sem, 1UN.
 - Limitação: número solto no nome do sabor ("LOVE 66") sai do descritivo (cleanTokens tira palavras com dígito).
 - +14 exemplos em `testes/regras_ensinadas.csv` (169).
+- (atualização) `marcasOTP` (consts): marcas de OTP mesmo com segmento errado na DIMA — NAY (cadastrada em CONFEITARIA por engano, segundo o usuário). ESSENCIA + NAY → OTP sempre, com ou sem gramatura. +4 exemplos (173).
