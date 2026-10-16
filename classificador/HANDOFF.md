@@ -312,3 +312,11 @@ Pontos pra checar, em ordem:
 - REMOVER CHOCOLATE EM PO OUTROS: SOL.
 - PEIXE OUTROS tinha PIRACANJUBA (peixe) no incluir e pegava laticínio Piracanjuba: agora exclui LEITE, BEBIDA, LACTEA, CREME, QUEIJO, UHT, ML… (libPatch `chocolate-po-2026-10`); PIRACANJUBA em `marcasNaLista`.
 - +23 exemplos em `testes/regras_ensinadas.csv` (196).
+
+### Azeitona (2ª rodada) + linguiça (libPatch `azeitona2-2026-10`)
+- Rodado o ARQ1 (105 mil itens do usuário): AZEITONA pegava linguiça com azeitona, guardanapo estampado e calçado com cor AZ/VD.
+- AZEITONA exclui outro produto (LING, LINGUICA, PERNIL, CARNE, PAO, PIZZA, GUARD, GUARDANAPO, DECOR, PAPEL, PRATO…), "C/ AZEITONA", "SABOR AZEITONA", PATE/PASTA, e calçado/cores (CHIN, SAND, BABUCH, IPA, CARTAGO, CZ, AZUL, BB, BABY…). Volta a aceitar AZ VDE, AZ PTA, AZ VD, GORDAL (com essas exclusões); RECHEADA continua azeitona.
+- PIMENTAO exclui AZEITONA (azeitona recheada com pimentão).
+- LINGUICA FRESCA aceita LINGUICA/LING genérico (≈490 linguiças saíram de PERNIL, BACON, QUEIJO, OUTRA CATEGORIA…), excluindo DEF/DEFUMADA, COLONIAL, CALABRESA, prato/salgado/molho, BISC LINGUA GATO, TRIPA, POSTA DE LING (peixe), OCULOS…
+- LINGUICA DEFUMADA aceita DEF, DEFUM, COLONIAL, BLUMENAU, PARMA; REMOVER DEF/DEFUM. PERNIL e ERVA CHA excluem LING/LINGUICA. SALSICHA/LINGUICA VEGETAL exclui ARTESANAL, PERNIL, TRADICIONAL, CARNE.
+- +18 exemplos em `testes/regras_ensinadas.csv` (214).
