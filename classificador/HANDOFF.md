@@ -291,3 +291,9 @@ Pontos pra checar, em ordem:
 - ATUM incluir SALADA DE ATUM, ATUM RALADO, ATUM SOLIDO, CHICHARRO (pedido do usuário: chicharro ralado entra em ATUM). SARDINHA incluir SALADA DE SARDINHA.
 - `marcaAlias` (consts) = abreviações de marca ensinadas: GOMES COSTA, DA COSTA, G DA COSTA, GOMES → GOMES DA COSTA. Entra no mapa da DIMA (como as abreviações da DIMA) e `comAlias` reescreve a descrição antes de `findBrand` (DA COSTA sozinho era rejeitado por começar com conector). A marca continua precisando estar registrada na categoria do item.
 - +21 exemplos em `testes/regras_ensinadas.csv` (146 no total).
+
+### Peixe em conserva vence ingrediente/tempero (`peixeCat`, flag PEIXE_VENCE, em REGRA_FORTE)
+- Qualquer descrição do item com ATUM/CHICHARRO → ATUM; SARDINHA → SARDINHA (ou SARDINHA ENLATADA). ALHO, MANJERICAO/PESTO, BATATA, QUEIJO, ERVILHA… nunca ganham ("ALHO FILE DE ATUM GOMES DA COSTA", "ATUM … PESTO MANJERICAO" → ATUM).
+- Não vale com RACAO/SACHE/GATO/CAO/PET/WHISKAS/FRISKIES…, ISCA/PESCA, PIZZA/TORTA/SALGADO/EMPADA/PASTEL/SUSHI… (RX_PEIXE_NAO); ATUM/SARDINHA também excluem essas palavras.
+- PEIXE_VENCE é marcado mesmo quando a votação já deu ATUM, para vencer a categoria do arquivo (ALHO, ERVA FRESCA) nos modos priorizar e só descritivo.
+- +9 exemplos em `testes/regras_ensinadas.csv` (155).

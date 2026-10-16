@@ -655,6 +655,15 @@ function pipocaCat(t, r, C, cestaOf) {
   if (pip && r.cat === OUT && C.names.has('PIPOCA PRONTA') && parseQ(textoQtd(t)).some(x => x[1] === 'G')) return 'PIPOCA PRONTA'; // sem categoria: só com peso
   return null;
 }
+// peixe em conserva (atum, sardinha, chicharro): o ingrediente/tempero (ALHO, MANJERICAO, BATATA, QUEIJO, ERVILHA…) nunca é a categoria;
+// não vale para ração/petisco pet, isca de pesca e prato pronto com atum (pizza, torta, salgado…)
+const RX_PEIXE_NAO = /(?<![A-Z])(RACAO|SACHE|SACHES|GATO|GATOS|CAO|CAES|CACHORRO|DOG|CAT|PET|WHISKAS|FRISKIES|FELIX|PEDIGREE|PREMIER|GOLDEN|PETISCO|ISCA|ANZOL|PESCA|PIZZA|TORTA|SANDUICHE|ESFIHA|EMPADA|EMPADINHA|PASTEL|SALGADO|SALGADOS|COXINHA|LASANHA|BISCOITO|SALGADINHO|CHIPS|TEMPERO|CALDO|MARMITA|SUSHI|TEMAKI|ONIGIRI)(?![A-Z])/;
+function peixeCat(T, C) {
+  if (T.some(t => RX_PEIXE_NAO.test(t))) return null;
+  if (T.some(t => /(?<![A-Z])(ATUM|ATUNS|CHICHARRO|CHICHARROS)(?![A-Z])/.test(t)) && C.names.has('ATUM')) return 'ATUM';
+  if (T.some(t => /(?<![A-Z])(SARDINHA|SARDINHAS)(?![A-Z])/.test(t))) return ['SARDINHA', 'SARDINHA ENLATADA'].find(n => C.names.has(n)) || null;
+  return null;
+}
 function aggregate(T0, sug, C, main) {
   const K = coerentes(T0, main); const T = K ? K.T : T0;
   const r = aggregate0(T, sug, C); r.T = T; r.misturadas = K ? K.drop : 0;
@@ -668,6 +677,7 @@ function aggregate(T0, sug, C, main) {
   // pipoca: o sabor (CALABRESA, PICANHA, QUEIJO, CHOCOLATE, LEITE CONDENSADO, BACON, SAL…) nunca é a categoria.
   // PIPOCA / POPCORN / POP CORN (ou MILHO) + MICRO (MICROONDAS, MICRO-ONDAS, MICROOND…) -> PIPOCA MICRO-ONDAS;
   // PIPOCA / POPCORN sem MICRO que caiu em outro alimento -> categoria de pipoca votada ou PIPOCA PRONTA
+  { const pc = peixeCat(T, C); if (pc) { const c = /^(SARDINHA|ATUM)/.test(r.cat) ? r.cat : pc; return Object.assign(r, { cat: c, flag: 'PEIXE_VENCE', per: r.per.map(() => c) }); } }
   // olha todas as descrições do item ("SINHA CHOCOLATE 100G" + "PIPOCA MICRO SINHA CHOCOLATE"): micro-ondas em qualquer uma vence
   { const pcs = T.map(t => pipocaCat(t, r, C, cestaOf)).filter(Boolean); const pc = pcs.includes('PIPOCA MICRO-ONDAS') ? 'PIPOCA MICRO-ONDAS' : pcs[0];
     if (pc) return Object.assign(r, { cat: pc, flag: 'PIPOCA_VENCE', per: r.per.map((c, j) => pipocaCat(T[j], r, C, cestaOf) ? pc : c) }); }
@@ -1073,7 +1083,7 @@ function bateCategoria(c, T) {
   return T.some(t => (inc && inc.test(t)) || (tip && tip.test(t)));
 }
 // categoria do arquivo: fica, a não ser que nenhuma descrição bata com ela E a descrição aponte para outra cesta
-const REGRA_FORTE = new Set(['PIPOCA_VENCE', 'EMBALAGEM_OVO', 'PAPINHA_VENCE', 'DOCE_VENCE']);
+const REGRA_FORTE = new Set(['PEIXE_VENCE', 'PIPOCA_VENCE', 'EMBALAGEM_OVO', 'PAPINHA_VENCE', 'DOCE_VENCE']);
 function categoriaArquivo(it, a, byName) {
   const s = it.sugCat; if (!prioArq() || !s || s === a.cat) return a;
   const c1 = byName.get(s); if (!c1) return a; // categoria que não existe na biblioteca
