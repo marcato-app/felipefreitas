@@ -328,3 +328,13 @@ Pontos pra checar, em ordem:
 - Modo só descritivo: categoria do arquivo de OUTRA CESTA sem nenhuma palavra dela na descrição (SHAMPOO num doce) também é trocada (regraForte, status CATEGORIA TROCADA PELA REGRA).
 - PHRASE "S C" → SEM CAROCO só com AZEITONA/AMEIXA/TAMARA/CEREJA na descrição (aparecia em doce de leite, recibo, forcado…).
 - +17 exemplos (231).
+
+### OUTRA CATEGORIA só em último caso (fim de `aggregate`; `tipoCategoria`, `C.inativas`, consts `tipoCategoria`; libPatch `outra-categoria-2026-10`)
+- Quando nada bate (r.cat === OUT), em ordem:
+  a) tabela de tipos do produto (consts `tipoCategoria`: BISC/BOLACHA/CAVACA… → BISCOITO OUTROS; TEMPERO/TEMP/LEMON/CONDIMENTO/CHIMICHURRI → TEMPERO INDUSTRIALIZADO; MOLHO/MOL → MOLHO OUTROS; SUSPIRO/MERENGUE/COCADA/DOCE → DOCE OUTROS; BANANADA/RAPADURA → DOCE BARRA; PACOCA → PACOCA; GELEIA → GELEIA OUTROS; SAND → SANDALIA; CHIN → CHINELO; CALDO → CALDO), em qualquer descrição — não vale com TINTA, GUACHE, CARTUCHO, EMBALAGEM, LV/LIVRO, CAIXA, FORMA, PORTA… (objeto);
+  b) categoria INATIVA da biblioteca (menos farmácia) que bate pelas regras, se a 1ª palavra da descrição for o tipo dela (flag CATEGORIA_INATIVA);
+  c) regras ignorando a lista "sempre OUTRA CATEGORIA" (BOMBONA…), com a mesma exigência da 1ª palavra (flag CATEGORIA_DESC);
+  d) nome de categoria igual à 1ª palavra (ou "<PALAVRA> OUTROS").
+- As regras próprias (pipoca, peixe, essência, chocolate em pó, doce, embalagem de ovo) usam `C.libNames` (biblioteca inteira), então valem mesmo com a categoria desativada.
+- Ajustes: SHOYU/SHOYO → MOLHO DE SOJA; MOLHO DE PIMENTA aceita CREME DE PIMENTA, CAROLINA REAPER, HABANERO, SRIRACHA, MALAGUETA, BIQUINHO, SWEET CHILLI… (não PIMENTA solta; exclui PO, GRAO, BISC, SALGAD…); MOSTARDA forte (OUTRAS VERDURAS exclui bisnaga/ML/molho…); LIMAO exclui PEPPER/TEMPERO; TEMPERO INDUSTRIALIZADO aceita LEMON PEPPER, CONDIMENTO, PEGA MARIDO/ESPOSA; MASSA CASEIRA exclui doce/paçoca/biscoito; PACOCA aceita PASSOCA; TORRONE forte em DOCE BARRA; CREME DE LEITE aceita CREME LEITE/CR LEITE; AZEITE DE OLIVA aceita OLIVA/EXT VIR/ARBEQUINA/PICUAL (AZEITONA e AZEITE OUTROS excluem); CARAMELO MASTIGAVEL exclui CALDA/COBERTURA; SOBREMESA* exclui MOLHO/PIMENTA; LEITE CONDENSADO exclui bebida/iogurte/picolé…; doce de leite exclui sorvete/picolé/churros/cuca/iogurte/pão/pasta de amendoim/rapadura.
+- ARQ1 (105 mil): OUTRA CATEGORIA 13.745 → 9.290. Papelaria: 2.414 → ~2.230.

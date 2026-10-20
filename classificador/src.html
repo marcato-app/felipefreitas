@@ -516,9 +516,14 @@ function headIndex(cats) {
   return { idx, wild };
 }
 function compile() {
-  const C = compile0(); const H = headIndex(C.cats); C.headIdx = H.idx; C.headWild = H.wild; return C;
+  const C = compile0(); const H = headIndex(C.cats); C.headIdx = H.idx; C.headWild = H.wild;
+  C.libNames = new Set(cfg.categorias.map(c => c.nome));
+  // OUTRA CATEGORIA é último recurso: sem categoria ativa que sirva, procura na biblioteca inteira (menos farmácia)
+  C.inativas = () => { if (!C._inat) { const L = cfg.categorias.filter(c => c.ativa === false && c.cesta !== 'FARMACIA'); const X = compile0(L); const H2 = headIndex(X.cats); X.headIdx = H2.idx; X.headWild = H2.wild; X.libNames = C.libNames; C._inat = X; } return C._inat; };
+  return C;
 }
-function compile0() {
+function compile0(lista) {
+  const actCats = () => lista || cfg.categorias.filter(c => c.ativa !== false);
   return {
     sempre: termRx((() => { const inCats = new Set(); for (const c of actCats()) for (const t of [...(c.incluir || []), ...(c.tambem || []), ...(c.tipo || [])]) inCats.add(N(String(t).replace(/\*/g, ''))); return sempreAtivos().filter(t => !inCats.has(N(String(t).replace(/\*/g, '')))); })()),
     cats: actCats().map(c => ({ c, inc: termRx(c.incluir), tam: termRx(c.tambem), exc: termRx(c.excluir), forte: new Set((c.forte || []).map(N)), pct: (c.pctMin === '' || c.pctMin === null || c.pctMin === undefined) ? null : +c.pctMin, tipo: termRx(c.tipo),
@@ -650,9 +655,9 @@ function pipocaCat(t, r, C, cestaOf) {
   if (RX_PIPOCA_NAO.test(t)) return null;
   const pip = RX_PIPOCA.test(t), micro = RX_MICRO.test(t);
   const milhoMicro = micro && /(?<![A-Z])MILHO(?![A-Z])/.test(t) && !/(?<![A-Z])(VERDE|ESPIGA|LATA|CONSERVA|CANJICA|CREME|CURAU|PAMONHA)(?![A-Z])/.test(t);
-  if ((pip && micro) || milhoMicro) return C.names.has('PIPOCA MICRO-ONDAS') ? 'PIPOCA MICRO-ONDAS' : null;
-  if (pip && r.cat !== OUT && !/PIPOCA/.test(r.cat) && !CESTA_NAO_CONSUMO.has(cestaOf(r.cat))) return (r.per || []).find(c => c && /PIPOCA/.test(c)) || (C.names.has('PIPOCA PRONTA') ? 'PIPOCA PRONTA' : null);
-  if (pip && r.cat === OUT && C.names.has('PIPOCA PRONTA') && parseQ(textoQtd(t)).some(x => x[1] === 'G')) return 'PIPOCA PRONTA'; // sem categoria: só com peso
+  if ((pip && micro) || milhoMicro) return (C.libNames || C.names).has('PIPOCA MICRO-ONDAS') ? 'PIPOCA MICRO-ONDAS' : null;
+  if (pip && r.cat !== OUT && !/PIPOCA/.test(r.cat) && !CESTA_NAO_CONSUMO.has(cestaOf(r.cat))) return (r.per || []).find(c => c && /PIPOCA/.test(c)) || ((C.libNames || C.names).has('PIPOCA PRONTA') ? 'PIPOCA PRONTA' : null);
+  if (pip && r.cat === OUT && (C.libNames || C.names).has('PIPOCA PRONTA') && parseQ(textoQtd(t)).some(x => x[1] === 'G')) return 'PIPOCA PRONTA'; // sem categoria: só com peso
   return null;
 }
 // peixe em conserva (atum, sardinha, chicharro): o ingrediente/tempero (ALHO, MANJERICAO, BATATA, QUEIJO, ERVILHA…) nunca é a categoria;
@@ -660,8 +665,8 @@ function pipocaCat(t, r, C, cestaOf) {
 const RX_PEIXE_NAO = /(?<![A-Z])(RACAO|SACHE|SACHES|GATO|GATOS|CAO|CAES|CACHORRO|DOG|CAT|PET|WHISKAS|FRISKIES|FELIX|PEDIGREE|PREMIER|GOLDEN|PETISCO|ISCA|ANZOL|PESCA|PIZZA|TORTA|SANDUICHE|ESFIHA|EMPADA|EMPADINHA|PASTEL|SALGADO|SALGADOS|COXINHA|LASANHA|BISCOITO|SALGADINHO|CHIPS|TEMPERO|CALDO|MARMITA|SUSHI|TEMAKI|ONIGIRI)(?![A-Z])/;
 function peixeCat(T, C) {
   if (T.some(t => RX_PEIXE_NAO.test(t))) return null;
-  if (T.some(t => /(?<![A-Z])(ATUM|ATUNS|CHICHARRO|CHICHARROS)(?![A-Z])/.test(t)) && C.names.has('ATUM')) return 'ATUM';
-  if (T.some(t => /(?<![A-Z])(SARDINHA|SARDINHAS)(?![A-Z])/.test(t))) return ['SARDINHA', 'SARDINHA ENLATADA'].find(n => C.names.has(n)) || null;
+  if (T.some(t => /(?<![A-Z])(ATUM|ATUNS|CHICHARRO|CHICHARROS)(?![A-Z])/.test(t)) && (C.libNames || C.names).has('ATUM')) return 'ATUM';
+  if (T.some(t => /(?<![A-Z])(SARDINHA|SARDINHAS)(?![A-Z])/.test(t))) return ['SARDINHA', 'SARDINHA ENLATADA'].find(n => (C.libNames || C.names).has(n)) || null;
   return null;
 }
 // essência de narguilé (IGNITE, ZOMO, ADALYA, ONIX TABACCO…) é OTP - OUTROS TABACO; essência culinária e aromática não.
@@ -672,7 +677,7 @@ const RX_ESS_NAO = /(?<![A-Z])(AMBIENTE|AMBIENTES|DIFUSOR|VARETAS|VELA|AROMATIZA
 const MARCAS_OTP = new Set([...(K.marcasOTP || [])].map(N));
 const OTP_SEG = 'OTP OUTROS TABACO', SEG_NAO_OTP = /CONFEITARIA|AROMA|ESSENCIA|PURIFICADOR|VELA|DOCE|SOBREMESA/;
 function essenciaOTP(T, C) {
-  if (!C.names.has('OTP - OUTROS TABACO') || !T.some(t => RX_ESS.test(t)) || T.some(t => RX_ESS_NAO.test(t))) return false;
+  if (!(C.libNames || C.names).has('OTP - OUTROS TABACO') || !T.some(t => RX_ESS.test(t)) || T.some(t => RX_ESS_NAO.test(t))) return false;
   if (T.some(t => RX_NARG.test(t))) return true;
   const D = data.dima; if (!D) return false;
   const gramas = T.some(t => parseQ(textoQtd(t)).some(x => x[1] === 'G'));
@@ -688,7 +693,7 @@ function essenciaOTP(T, C) {
 const RX_CHOCPO_NAO = /(?<![A-Z])(LIQUIDO|LIQ|BEBIDA|LACTEA|PRONTO|MISTURA|BOLO|BISC\w*|COOKIE\w*|CEREAL|BARRA|TABLETE|BOMBOM|BOMBONS|WAFER|SORVETE|PICOLE|MOUSSE|PUDIM|CAPPUCCINO|CAFE|WHEY|SUPLEMENTO|PROTEIN\w*|GRANULADO|COBERTURA|RECHEIO|CREME|MANTEIGA)(?![A-Z])/;
 function chocPoCat(T, C) {
   if (T.some(t => RX_CHOCPO_NAO.test(t) || parseQ(textoQtd(t)).some(x => x[1] === 'ML'))) return null;
-  const has = n => C.names.has(n) ? n : null;
+  const has = n => (C.libNames || C.names).has(n) ? n : null;
   if (T.some(t => /(?<![A-Z])ACHOC\w*/.test(t))) return has('ACHOCOLATADO EM PO');
   const po = t => /(?<![A-Z])(PO|EM PO|SOLUVEL)(?![A-Z])/.test(t);
   if (T.some(t => po(t) && /(?<![A-Z])CHOC\w*/.test(t))) return has('CHOCOLATE EM PO OUTROS');
@@ -696,11 +701,11 @@ function chocPoCat(T, C) {
   return null;
 }
 // doce de leite (D LEITE, D.LEITE, DOCE DE LEITE) e doce em barra (DOCE … BARRA): nunca LEITE COMUM, SHAMPOO EM BARRA, OUTRA CATEGORIA…
-const RX_DOCE_NAO = /(?<![A-Z])(BISC\w*|BOLACHA|BOLO|SORVETE|PICOLE|ALFAJOR|BOMBOM|BOMBONS|BALA|BALAS|CHOC\w*|WAFER|PAO|TORTA|CEREAL|PROTEIN\w*|WHEY|SABONETE|SHAMPOO|CONDICIONADOR|IOGURTE|BEBIDA|LACTEA|CAFE|CAPPUCCINO|PALHA ITALIANA|BRIGADEIRO|TRUFA|RECHEIO|COBERTURA|SABAO|SABOES|ERVA DOCE|ERVADOCE|DETERG\\w*|LAVA|LIMPEZA|AMACIANTE|PEDRA)(?![A-Z])/;
+const RX_DOCE_NAO = /(?<![A-Z])(BISC\w*|BOLACHA|BOLO|SORVETE|PICOLE|ALFAJOR|BOMBOM|BOMBONS|BALA|BALAS|CHOC\w*|WAFER|PAO|TORTA|CEREAL|PROTEIN\w*|WHEY|SABONETE|SHAMPOO|CONDICIONADOR|IOGURTE|BEBIDA|LACTEA|CAFE|CAPPUCCINO|PALHA ITALIANA|BRIGADEIRO|TRUFA|RECHEIO|COBERTURA|SORV|PIC|PALETA|IOG|YOPRO|BREAD|CONG|CONGELADO|CONGELADA|CHURROS|CUCA|CAROLINA|PST|PASTA|AMEND|AMENDOIM|RAPADURA|DOLCETTO|GELATO|SABAO|SABOES|ERVA DOCE|ERVADOCE|DETERG\\w*|LAVA|LIMPEZA|AMACIANTE|PEDRA)(?![A-Z])/;
 function doceCat(T, C) {
   if (T.some(t => RX_DOCE_NAO.test(t))) return null;
-  if (C.names.has('DOCE DE LEITE') && T.some(t => /(?<![A-Z])(DOCE DE LEITE|DOCE LEITE|D LEITE|D DE LEITE|DCE LEITE)(?![A-Z])/.test(t))) return 'DOCE DE LEITE';
-  if (C.names.has('DOCE BARRA') && T.some(t => /(?<![A-Z])DOCES?(?![A-Z])/.test(t) && /(?<![A-Z])(BARRA|TABLETE|CORTE)(?![A-Z])/.test(t)) && !T.some(t => /GOIABADA|DOCE DE GOIABA|AMENDOIM|PACOCA/.test(t))) return 'DOCE BARRA';
+  if ((C.libNames || C.names).has('DOCE DE LEITE') && T.some(t => /(?<![A-Z])(DOCE DE LEITE|DOCE LEITE|D LEITE|D DE LEITE|DCE LEITE)(?![A-Z])/.test(t))) return 'DOCE DE LEITE';
+  if ((C.libNames || C.names).has('DOCE BARRA') && T.some(t => /(?<![A-Z])DOCES?(?![A-Z])/.test(t) && /(?<![A-Z])(BARRA|TABLETE|CORTE)(?![A-Z])/.test(t)) && !T.some(t => /GOIABADA|DOCE DE GOIABA|AMENDOIM|PACOCA/.test(t))) return 'DOCE BARRA';
   return null;
 }
 function aggregate(T0, sug, C, main) {
@@ -711,7 +716,7 @@ function aggregate(T0, sug, C, main) {
   const cestaOf = n => { const x = C.cats.find(y => y.c.nome === n); return x ? x.c.cesta : ''; };
   // embalagem para ovo de páscoa / trufa / bombom / doce (EMBALAGEM CROMUS OVO PASCOA, EMB TRUFAS) é EMBALAGEM ALIMENTO, nunca ovo nem chocolate;
   // EMB só vale como primeira palavra (OVOS BRANCOS EMB C/12 é ovo embalado)
-  if (C.names.has('EMBALAGEM ALIMENTO') && T.length && /(?<![A-Z])(EMBALAGEM|EMBALAGENS|EMBALAGEN)(?![A-Z])|^EMB(?![A-Z])/.test(T[0]) && /(?<![A-Z])(OVO|OVOS|PASCOA|TRUFA|TRUFAS|BOMBOM|BOMBONS|BRIGADEIRO|BRIGADEIROS|DOCE|DOCES|CHOCOLATE|CHOCOLATES|BOMBONIERE)(?![A-Z])/.test(T[0]))
+  if ((C.libNames || C.names).has('EMBALAGEM ALIMENTO') && T.length && /(?<![A-Z])(EMBALAGEM|EMBALAGENS|EMBALAGEN)(?![A-Z])|^EMB(?![A-Z])/.test(T[0]) && /(?<![A-Z])(OVO|OVOS|PASCOA|TRUFA|TRUFAS|BOMBOM|BOMBONS|BRIGADEIRO|BRIGADEIROS|DOCE|DOCES|CHOCOLATE|CHOCOLATES|BOMBONIERE)(?![A-Z])/.test(T[0]))
     return Object.assign(r, { cat: 'EMBALAGEM ALIMENTO', flag: 'EMBALAGEM_OVO' });
   // pipoca: o sabor (CALABRESA, PICANHA, QUEIJO, CHOCOLATE, LEITE CONDENSADO, BACON, SAL…) nunca é a categoria.
   // PIPOCA / POPCORN / POP CORN (ou MILHO) + MICRO (MICROONDAS, MICRO-ONDAS, MICROOND…) -> PIPOCA MICRO-ONDAS;
@@ -738,7 +743,37 @@ function aggregate(T0, sug, C, main) {
     const peso = T.some(t => parseQ(textoQtd(t)).some(x => x[1] === 'G' || x[1] === 'ML'));
     if (cons.size && peso) { const c = [...cons].sort((a, b) => b[1] - a[1])[0][0]; return Object.assign(r, { cat: c, flag: 'CONSUMO_VENCE' }); }
   }
+  if (r.cat === OUT && C.inativas) {
+    // a) tabela de tipos do produto (SAND, CHIN, BISC, TEMPERO, SUSPIRO…) em qualquer descrição
+    const tt = tipoCategoria(T, C, true); if (tt) return Object.assign(r, { cat: tt, flag: 'TIPO_PRODUTO' });
+    // b) categoria inativa da biblioteca que bate pelas regras, desde que o tipo do produto (1ª palavra) seja dela
+    //    ("Scanner de MESA" não vira MESA, "PANO PRATO" não vira PRATO)
+    const CI = C.inativas(); const r2 = aggregate0(T, sug, CI);
+    if (r2.cat && r2.cat !== OUT) { const x = CI.cats.find(y => y.c.nome === r2.cat);
+      if (x && T.some(t => { const w = t.split(' ')[0]; return x.words.has(w) || N(r2.cat).split(' ')[0] === w; })) return Object.assign(r, { cat: r2.cat, per: r2.per, flag: 'CATEGORIA_INATIVA' }); }
+    // c) a palavra que manda para OUTRA CATEGORIA (BOMBONA, CARTUCHO…) não apaga a categoria escrita na descrição
+    { const C2 = Object.assign({}, C, { sempre: null }); const r3 = aggregate0(T, sug, C2);
+      if (r3.cat && r3.cat !== OUT) { const x = C.cats.find(y => y.c.nome === r3.cat);
+        if (x && T.some(t => { const w = t.split(' ')[0]; return x.words.has(w) || N(r3.cat).split(' ')[0] === w; })) return Object.assign(r, { cat: r3.cat, per: r3.per, flag: 'CATEGORIA_DESC' }); } }
+    // d) nome de categoria igual ao tipo do produto (1ª palavra)
+    const tc = tipoCategoria(T, C); if (tc) return Object.assign(r, { cat: tc, flag: 'TIPO_PRODUTO' });
+  }
   return r;
+}
+// OUTRA CATEGORIA só em último caso: palavra de tipo de produto da descrição -> categoria de mesmo nome (ou "<TIPO> OUTROS")
+const TIPO_CAT = Object.fromEntries(Object.entries(K.tipoCategoria || {}).map(([w, c]) => [N(w), c]));
+function tipoCategoria(T, C, soTabela) {
+  const lib = C.libNames || C.names; const cesta = n => { const c = cfg.categorias.find(x => x.nome === n); return c ? c.cesta : ''; };
+  const ok = n => n && lib.has(n) && cesta(n) !== 'FARMACIA';
+  // objeto/embalagem com palavra de alimento (TINTA TEMP. GUACHE, CARTUCHO HAMBURGUER AMANTEIGADO) não usa a tabela de tipos
+  const naoAlim = T.some(t => /(?<![A-Z])(TINTA|GUACHE|CARTUCHO|EMBALAGEM|EMBALAGENS|EMB|AMONIACO|LV|LIV|LIVRO|LIVROS|REVISTA|GIBI|SACO|SACOS|CAIXA|FORMA|FORMAS|PORTA|POTE|ADESIVO|ETIQUETA|ESTAMPA)(?![A-Z])/.test(t));
+  // tabela de tipos (BISC, TEMPERO, SUSPIRO…) em qualquer posição; nome de categoria só se for a 1ª palavra (o tipo do produto):
+  // "IOGURTE … MORANGO" não vira MORANGO, "RASHGUARD MANGA CURTA" não vira MANGA
+  for (const t of T.slice(0, 3)) { const ws = t.split(' ');
+    for (let i = 0; i < ws.length; i++) { const w0 = ws[i]; if (w0.length < 3 || /\d/.test(w0)) continue; const w = (TOK && TOK[w0]) || w0;
+      const tab = naoAlim ? [] : [TIPO_CAT[w0], TIPO_CAT[w]];
+      for (const n of i === 0 && !soTabela ? [...tab, w + ' OUTROS', w + ' OUTRAS', w] : tab) if (ok(n)) return n; } }
+  return null;
 }
 function aggregate0(T, sug, C) {
   const votes = new Map(); const per = [];
