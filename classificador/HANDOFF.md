@@ -320,3 +320,11 @@ Pontos pra checar, em ordem:
 - LINGUICA FRESCA aceita LINGUICA/LING genérico (≈490 linguiças saíram de PERNIL, BACON, QUEIJO, OUTRA CATEGORIA…), excluindo DEF/DEFUMADA, COLONIAL, CALABRESA, prato/salgado/molho, BISC LINGUA GATO, TRIPA, POSTA DE LING (peixe), OCULOS…
 - LINGUICA DEFUMADA aceita DEF, DEFUM, COLONIAL, BLUMENAU, PARMA; REMOVER DEF/DEFUM. PERNIL e ERVA CHA excluem LING/LINGUICA. SALSICHA/LINGUICA VEGETAL exclui ARTESANAL, PERNIL, TRADICIONAL, CARNE.
 - +18 exemplos em `testes/regras_ensinadas.csv` (214).
+
+### Doce de leite, doce em barra, leite condensado, shampoo (`doceCat`, flag DOCE_REGRA em REGRA_FORTE; libPatch `doce-leite-shampoo-2026-10`)
+- D LEITE / D.LEITE / DOCE (DE) LEITE em qualquer descrição → DOCE DE LEITE (nunca LEITE COMUM); DOCE + BARRA/TABLETE/CORTE → DOCE BARRA (goiabada/amendoim/paçoca seguem as suas). Não vale com biscoito, bolo, sorvete, alfajor, bombom, bala, chocolate, sabão/ERVA DOCE, limpeza… (RX_DOCE_NAO).
+- SHAMPOO* / SABONETE EM BARRA / CONDICIONADOR EM BARRA excluem DOCE, GOIABADA, BANANADA, COCADA, CRISTALIZADO…
+- BISCOITO LEITE não tem mais LEITE CONDENSADO (ia para lá); LEITE CONDENSADO aceita LEITE COND.
+- Modo só descritivo: categoria do arquivo de OUTRA CESTA sem nenhuma palavra dela na descrição (SHAMPOO num doce) também é trocada (regraForte, status CATEGORIA TROCADA PELA REGRA).
+- PHRASE "S C" → SEM CAROCO só com AZEITONA/AMEIXA/TAMARA/CEREJA na descrição (aparecia em doce de leite, recibo, forcado…).
+- +17 exemplos (231).

@@ -695,6 +695,14 @@ function chocPoCat(T, C) {
   if (T.some(t => po(t) && /(?<![A-Z])(CACAU|CACAO)(?![A-Z])/.test(t))) return has('CACAU EM PO');
   return null;
 }
+// doce de leite (D LEITE, D.LEITE, DOCE DE LEITE) e doce em barra (DOCE … BARRA): nunca LEITE COMUM, SHAMPOO EM BARRA, OUTRA CATEGORIA…
+const RX_DOCE_NAO = /(?<![A-Z])(BISC\w*|BOLACHA|BOLO|SORVETE|PICOLE|ALFAJOR|BOMBOM|BOMBONS|BALA|BALAS|CHOC\w*|WAFER|PAO|TORTA|CEREAL|PROTEIN\w*|WHEY|SABONETE|SHAMPOO|CONDICIONADOR|IOGURTE|BEBIDA|LACTEA|CAFE|CAPPUCCINO|PALHA ITALIANA|BRIGADEIRO|TRUFA|RECHEIO|COBERTURA|SABAO|SABOES|ERVA DOCE|ERVADOCE|DETERG\\w*|LAVA|LIMPEZA|AMACIANTE|PEDRA)(?![A-Z])/;
+function doceCat(T, C) {
+  if (T.some(t => RX_DOCE_NAO.test(t))) return null;
+  if (C.names.has('DOCE DE LEITE') && T.some(t => /(?<![A-Z])(DOCE DE LEITE|DOCE LEITE|D LEITE|D DE LEITE|DCE LEITE)(?![A-Z])/.test(t))) return 'DOCE DE LEITE';
+  if (C.names.has('DOCE BARRA') && T.some(t => /(?<![A-Z])DOCES?(?![A-Z])/.test(t) && /(?<![A-Z])(BARRA|TABLETE|CORTE)(?![A-Z])/.test(t)) && !T.some(t => /GOIABADA|DOCE DE GOIABA|AMENDOIM|PACOCA/.test(t))) return 'DOCE BARRA';
+  return null;
+}
 function aggregate(T0, sug, C, main) {
   const K = coerentes(T0, main); const T = K ? K.T : T0;
   const r = aggregate0(T, sug, C); r.T = T; r.misturadas = K ? K.drop : 0;
@@ -708,6 +716,7 @@ function aggregate(T0, sug, C, main) {
   // pipoca: o sabor (CALABRESA, PICANHA, QUEIJO, CHOCOLATE, LEITE CONDENSADO, BACON, SAL…) nunca é a categoria.
   // PIPOCA / POPCORN / POP CORN (ou MILHO) + MICRO (MICROONDAS, MICRO-ONDAS, MICROOND…) -> PIPOCA MICRO-ONDAS;
   // PIPOCA / POPCORN sem MICRO que caiu em outro alimento -> categoria de pipoca votada ou PIPOCA PRONTA
+  { const dc = doceCat(T, C); if (dc) return Object.assign(r, { cat: dc, flag: 'DOCE_REGRA', per: r.per.map(() => dc) }); }
   { const cp = chocPoCat(T, C); if (cp) return Object.assign(r, { cat: cp, flag: 'CHOCPO_VENCE', per: r.per.map(() => cp) }); }
   if (essenciaOTP(T, C)) return Object.assign(r, { cat: 'OTP - OUTROS TABACO', flag: 'ESSENCIA_OTP', per: r.per.map(() => 'OTP - OUTROS TABACO') });
   { const pc = peixeCat(T, C); if (pc) { const c = /^(SARDINHA|ATUM)/.test(r.cat) ? r.cat : pc; return Object.assign(r, { cat: c, flag: 'PEIXE_VENCE', per: r.per.map(() => c) }); } }
@@ -1116,7 +1125,7 @@ function bateCategoria(c, T) {
   return T.some(t => (inc && inc.test(t)) || (tip && tip.test(t)));
 }
 // categoria do arquivo: fica, a não ser que nenhuma descrição bata com ela E a descrição aponte para outra cesta
-const REGRA_FORTE = new Set(['CHOCPO_VENCE', 'ESSENCIA_OTP', 'PEIXE_VENCE', 'PIPOCA_VENCE', 'EMBALAGEM_OVO', 'PAPINHA_VENCE', 'DOCE_VENCE']);
+const REGRA_FORTE = new Set(['DOCE_REGRA', 'CHOCPO_VENCE', 'ESSENCIA_OTP', 'PEIXE_VENCE', 'PIPOCA_VENCE', 'EMBALAGEM_OVO', 'PAPINHA_VENCE', 'DOCE_VENCE']);
 function categoriaArquivo(it, a, byName) {
   const s = it.sugCat; if (!prioArq() || !s || s === a.cat) return a;
   const c1 = byName.get(s); if (!c1) return a; // categoria que não existe na biblioteca
@@ -1126,6 +1135,9 @@ function categoriaArquivo(it, a, byName) {
     if (passe && passe.soDesc) return Object.assign({}, a, { regraForte: s }); // só descritivo também troca: é regra ensinada (status avisa)
     if (!sempreArq()) return Object.assign({}, a, { arqTrocada: s });
   }
+  // categoria do arquivo de outra cesta, sem nenhuma palavra dela na descrição (SHAMPOO num doce, LEITE COMUM num doce de leite de outra cesta):
+  // é erro do arquivo -> troca também no modo só descritivo (status avisa)
+  if (passe && passe.soDesc && a.cat !== OUT && c0 && c0.cesta && c1.cesta && c0.cesta !== c1.cesta && !bateCategoria(c1, a.T)) return Object.assign({}, a, { regraForte: s });
   if (!bateCategoria(c1, a.T) && c0 && c0.cesta && c1.cesta && c0.cesta !== c1.cesta) {
     if (!sempreArq() && !(passe && passe.soDesc)) return Object.assign({}, a, { arqTrocada: s });
     if (passe && passe.soDesc) return Object.assign({}, a, { cat: s, per: a.per.map(() => s), flag: 'ARQUIVO', arqCat: true, catSuspeita: a.cat }); // só descritivo: nunca troca, só avisa
