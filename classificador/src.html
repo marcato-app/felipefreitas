@@ -522,11 +522,35 @@ function compile() {
   C.inativas = () => { if (!C._inat) { const L = cfg.categorias.filter(c => c.ativa === false && c.cesta !== 'FARMACIA'); const X = compile0(L); const H2 = headIndex(X.cats); X.headIdx = H2.idx; X.headWild = H2.wild; X.libNames = C.libNames; C._inat = X; } return C._inat; };
   return C;
 }
+// Termo de "incluir" que é só atributo (SALGADO, TEMPERADO, PIMENTA, CEBOLA em AMENDOIM SALGADO; BRANCO, EXTRA em OVO BRANCO;
+// AZ VERDE em AZEITONA) só vale se a descrição tiver o produto da categoria (AMENDOIM/AMEND, OVO, AZEIT/AZ…).
+// Assim "MOLHO PIMENTA" não vira amendoim e "BOLACHA COLONIAL" não vira ovo — para todas as categorias.
+const ATRIBUTO_W = new Set([...FLAVORS, ...ATTR, ...(K.atributos || [])].map(N));
+// palavras do nome que marcam subtipo (lista "atributos": SALGADO, BRANCO, NATURAL); POLVILHO, BIJU, AMENDOIM não contam
+const ATRIBUTO_NOME = new Set((K.atributos || []).map(N));
+function splitAtributos(c) {
+  const nome = N(c.nome).split(' '), W = nome[0];
+  const termos = (c.incluir || []).map(t => String(t));
+  if (nome.length < 2 || W.length < 3 || /OUTROS|OUTRAS/.test(N(c.nome))) return { inc: termRx(c.incluir) };
+  // só para nomes "produto + atributo" (AMENDOIM SALGADO, OVO BRANCO); CONSERVA VEGETAL e MOLHO DE PIMENTA listam produtos, não atributos
+  if (!nome.slice(1).every(w => ATRIBUTO_NOME.has(w))) return { inc: termRx(c.incluir) };
+  const pre = W.length >= 6 ? W.slice(0, 5) : W;
+  const temProduto = t => N(t.replace(/\*/g, '')).split(' ').some(w => w.startsWith(pre) || (w.length >= 2 && W.startsWith(w) && w.length < W.length));
+  const atrib = termos.filter(t => !temProduto(t) && N(t.replace(/\*/g, '')).split(' ').every(w => ATRIBUTO_W.has(w)));
+  if (!atrib.length) return { inc: termRx(c.incluir) };
+  // formas do produto: a palavra, o começo dela (AMEND…) e as abreviações usadas na própria lista (AZ em "AZ VDE")
+  const abrev = new Set([W]); for (const t of termos) for (const w of N(t.replace(/\*/g, '')).split(' ')) if (w.length >= 2 && W.startsWith(w)) abrev.add(w);
+  // abreviação comum do produto (IOG, BISC, AMEN, AZEIT): qualquer começo da palavra com 3+ letras
+  if (W.length > 3) for (let k = 3; k < W.length; k++) abrev.add(W.slice(0, k));
+  const noun = new RegExp('(?<![A-Z0-9])(' + [...abrev].map(escRx).join('|') + '|' + escRx(pre) + '[A-Z]*)(?![A-Z0-9])');
+  const rest = termos.filter(t => !atrib.includes(t));
+  return { inc: termRx(rest), incA: termRx(atrib), noun };
+}
 function compile0(lista) {
   const actCats = () => lista || cfg.categorias.filter(c => c.ativa !== false);
   return {
     sempre: termRx((() => { const inCats = new Set(); for (const c of actCats()) for (const t of [...(c.incluir || []), ...(c.tambem || []), ...(c.tipo || [])]) inCats.add(N(String(t).replace(/\*/g, ''))); return sempreAtivos().filter(t => !inCats.has(N(String(t).replace(/\*/g, '')))); })()),
-    cats: actCats().map(c => ({ c, inc: termRx(c.incluir), tam: termRx(c.tambem), exc: termRx(c.excluir), forte: new Set((c.forte || []).map(N)), pct: (c.pctMin === '' || c.pctMin === null || c.pctMin === undefined) ? null : +c.pctMin, tipo: termRx(c.tipo),
+    cats: actCats().map(c => ({ c, ...splitAtributos(c), tam: termRx(c.tambem), exc: termRx(c.excluir), forte: new Set((c.forte || []).map(N)), pct: (c.pctMin === '' || c.pctMin === null || c.pctMin === undefined) ? null : +c.pctMin, tipo: termRx(c.tipo),
       // palavras de tipo da categoria: 1ª palavra de cada termo de incluir/tipo ("PORTA LAPIS" conta PORTA, não LAPIS) e todo o "também"
       words: new Set([...[...(c.incluir || []), ...(c.tipo || [])].map(x => N(String(x).replace(/\*/g, ' ')).split(' ')[0]), ...(c.tambem || []).flatMap(x => N(String(x).replace(/\*/g, ' ')).split(' '))]) })),
     names: new Set(actCats().map(c => c.nome)),
@@ -582,7 +606,7 @@ function classifyRules(t, C) {
   let r = null;
   for (const x of C.cats) {
     if (!ok(x)) continue;
-    const m = x.inc && x.inc.exec(t);
+    const m = (x.inc && x.inc.exec(t)) || (x.incA && x.noun.test(t) && x.incA.exec(t));
     if (m) { r = { x, pos: m.index, len: m[0].length }; break; }
     if (x.pct !== null && (pct(t) || 0) > x.pct) { r = { x, pct: true }; break; }
   }
@@ -702,13 +726,40 @@ function chocPoCat(T, C) {
 }
 // doce de leite (D LEITE, D.LEITE, DOCE DE LEITE) e doce em barra (DOCE … BARRA): nunca LEITE COMUM, SHAMPOO EM BARRA, OUTRA CATEGORIA…
 const RX_DOCE_NAO = /(?<![A-Z])(BISC\w*|BOLACHA|BOLO|SORVETE|PICOLE|ALFAJOR|BOMBOM|BOMBONS|BALA|BALAS|CHOC\w*|WAFER|PAO|TORTA|CEREAL|PROTEIN\w*|WHEY|SABONETE|SHAMPOO|CONDICIONADOR|IOGURTE|BEBIDA|LACTEA|CAFE|CAPPUCCINO|PALHA ITALIANA|BRIGADEIRO|TRUFA|RECHEIO|COBERTURA|SORV|PIC|PALETA|IOG|YOPRO|BREAD|CONG|CONGELADO|CONGELADA|CHURROS|CUCA|CAROLINA|PST|PASTA|AMEND|AMENDOIM|RAPADURA|DOLCETTO|GELATO|SABAO|SABOES|ERVA DOCE|ERVADOCE|DETERG\\w*|LAVA|LIMPEZA|AMACIANTE|PEDRA)(?![A-Z])/;
+// rapadura é o produto (RAPADURA MAMAO C AMENDOIM): com amendoim -> DOCE AMENDOIM, senão DOCE OUTROS (como no arquivo ARQ1); o sabor (MAMAO, COCO…) nunca é a categoria
+const RX_RAPADURA_NAO = /(?<![A-Z])(BALA|BALAS|SORV\w*|PICOLE|BISC\w*|BOLACHA|BOLO|CHOC\w*|CAFE|SABAO|SABONETE|PACOCA|CACHACA|LICOR)(?![A-Z])/;
 function doceCat(T, C) {
+  const lib = C.libNames || C.names;
+  const rap = T.filter(t => /^(DOCE )?(RAPADURA|RAPADURINHA)/.test(t)).length;
+  if (rap && (/^(DOCE )?(RAPADURA|RAPADURINHA)/.test(T[0]) || rap * 2 >= T.length) && !T.some(t => RX_RAPADURA_NAO.test(t))) {
+    // amendoim em boa parte das descrições ("S AMEND" / "SEM AMENDOIM" não conta; 1 descrição solta entre 10 de coco também não)
+    const nAm = T.filter(t => /(?<![A-Z])(AMENDOIM|AMENDOIN|AMENDOINS|AMEND|AMEN|C AM|PE DE MOLEQUE|PE DE MOCA)(?![A-Z])/.test(t) && !/(?<![A-Z])(S|SEM) (AMENDOIM|AMENDOIN|AMEND|AMEN|AM)(?![A-Z])/.test(t)).length;
+    const am = nAm > 0 && nAm * 3 >= T.length;
+    if (am && lib.has('DOCE AMENDOIM')) return 'DOCE AMENDOIM'; if (!am && lib.has('DOCE OUTROS')) return 'DOCE OUTROS';
+  }
   if (T.some(t => RX_DOCE_NAO.test(t))) return null;
   if ((C.libNames || C.names).has('DOCE DE LEITE') && T.some(t => /(?<![A-Z])(DOCE DE LEITE|DOCE LEITE|D LEITE|D DE LEITE|DCE LEITE)(?![A-Z])/.test(t))) return 'DOCE DE LEITE';
   if ((C.libNames || C.names).has('DOCE BARRA') && T.some(t => /(?<![A-Z])DOCES?(?![A-Z])/.test(t) && /(?<![A-Z])(BARRA|TABLETE|CORTE)(?![A-Z])/.test(t)) && !T.some(t => /GOIABADA|DOCE DE GOIABA|AMENDOIM|PACOCA/.test(t))) return 'DOCE BARRA';
   return null;
 }
+// produto sólido (amendoim, biscoito, ovo, azeitona, arroz…) nunca vem em ML: item em ML não entra nessas categorias (todas as famílias de consts categoriasSolidas)
+const SOLIDO_RX = new RegExp('^(' + (K.categoriasSolidas || []).map(x => escRx(N(x))).join('|') + ')(?![A-Z])');
+const ehSolida = n => !!n && (K.categoriasSolidas || []).length > 0 && SOLIDO_RX.test(N(n)) && !/LIQUID|BEBIDA|MOLHO|CALDA|XAROPE|OLEO|CREME|SPRAY|EM PO/.test(N(n));
+const itemML = T => { let ml = false, g = false; for (const t of T) for (const x of parseQ(textoQtd(t))) { if (x[1] === 'ML') ml = true; else if (x[1] === 'G') g = true; } return ml && !g; };
+function semSolidas(C) {
+  if (C._semSol) return C._semSol; const keep = x => !ehSolida(x.c.nome);
+  const C2 = Object.assign({}, C, { cats: C.cats.filter(keep) }); C2.names = new Set(C2.cats.map(x => x.c.nome)); const H = headIndex(C2.cats); C2.headIdx = H.idx; C2.headWild = H.wild;
+  if (C.inativas) C2.inativas = () => { const I = C.inativas(); if (!I._semSol) { const I2 = Object.assign({}, I, { cats: I.cats.filter(keep) }); const H2 = headIndex(I2.cats); I2.headIdx = H2.idx; I2.headWild = H2.wild; I._semSol = I2; } return I._semSol; };
+  C2._semSol = C2; C._semSol = C2; return C2;
+}
+// item em ML/L nunca é de categoria sólida (amendoim, pipoca, biscoito, ovo, azeitona…), venha de onde vier a categoria
 function aggregate(T0, sug, C, main) {
+  const r = aggregate1(T0, sug, C, main); if (!itemML(T0) || !ehSolida(r.cat)) return r;
+  const c = (r.per || []).find(x => x && x !== OUT && !ehSolida(x)) || OUT;
+  return Object.assign(r, { cat: c, flag: 'UNIDADE_ML', per: (r.per || []).map(x => ehSolida(x) ? c : x) });
+}
+function aggregate1(T0, sug, C, main) {
+  if (itemML(T0)) C = semSolidas(C);
   const K = coerentes(T0, main); const T = K ? K.T : T0;
   const r = aggregate0(T, sug, C); r.T = T; r.misturadas = K ? K.drop : 0;
   // descrições divididas entre objeto (óculos, bazar…) ou nada, e uma categoria de consumo (bala, alimento…), num produto vendido
@@ -736,6 +787,11 @@ function aggregate(T0, sug, C, main) {
     const dc = new Map(); per.forEach(c => { if (DOCES_CAT.has(c)) dc.set(c, (dc.get(c) || 0) + 1); });
     if (dc.size) { const c = [...dc].sort((a, b) => b[1] - a[1])[0][0]; return Object.assign(r, { cat: c, flag: 'DOCE_VENCE' }); }
   }
+  // sabor/ingrediente (CEBOLA, ALHO, MANGA, fruta, SAL, FARINHA) nunca vence o tipo de produto escrito no começo da descrição:
+  // "BISC RESENDE CASEIRO PETA CEBOLA" é biscoito, "CHILLI BROTHERS MOLHO MANGA" é molho, "SAL BOLACHA AGUA E ARTE" é bolacha
+  { const tp = tipoNoInicio(T, r.cat, C, cestaOf); if (tp) { const r2 = aggregate0(T, sug, semSabor(C, cestaOf));
+      const c = r2.cat && r2.cat !== OUT && N(r2.cat).split(' ')[0] === N(tp).split(' ')[0] ? r2.cat : tp;
+      return Object.assign(r, { cat: c, flag: 'TIPO_VENCE_SABOR', per: r.per.map(x => x === r.cat ? c : x) }); } }
   // fruta in natura não vem em pack ("BOLIX MORANGO 44X70G"): o sabor não é a categoria
   if (FRUTAS.has(r.cat) && T.some(t => parseQ(textoQtd(t)).some(x => x[2] > 1))) return Object.assign(r, { cat: OUT, flag: 'SEM_EVIDENCIA' });
   if (r.cat === OUT || CESTA_NAO_CONSUMO.has(cestaOf(r.cat))) {
@@ -760,13 +816,24 @@ function aggregate(T0, sug, C, main) {
   }
   return r;
 }
+const ehSabor = (n, cestaOf) => !!n && n !== OUT && (FRUTAS.has(n) || FLAVORS.has(N(n)) || n === 'SAL COMUM' || /^FARINHA/.test(n) || (cestaOf(n) === 'PERECIVEIS' && !/ /.test(n)));
+function semSabor(C, cestaOf) { const C2 = Object.assign({}, C, { cats: C.cats.filter(x => !ehSabor(x.c.nome, cestaOf)) }); C2.names = new Set(C2.cats.map(x => x.c.nome));
+  const H = headIndex(C2.cats); C2.headIdx = H.idx; C2.headWild = H.wild; return C2; }
+// tipo de produto da tabela (BISC, BOLACHA, MOLHO…) nas 4 primeiras palavras, quando a categoria votada é só um sabor
+function tipoNoInicio(T, cat, C, cestaOf) {
+  if (!ehSabor(cat, cestaOf)) return null; const lib = C.libNames || C.names;
+  for (const t of T.slice(0, 3)) { const ws = t.split(' ');
+    for (let i = 0; i < Math.min(4, ws.length); i++) { const w = ws[i]; if (i > 0 && (/^(DOCE|DOCES|DOCINHO)$/.test(w) || /^(AO|COM|C|DE|DO|DA|NO|NA|EM|SABOR)$/.test(ws[i - 1]))) continue;
+      const n = TIPO_CAT[w]; if (n && n !== cat && lib.has(n) && !ehSabor(n, cestaOf) && !(itemML(T) && ehSolida(n))) return n; } }
+  return null;
+}
 // OUTRA CATEGORIA só em último caso: palavra de tipo de produto da descrição -> categoria de mesmo nome (ou "<TIPO> OUTROS")
 // palavras genéricas da tabela que só valem como 1ª palavra ("ADESIVO DOCE JAPONES", "KIT ESC DONUT" não são doce)
 const TIPO_SO_INICIO = new Set(['DOCE', 'DOCES', 'DOCINHO', 'DONUT', 'DONUTS', 'SONHO', 'MOLHO', 'MOL', 'MOLH', 'CALDO', 'CALDOS', 'GELEIA', 'QUINDIM', 'FONDANT', 'SOBREMESA', 'SOBREMESAS']);
 const TIPO_CAT = Object.fromEntries(Object.entries(K.tipoCategoria || {}).map(([w, c]) => [N(w), c]));
 function tipoCategoria(T, C, soTabela) {
   const lib = C.libNames || C.names; const cesta = n => { const c = cfg.categorias.find(x => x.nome === n); return c ? c.cesta : ''; };
-  const ok = n => n && lib.has(n) && cesta(n) !== 'FARMACIA';
+  const ml = itemML(T); const ok = n => n && lib.has(n) && cesta(n) !== 'FARMACIA' && !(ml && ehSolida(n));
   // objeto/embalagem com palavra de alimento (TINTA TEMP. GUACHE, CARTUCHO HAMBURGUER AMANTEIGADO) não usa a tabela de tipos
   const naoAlim = T.some(t => /(?<![A-Z])(TINTA|GUACHE|CARTUCHO|EMBALAGEM|EMBALAGENS|EMB|AMONIACO|LV|LIV|LIVRO|LIVROS|REVISTA|GIBI|SACO|SACOS|CAIXA|FORMA|FORMAS|PORTA|POTE|ADESIVO|ETIQUETA|ESTAMPA)(?![A-Z])/.test(t));
   // tabela de tipos (BISC, TEMPERO, SUSPIRO…) em qualquer posição; nome de categoria só se for a 1ª palavra (o tipo do produto):
@@ -1157,10 +1224,18 @@ const prioArq = () => passe ? (passe.sempre || passe.prio) : (sempreArq() || cfg
 const valido = v => { const n = N(v); return !!n && !/^(OUTRA MARCA|OUTRO FABRICANTE|OUTRA CATEGORIA|SEM MARCA|SEM FABRICANTE|NAO INFORMADO|N A|NA|0|NULL|NONE|-)$/.test(n); };
 const rxCat = new Map();
 function bateCategoria(c, T) {
-  if (!rxCat.has(c.nome)) rxCat.set(c.nome, [termRx(c.incluir), termRx(c.tipo)]);
-  const [inc, tip] = rxCat.get(c.nome);
-  return T.some(t => (inc && inc.test(t)) || (tip && tip.test(t)));
+  if (!rxCat.has(c.nome)) { const sp = splitAtributos(c); rxCat.set(c.nome, [sp.inc, termRx(c.tipo), sp.incA, sp.noun]); }
+  const [inc, tip, incA, noun] = rxCat.get(c.nome);
+  // termo que é só atributo (SALGADO, BRANCO, COLONIAL…) só conta com o produto da categoria na descrição
+  return T.some(t => (inc && inc.test(t)) || (tip && tip.test(t)) || (incA && noun && noun.test(t) && incA.test(t)));
 }
+// categoria de subtipo de produto (AMENDOIM SALGADO, OVO BRANCO…) e a descrição não tem o produto: o arquivo está errado
+function faltaProduto(c, T) { if (!rxCat.has(c.nome)) bateCategoria(c, []); const [inc, tip, incA, noun] = rxCat.get(c.nome); if (!noun) return false;
+  if (!T.some(t => noun.test(t) || (inc && inc.test(t)) || (tip && tip.test(t)))) return true;
+  // tem o produto, mas também uma palavra que a categoria exclui (RAPADURA … DOCE DE AMENDOIM em AMENDOIM SALGADO)
+  if (!rxExc.has(c.nome)) rxExc.set(c.nome, termRx(c.excluir)); const exc = rxExc.get(c.nome);
+  return !!exc && T.some(t => exc.test(t)); }
+const rxExc = new Map();
 // categoria que exige uma palavra (OVO BRANCO exige OVO/OVOS) e nenhuma descrição a tem: o arquivo está errado
 const rxTam = new Map();
 // só vale para ovos (OVO BRANCO, CAIPIRA, VERMELHO…): outras categorias da biblioteca têm palavra obrigatória incompleta (IOGURTE LIQUIDO x BEB LACTEA)
@@ -1176,7 +1251,7 @@ function categoriaArquivo(it, a, byName) {
     if (passe && passe.soDesc) return Object.assign({}, a, { regraForte: s }); // só descritivo também troca: é regra ensinada (status avisa)
     if (!sempreArq()) return Object.assign({}, a, { arqTrocada: s });
   }
-  if (a.cat !== OUT && faltaObrigatoria(c1, a.T)) {
+  if (a.cat !== OUT && (faltaObrigatoria(c1, a.T) || (ehSolida(s) && itemML(a.T)) || (!FRUTAS.has(a.cat) && faltaProduto(c1, a.T)))) {
     if (passe && passe.soDesc) return Object.assign({}, a, { regraForte: s });
     if (!sempreArq()) return Object.assign({}, a, { arqTrocada: s });
   }
