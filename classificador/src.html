@@ -729,20 +729,29 @@ const RX_DOCE_NAO = /(?<![A-Z])(BISC\w*|BOLACHA|BOLO|SORVETE|PICOLE|ALFAJOR|BOMB
 
 // ORIGEM LIMPEZA: o tipo do produto no começo da descrição define a categoria de limpeza (forma pelo texto e pela unidade);
 // fragrância (LAVANDA, PINHO, FLOR, GLICERINA, COCO), marca (OMO, COMFORT) e "SH" nunca viram a categoria
+// palavras que começam o tipo de limpeza mesmo depois da marca (PURA CASA ALCOOL, MIREX … FORMICIDA, AEVA REMOVEDOR)
+const LIMP_TIPO_W = new Set('SABAO SABA ALCOOL DETERGENTE DETERG AMACIANTE AMAC DESINFETANTE DESINF ALVEJANTE INSETICIDA FORMICIDA RATICIDA CUPINICIDA REMOVEDOR LIMPADOR LAVA DESENGORDURANTE SAPONACEO AGUA CLORO DESAM DESAMASSADOR'.split(' '));
+const LIMP_NAO_INICIO = new Set('MARCA MARCADOR GIZ CANETA CANETINHA LAPIS FITA BLOCO CADERNO KIT CONJUNTO CJ CONJ SUPORTE PORTA ESTICADOR DISPENSER ORGANIZADOR SABONETEIRA BALDE ESCOVA REFIL CAPA TAMPA'.split(' '));
 function limpezaCat(T, C) {
-  const lib = C.libNames || C.names; if (!T.length) return null;
-  const t0 = T[0].replace(/^(\*|ZZ)+/, '').trim(); const all = T.join(' | ');
+  if (!T.length) return null; const t = T[0].replace(/^(\*|ZZ)+/, '').trim(); const r = limpezaCat0(T, C, t); if (r) return r;
+  const ws = t.split(' '); if (OBJ_CAT[ws[0]] || TIPO_CAT[ws[0]] || LIMP_NAO_INICIO.has(ws[0])) return null;
+  for (let i = 1; i < Math.min(5, ws.length); i++) if (LIMP_TIPO_W.has(ws[i])) { const r2 = limpezaCat0(T, C, ws.slice(i).join(' ')); if (r2) return r2; }
+  return null;
+}
+function limpezaCat0(T, C, t0) {
+  const lib = C.libNames || C.names; const all = T.join(' | ');
   const has = rx => rx.test(all); const ok = n => (n && lib.has(n)) ? n : null;
   const ml = T.some(t => parseQ(textoQtd(t)).some(x => x[1] === 'ML')), gr = T.some(t => parseQ(textoQtd(t)).some(x => x[1] === 'G'));
   const W = rx => new RegExp('^(' + rx + ')(?![A-Z])').test(t0);
-  if (W('LAVA ?ROUPAS?|LAVA ROUP|LV ROUPAS?|SABAO|DET(ERG(ENTE)?)? (EM )?PO|DET\\.? PO')) {
+  if (W('LAVA ?ROUPAS?|LAVA ROUP|LV ROUPAS?|SABAO|SABA|DET(ERG(ENTE)?)? (EM )?PO|DET\\.? PO') || (W('ROUPA|ROUPAS') && /(?<![A-Z])(YPE|TIXAN|OMO|ARIEL|BRILHANTE|SURF|ACE|ASSIM|BRILUX|ALA|MINUANO|URCA|BOLD|POWER|PRIMAVERA|COCO|LAVANDA)(?![A-Z])/.test(t0) && (ml || gr))) {
     if (/^SABAO (DE )?(COCO|GLICERINA) (EM )?BARRA|^SABONETE/.test(t0)) return ok('SABAO EM PEDRA');
+    if (/^(SABAO|SABA)/.test(t0) && has(/(?<![A-Z])(BARRA|BARRAS|PEDRA|BAR)(?![A-Z])/)) return ok('SABAO EM PEDRA');
     if (has(/(?<![A-Z])(LIQ|LIQUIDO|LIQUIDA|LQ|GEL)(?![A-Z])/)) return ok('SABAO LIQUIDO');
     if (has(/(?<![A-Z])(PO|EM PO)(?![A-Z])/)) return ok('SABAO EM PO');
     if (has(/(?<![A-Z])PASTA(?![A-Z])/)) return ok('SABAO EM PASTA');
     if (has(/(?<![A-Z])(BARRA|BARRAS|PEDRA|BAR|TABLETE)(?![A-Z])/)) return ok('SABAO EM PEDRA');
     if (ml) return ok('SABAO LIQUIDO');
-    if (gr) return ok(/^SABAO/.test(t0) ? 'SABAO EM PEDRA' : 'SABAO EM PO');
+    if (gr) return ok(/^SABAO?/.test(t0) ? 'SABAO EM PEDRA' : 'SABAO EM PO');
     return ok('SABAO');
   }
   if (W('DETERG\\w*|DET|LAVA ?LOUCAS?')) {
@@ -803,7 +812,7 @@ function limpezaCat(T, C) {
   if (W('ESCOVA')) { if (has(/(?<![A-Z])(SANITARIA|SANIT|VASO)(?![A-Z])/)) return ok('ESCOVA SANITARIA');
     if (has(/(?<![A-Z])(ROUPA|ROUPAS|LAVANDERIA|TANQUE|LAVAR ROUPA|OVAL)(?![A-Z])/) && !has(/(?<![A-Z])(CABELO|DENTE|DENTAL|PET|CACHORRO|GATO|ROUPA PET)(?![A-Z])/)) return ok('ESCOVA DE LAVANDERIA'); return null; }
   if (W('ROLO (ADESIVO|TIRA|PEGA|LIMPA|REMOVEDOR)')) return ok('ROLO ADESIVO');
-  if (W('CERA') && !has(/(?<![A-Z])(DEPIL\w*|CAPILAR|CABELO|MODELADORA|OUVIDO|ABELHA|AUTOMOTIV\w*|CARRO|SAPATO|MOVEL|MOVEIS|VELA|ARTESANATO|CARNAUBA|POMADA|BIGODE|BARBA|FIXADORA)(?![A-Z])/)) return ok('CERA PARA PISO');
+  if (W('CERA') && !has(/(?<![A-Z])(DEPIL\w*|CAPILAR|CABELO|MODELADORA|OUVIDO|ABELHA|AUTOMOTIV\w*|CARRO|SAPATO|MOVEL|MOVEIS|VELA|ARTESANATO|CARNAUBA|POMADA|BIGODE|BARBA|FIXADORA|GIZ|BASTAO|ANEL|GUIA|VASO|SANITARIO|MODELADORA|CAPILAR|PASTA)(?![A-Z])/)) return ok('CERA PARA PISO');
   if (W('LUSTRA MOVE\\w*|OLEO DE PEROBA|PEROBA')) return ok('LUSTRA MOVEL');
   if (W('GRAXA (P |PARA )?SAPATOS?|LUSTRA SAPATOS?|LIMPA TENIS|LIMPA SAPATOS?|TINTA (P |PARA )?SAPATO')) return ok('LUSTRA SAPATO');
   if (W('ODORIZ\\w*|AROMATIZ\\w*|PURIFICADOR DE AR|BOM AR|GLADE|AIR ?WICK|DIFUSOR|HOME SPRAY|SPRAY AMBIENTE|ELIMINADOR DE ODOR\\w*|NEUTRALIZADOR DE ODOR\\w*')) {
@@ -811,7 +820,7 @@ function limpezaCat(T, C) {
     if (has(/(?<![A-Z])(ROUPA|ROUPAS|TECIDO|TECIDOS)(?![A-Z])/)) return ok('ODORIZADOR DE ROUPA');
     if (has(/(?<![A-Z])(SANITARIO|VASO)(?![A-Z])/)) return ok('DESODORIZADOR SANITARIO');
     return ok('PURIFICADOR DE AR'); }
-  if (W('PASSA FACIL|PASSE FACIL|FACILITADOR|AGUA DE PASSAR|GOMA (P |PARA |SPRAY|DE )?ROUPA|GOMA SPRAY')) return ok('FACILITADOR DE PASSAR ROUPA');
+  if (W('PASSA FACIL|PASSE FACIL|FACILITADOR|AGUA DE PASSAR|GOMA (P |PARA |SPRAY|DE )?ROUPA|GOMA SPRAY|DESAM\\w*|PASSA ROUPAS?')) return ok('FACILITADOR DE PASSAR ROUPA');
   if (W('SECANTE')) return ok('SECANTE PARA LOUCA');
   if (W('REMOVEDOR')) return has(/(?<![A-Z])(ESMALTE|MAQUIAGEM|CUTICULA|CALOS?|COLA|ADESIVO|TINTA|FERRUGEM)(?![A-Z])/) ? null : ok('REMOVEDOR');
   if (W('ALCOOL')) return has(/(?<![A-Z])(GEL|ANTISSEPTICO|MAOS|HIGIENIZADOR|SEM|ZERO|BEBIDA|CERVEJA|VINHO)(?![A-Z])/) ? null : ok('ALCOOL LIMPEZA');
@@ -1202,11 +1211,14 @@ function complement(T, cat, ini, bn, grp, catCfg) {
   const Tx = T.filter(t => t && t !== 'SEM DESCRICAO').map(t => expand(t, grp)); if (!Tx.length) return '';
   const bw = new Set(bn ? bn.split(' ') : []); const bw4 = [...bw].filter(x => x.length >= 4);
   const drop = new Set([...(catCfg ? catCfg.remover || [] : []), ...ini.split(' '), ...bw, ...SKIPTIPO]);
+  // abreviação de palavra do começo do descritivo é a mesma informação (SABAO LIQUIDO … LIQ … SABA, AMACIANTE … AMAC)
+  const iniW = ini.split(' ').filter(x => x.length >= 4);
+  const iniAbrev = w => w.length >= 3 && !/\d/.test(w) && !FLAVORS.has(w) && (iniW.some(x => x.length > w.length && x.startsWith(w)) || iniW.some(x => w === x + 'S' || w === x + 'ES'));
   // semConector: palavra retirada leva junto o conector que vinha logo depois (BALA DE COCO -> COCO, nunca "DECARLI DE RECHEADA")
   const toksDe = (t, semConector) => {
     let tt = t; if (bn) { tt = tt.replace(new RegExp('(?<![A-Z0-9])' + escRx(bn) + '(?![A-Z0-9])', 'g'), ' ').replace(new RegExp('(?<![A-Z0-9])' + escRx(bn.replace(/ /g, '')) + '(?![A-Z0-9])', 'g'), ' '); }
     if (semConector) tt = tt.replace(/(?<![A-Z0-9_])([A-Z]{2,})\s+(?:DE|DA|DO|DOS|DAS|E)(?=\s)/g, (m, w) => drop.has(w) && !CONNECT.has(w) ? w : m);
-    return cleanTokens(tt, drop).filter(w => !bw4.some(x => w.includes(x)) && !(w.length >= 4 && bn && bn.replace(/ /g, '').includes(w)) && !['STA', 'STO', 'SR', 'SRA', 'DONA', 'SEU'].includes(w) && !/^(PCTX|PCTS|CXX|FDX|DPX|UNX)$/.test(w));
+    return cleanTokens(tt, drop).filter(w => !iniAbrev(w)).filter(w => !bw4.some(x => w.includes(x)) && !(w.length >= 4 && bn && bn.replace(/ /g, '').includes(w)) && !['STA', 'STO', 'SR', 'SRA', 'DONA', 'SEU'].includes(w) && !/^(PCTX|PCTS|CXX|FDX|DPX|UNX)$/.test(w));
   };
   const lists = Tx.slice(0, 6).map(t => toksDe(t));
   const cnt = new Map(); for (const L of lists) for (const w of new Set(L)) cnt.set(w, (cnt.get(w) || 0) + 1);
@@ -1218,6 +1230,8 @@ function complement(T, cat, ini, bn, grp, catCfg) {
   for (const w of base) { const good = FLAVORS.has(w) || w.includes('_') || (n <= 2 && w.length >= 3) || cnt.get(w) >= 2 || CONNECT.has(w) || ATTR.has(w); if (!good) continue; if (w.length <= 2 && !CONNECT.has(w)) continue; keep.push(w); }
   for (const [w, c] of [...cnt].sort((a, b) => b[1] - a[1])) if (FLAVORS.has(w) && !keep.includes(w) && c >= Math.max(2, Math.floor(n / 2) + 1)) keep.push(w);
   let words = tidy(keep);
+  // abreviação de outra palavra que já está no descritivo sai (LIQUIDO … LIQ, PASSAR … PASSA)
+  words = words.filter((w, i) => !(w.length >= 3 && !/\d/.test(w) && !CONNECT.has(w) && !GENERIC.has(w) && !ATTR.has(w) && !FLAVORS.has(w) && w !== 'MAN' && words.some((x, j) => j !== i && x.length > w.length && x.startsWith(w))));
   if (cat.startsWith('CHOCOLATE')) { const p = Tx.map(pct).find(x => x); if (p) words = words.filter(w => w !== 'CACAU').concat([String(p), 'CACAU']); }
   const iw = new Set(ini.split(' '));
   // sem palavra repetida: plural ou grafia diferente da mesma palavra (MARSHMALLOW x MARSHMALLOWS x MARSHMELOWS) entra uma vez só,
@@ -1366,6 +1380,25 @@ let LIB_TODA = null;
 function libToda(C) { if (LIB_TODA && LIB_TODA.base === C) return LIB_TODA.L;
   const L = compile0(cfg.categorias.filter(c => c.cesta !== 'FARMACIA')); const H = headIndex(L.cats); L.headIdx = H.idx; L.headWild = H.wild; L.libNames = C.libNames;
   LIB_TODA = { base: C, L }; return L; }
+// marcas do DIMA presentes na descrição: alguma tem segmento da categoria (1ª palavra do nome, SHAMPOO)? e, se não, a categoria da biblioteca
+// que os segmentos delas apontam (MIREX -> INSETICIDA), quando é uma só
+function marcaApoia(c, T, byName) {
+  const D = data.dima; if (!D) return { apoia: true };
+  const w0 = N(c.nome).split(' ')[0]; const segs = new Map();
+  for (const t of T.slice(0, 4)) { const ws = t.split(' ');
+    for (let i = 0; i < ws.length; i++) for (let n = 1; n <= 3 && i + n <= ws.length; n++) { const g = ws.slice(i, i + n).join(' '); if (g.length < 3 || GENERIC.has(g)) continue;
+      const b = D.map.get(g); if (b) for (const [e] of b.em) if (e) segs.set(N(e), (segs.get(N(e)) || 0) + 1); } }
+  if (!segs.size) return { apoia: true }; // nenhuma marca conhecida: não dá para julgar pela marca
+  if ([...segs.keys()].some(e => e.split(' ')[0] === w0 || e === N(c.nome))) return { apoia: true };
+  // só troca quando TODOS os segmentos da marca são de categorias conhecidas de outra cesta (YPE: limpeza, nunca shampoo);
+  // segmento que não dá para ligar a uma categoria da biblioteca = dúvida -> mantém o arquivo
+  const cestaSeg = e => { const x = byName.get(e); if (x) return x.cesta || ''; const f = e.split(' ')[0]; for (const [n, y] of byName) if (N(n).split(' ')[0] === f) return y.cesta || ''; return null; };
+  for (const e of segs.keys()) { const ce = cestaSeg(e); if (ce === null || ce === '' || ce === (c.cesta || '')) return { apoia: true }; }
+  return { apoia: false };
+}
+// abreviação da 1ª palavra do nome na descrição (MORT -> MORTADELA, IOG -> IOGURTE, SORV -> SORVETE)
+function abrevNaDesc(c, T) { const w = N(c.nome).split(' ')[0]; if (w.length < 5) return false;
+  return T.some(t => t.split(' ').some(x => x.length >= 3 && x.length < w.length && w.startsWith(x))); }
 // alguma palavra do nome da categoria (fora OUTROS/DE…) aparece na descrição
 function nomeNaDesc(c, T) { const ws = N(c.nome).split(' ').filter(w => w.length >= 3 && !SEG_STOP.has(w)); return T.some(t => ws.some(w => new RegExp('(?<![A-Z0-9])' + escRx(w) + '(?![A-Z0-9])').test(t))); }
 function categoriaArquivo(it, a, byName, C) {
@@ -1383,14 +1416,17 @@ function categoriaArquivo(it, a, byName, C) {
   }
   // app sem categoria (OUTRA CATEGORIA) e a do arquivo sem nenhuma evidência na descrição: a biblioteca inteira (também as desativadas)
   // decide; se ela aponta outra cesta (SHAMPOO num "COM SABOR MOLHO PIMENTA TUCUPI"), troca e avisa; se nada aponta nada, só avisa
-  if (a.cat === OUT && C && c1.cesta && !bateCategoria(c1, a.T) && !nomeNaDesc(c1, a.T)) {
+  if (a.cat === OUT && C && c1.cesta && !bateCategoria(c1, a.T) && !nomeNaDesc(c1, a.T) && !abrevNaDesc(c1, a.T)) {
     const L = libToda(C); const r2 = aggregate(a.T, '', L, it.main); let x = r2.cat !== OUT ? r2.cat : tipoCategoria(a.T, L);
     const cx = x && byName.get(x);
     if (cx && cx.cesta && cx.cesta !== c1.cesta && cx.cesta !== 'FARMACIA') {
       const b = Object.assign({}, a, { cat: x, per: a.per.map(() => x), flag: 'BIBLIOTECA' });
       if (passe && passe.soDesc) return Object.assign(b, { regraForte: s }); if (!sempreArq()) return Object.assign(b, { arqTrocada: s });
     }
-    if (passe && passe.soDesc) return Object.assign({}, a, { cat: s, per: a.per.map(() => s), flag: 'ARQUIVO', arqCat: true, catSuspeita: OUT });
+    // marca da descrição com a categoria do arquivo no DIMA (PANTENE em SHAMPOO): mantém; senão o arquivo está errado (YPE, PURA CASA em SHAMPOO)
+    const m = marcaApoia(c1, a.T, byName);
+    if (!m.apoia && !/OUTROS|OUTRAS|DIVERSOS/.test(N(c1.nome)) && ['PERFUMARIA', 'LIMPEZA'].includes(c1.cesta)) { const x2 = OUT; const b = Object.assign({}, a, { cat: x2, per: a.per.map(() => x2), flag: 'MARCA_DIMA' });
+      if (passe && passe.soDesc) return Object.assign(b, { regraForte: s }); if (!sempreArq()) return Object.assign(b, { arqTrocada: s }); }
   }
   // categoria do arquivo de outra cesta, sem nenhuma palavra dela na descrição (SHAMPOO num doce, LEITE COMUM num doce de leite de outra cesta):
   // é erro do arquivo -> troca também no modo só descritivo (status avisa)
@@ -2159,7 +2195,7 @@ function migrarCategorias() {
   // início cadastrado errado na biblioteca (CREME DE AMENDOIM vinha como CHOCOLATE COBERTURA): corrige sempre
   const INICIO_FIX = { 'CREME DE AMENDOIM': ['CHOCOLATE COBERTURA', 'CREME DE AMENDOIM'] };
   for (const c of cfg.categorias || []) { const f = INICIO_FIX[c.nome]; if (f && N(c.inicio || '') === f[0]) { c.inicio = f[1]; c.dinamico = false; n++; } }
-  const REMOVER_PATCH = { 'LINGUICA DEFUMADA': ['DEF', 'DEFUM'], 'CHOCOLATE EM PO OUTROS': ['SOL'], 'OTP - OUTROS TABACO': ['ESS', 'ESSENC', 'ESSENCIAS'], 'VINAGRE ALCOOL': ['ALC', 'VINAG', 'VINAGRES'], 'CEREAL EM BARRA PROTEICO': ['PROTEINA', 'PROTEINAS', 'PROTEICA', 'PROTEICAS', 'PROTEICO', 'PROTEIN', 'BAR', 'BARS', 'BARRA', 'BARRAS', 'BARRINHA', 'BARRINHAS', 'HIPERPROTEICA'], 'CREME DE AMENDOIM': ['CREME', 'PASTA', 'MANTEIGA', 'AMENDOIM', 'CR'], 'BALA PASTILHA': ['DURA', 'DURAS', 'DUR', 'BALA', 'BALAS', 'BALINHA', 'BALINHAS'], 'PIPOCA MICRO-ONDAS': ['MICROONDAS', 'MICROONDA', 'MICROWAVE', 'MICROOND', 'ONDAS', 'ONDA', 'MIC', 'PIP', 'PIPOC', 'POPCORN', 'MO'] };
+  const REMOVER_PATCH = { 'LINGUICA DEFUMADA': ['DEF', 'DEFUM'], 'CHOCOLATE EM PO OUTROS': ['SOL'], 'OTP - OUTROS TABACO': ['ESS', 'ESSENC', 'ESSENCIAS'], 'VINAGRE ALCOOL': ['ALC', 'VINAG', 'VINAGRES'], 'CEREAL EM BARRA PROTEICO': ['PROTEINA', 'PROTEINAS', 'PROTEICA', 'PROTEICAS', 'PROTEICO', 'PROTEIN', 'BAR', 'BARS', 'BARRA', 'BARRAS', 'BARRINHA', 'BARRINHAS', 'HIPERPROTEICA'], 'CREME DE AMENDOIM': ['CREME', 'PASTA', 'MANTEIGA', 'AMENDOIM', 'CR'], 'BALA PASTILHA': ['DURA', 'DURAS', 'DUR', 'BALA', 'BALAS', 'BALINHA', 'BALINHAS'], 'SABAO LIQUIDO': ['LAVA', 'ROUPA', 'ROUPAS', 'LV', 'LAVAR', 'LQ'], 'SABAO EM PO': ['LAVA', 'ROUPA', 'ROUPAS', 'LV', 'LAVAR', 'DET'], 'SABAO EM PEDRA': ['LAVA', 'ROUPA', 'ROUPAS', 'BARRA', 'BARRAS', 'BAR'], 'SABAO EM PASTA': ['LAVA', 'ROUPA', 'ROUPAS'], 'SABAO': ['LAVA', 'ROUPA', 'ROUPAS', 'LV'], 'DETERGENTE LIQUIDO': ['LAVA', 'LOUCA', 'LOUCAS', 'DET', 'DETERG', 'LQ'], 'PIPOCA MICRO-ONDAS': ['MICROONDAS', 'MICROONDA', 'MICROWAVE', 'MICROOND', 'ONDAS', 'ONDA', 'MIC', 'PIP', 'PIPOC', 'POPCORN', 'MO'] };
   for (const c of cfg.categorias || []) { const r = REMOVER_PATCH[c.nome]; if (r) for (const w of r) if (!(c.remover || []).includes(w)) { c.remover = [...(c.remover || []), w]; n++; } }
   // início fixo para categorias que estavam sem início (K.inicioPatch); quem já tem início definido fica como está
   for (const c of cfg.categorias || []) { const v = (K.inicioPatch || {})[c.nome]; if (v && !(c.inicio || '').trim()) { c.inicio = v; c.dinamico = false; n++; } }
