@@ -726,6 +726,99 @@ function chocPoCat(T, C) {
 }
 // doce de leite (D LEITE, D.LEITE, DOCE DE LEITE) e doce em barra (DOCE … BARRA): nunca LEITE COMUM, SHAMPOO EM BARRA, OUTRA CATEGORIA…
 const RX_DOCE_NAO = /(?<![A-Z])(BISC\w*|BOLACHA|BOLO|SORVETE|PICOLE|ALFAJOR|BOMBOM|BOMBONS|BALA|BALAS|CHOC\w*|WAFER|PAO|TORTA|CEREAL|PROTEIN\w*|WHEY|SABONETE|SHAMPOO|CONDICIONADOR|IOGURTE|BEBIDA|LACTEA|CAFE|CAPPUCCINO|PALHA ITALIANA|BRIGADEIRO|TRUFA|RECHEIO|COBERTURA|SORV|PIC|PALETA|IOG|YOPRO|BREAD|CONG|CONGELADO|CONGELADA|CHURROS|CUCA|CAROLINA|PST|PASTA|AMEND|AMENDOIM|RAPADURA|DOLCETTO|GELATO|SABAO|SABOES|ERVA DOCE|ERVADOCE|DETERG\\w*|LAVA|LIMPEZA|AMACIANTE|PEDRA)(?![A-Z])/;
+
+// ORIGEM LIMPEZA: o tipo do produto no começo da descrição define a categoria de limpeza (forma pelo texto e pela unidade);
+// fragrância (LAVANDA, PINHO, FLOR, GLICERINA, COCO), marca (OMO, COMFORT) e "SH" nunca viram a categoria
+function limpezaCat(T, C) {
+  const lib = C.libNames || C.names; if (!T.length) return null;
+  const t0 = T[0].replace(/^(\*|ZZ)+/, '').trim(); const all = T.join(' | ');
+  const has = rx => rx.test(all); const ok = n => (n && lib.has(n)) ? n : null;
+  const ml = T.some(t => parseQ(textoQtd(t)).some(x => x[1] === 'ML')), gr = T.some(t => parseQ(textoQtd(t)).some(x => x[1] === 'G'));
+  const W = rx => new RegExp('^(' + rx + ')(?![A-Z])').test(t0);
+  if (W('LAVA ?ROUPAS?|LAVA ROUP|LV ROUPAS?|SABAO|DET(ERG(ENTE)?)? (EM )?PO|DET\\.? PO')) {
+    if (/^SABAO (DE )?(COCO|GLICERINA) (EM )?BARRA|^SABONETE/.test(t0)) return ok('SABAO EM PEDRA');
+    if (has(/(?<![A-Z])(LIQ|LIQUIDO|LIQUIDA|LQ|GEL)(?![A-Z])/)) return ok('SABAO LIQUIDO');
+    if (has(/(?<![A-Z])(PO|EM PO)(?![A-Z])/)) return ok('SABAO EM PO');
+    if (has(/(?<![A-Z])PASTA(?![A-Z])/)) return ok('SABAO EM PASTA');
+    if (has(/(?<![A-Z])(BARRA|BARRAS|PEDRA|BAR|TABLETE)(?![A-Z])/)) return ok('SABAO EM PEDRA');
+    if (ml) return ok('SABAO LIQUIDO');
+    if (gr) return ok(/^SABAO/.test(t0) ? 'SABAO EM PEDRA' : 'SABAO EM PO');
+    return ok('SABAO');
+  }
+  if (W('DETERG\\w*|DET|LAVA ?LOUCAS?')) {
+    if (has(/(?<![A-Z])(ROUPA|ROUPAS)(?![A-Z])/)) return ok(ml || !gr ? 'SABAO LIQUIDO' : 'SABAO EM PO');
+    if (gr && !ml && /^DETERG/.test(t0) && T.some(t => /\d\s*KG(?![A-Z])/.test(t))) return ok('SABAO EM PO');
+    if (has(/(?<![A-Z])(MAQ|MAQUINA|TABLETE|TABLETES|PASTILHA|PASTILHAS|LAVA LOUCAS MAQUINA)(?![A-Z])/)) return ok('DETERGENTE MAQUINA DE LAVAR LOUCA');
+    if (has(/(?<![A-Z])(SANITARIO|SANITARIA)(?![A-Z])/)) return ok('DESODORIZADOR SANITARIO');
+    return ok('DETERGENTE LIQUIDO');
+  }
+  if (W('AMAC\\w*')) return ok(has(/(?<![A-Z])(CONC|CONCENTRADO|CONCENT|CONCENTRADA)(?![A-Z])/) ? 'AMACIANTE CONCENTRADO' : 'AMACIANTE DILUIDO');
+  if (W('LAVA PISOS?|LIMPA PISOS?|LIMPA CERAMICA|LIMPA PORCELANATO|LIMPA LAMINADO')) return ok('LIMPADOR PISO');
+  if (W('LIMPA VIDROS?|LIMPADOR (DE )?VIDROS?|VIDREX')) return ok('LIMPADOR DE VIDRO');
+  if (W('LIMPA BOX|LIMPA BANHEIRO|LIMPA AZULEJO|LIMPADOR (DE )?BANHEIRO')) return ok('LIMPADOR DE BANHEIRO');
+  if (W('ACIDO MURIATICO|DESINCRUSTANTE|LIMPA PEDRAS?|L PEDRA|L PEDCAL|LIMP PEDRA|TIRA LIMO|LIMPA LIMO|LIMPA BOLOR|LIMPA REJUNTE|SODA CAUSTICA')) return ok('LIMPEZA PESADA');
+  if (W('LIMPA (ALUMINIO|INOX|PRATA|METAIS)|BRILHA ALUMINIO|POLIDOR (DE )?META\\w*')) return ok('POLIDOR METAL');
+  if (W('LIMPA (FORNO|FOGAO|COIFA)|DESENGORD\\w*|TIRA GORDURA')) return ok('DESENGORDURANTE');
+  if (W('LIMP\\w*') && !has(/(?<![A-Z])(FACIAL|FACE|PELE|ROSTO|LENTES?|OCULOS|OUVIDO|CONTATO|BICOS?|PNEUS?|MOTOR|AUTOMOTIV\w*|CARRO|PARA ?BRISA|PARABRISA|LINGUA|ESTOFADO AUTOMOTIVO|PELE|CAPILAR|COURO|TELA|TELAS|NOTEBOOK|CELULAR|CABECOTE|INJECAO|CARBURADOR|AR CONDICIONADO)(?![A-Z])/)) {
+    const conc = has(/(?<![A-Z])(CONC|CONCENTRADO|CONCENT)(?![A-Z])/);
+    if (has(/(?<![A-Z])(ESSENCIA|ESS)(?![A-Z])/) || (conc && !has(/(?<![A-Z])(MULTIUSO|M USO)(?![A-Z])/))) return ok('LIMPADOR ESSENCIA');
+    if (has(/(?<![A-Z])(PERF|PERFUMADO|PERFUM)(?![A-Z])/)) return ok('LIMPADOR PERFUMADO');
+    if (has(/(?<![A-Z])(MULTIUSO|MULTI USO|M USO|MULTI|USO GERAL|MULTISSUPERFICIE|MULTI SUPERFICIE)(?![A-Z])/)) return ok('LIMPADOR MULTIUSO');
+    if (has(/(?<![A-Z])(VIDRO|VIDROS)(?![A-Z])/)) return ok('LIMPADOR DE VIDRO');
+    if (has(/(?<![A-Z])(PISO|PISOS|CERAMICA|PORCELANATO|LAMINADO)(?![A-Z])/)) return ok('LIMPADOR PISO');
+    if (has(/(?<![A-Z])(BANHEIRO|BANH|BOX|AZULEJO|SANITARIO)(?![A-Z])/)) return ok('LIMPADOR DE BANHEIRO');
+    if (has(/(?<![A-Z])PISCINA(?![A-Z])/)) return ok('LIMPADOR PISCINA');
+    if (has(/(?<![A-Z])(PESADA|PEDRA|PEDRAS|LIMO|BOLOR|REJUNTE|INDUSTRIAL)(?![A-Z])/)) return ok('LIMPEZA PESADA');
+    if (has(/(?<![A-Z])(ALUMINIO|INOX|METAL|METAIS|PRATA)(?![A-Z])/)) return ok('POLIDOR METAL');
+    if (has(/(?<![A-Z])(FORNO|FOGAO|COIFA|GORDURA)(?![A-Z])/)) return ok('DESENGORDURANTE');
+    return ok('LIMPADOR') || ok('LIMPADOR MULTIUSO');
+  }
+  if (W('DESINF\\w*|DESF|PINHO SOL|LYSOFORM|CREOLINA')) return ok('DESINFETANTE');
+  // essência de limpeza (ESSENCIA … LIMPADOR/CONC, 100-200ML): não é aroma culinário nem narguilé
+  if (W('ESSENCIA|ESS') && !essenciaOTP(T, C) && !has(/(?<![A-Z])(BAUNILHA|BAUN|CHOCOLATE|CONFEIT\w*|BOLO|DOCES?|CULINARI\w*|ALIMENT\w*|PANIF\w*|NARG\w*|ARGILE|HOOKAH|OLEO ESSENCIAL|ESSENCIAL|CAPILAR|PERFUME|COLONIA|DIFUSOR ELETRICO|VELA|SABONETE)(?![A-Z])/) &&
+      has(/(?<![A-Z])(LIMP\w*|CONC|CONCENTRADO|CONCENTRADA|COALA|EUCALIPTO|PINHO|LAVANDA|FLORAL|ORQUIDEA|CITRONELA|ALECRIM|CAMPO|FLORESTA|CHA BRANCO|ERVA DOCE|TALCO|BEBE|BAMBOO|FLOR)(?![A-Z])/)) return ok('LIMPADOR ESSENCIA');
+  if (W('ALVEJ\\w*|TIRA MANCHAS?|VANISH|BRANQUEADOR|REMOVEDOR DE MANCHAS?')) return ok('ALVEJANTE E TIRA MANCHA');
+  if (W('AGUA SANIT\\w*|AG SANIT\\w*|QBOA|Q BOA|CANDIDA|CLORO ATIVO')) return ok('AGUA SANITARIA');
+  if (W('CLORO|ALGICIDA|CLARIFICANTE|FLOCULANTE|FLOC|BARRILHA|SULFATO DE ALUMINIO|ELEVADOR DE PH|REDUTOR DE PH|CLORADOR|DICLORO|TRICLORO|HIDROAZUL|HIDROALL|PASTILHA (DE )?CLORO')) return ok('LIMPADOR PISCINA');
+  if (W('INSETICIDA|INSET|RATICIDA|FORMICIDA|CUPINICIDA|MOSQUITICIDA|LARVICIDA|MATA (BARATAS?|FORMIGAS?|MOSCAS?|MOSQUITOS?|CUPIM)|ISCA (BARATA|FORMIGA|MOSCA)|GEL (MATA )?BARATA|RAID|SBP|BAYGON')) return ok('INSETICIDA');
+  if (W('SAPONACEO|SAPOLIO')) return ok('SAPONACEO');
+  if (W('ESPONJA|ESPONJAS|FIBRA (DE )?LIMPEZA|FIBRA MULTIUSO|ESFREBOM|SCOTCH BRITE')) {
+    if (has(/(?<![A-Z])(BANHO|MAQUIAGEM|MAKE|CORPORAL|FACIAL|BLEND|PO|ESFOLIANTE|BEBE|LIXA|PINTURA|ARTESANATO|CARRO|AUTOMOTIVA|POLIMENTO|ESPUMA D|COLCHAO|PRATO DE)(?![A-Z])/)) return null;
+    return ok(has(/(?<![A-Z])(ACO|INOX|METALICA|METAL)(?![A-Z])/) ? 'ESPONJA METALICA' : 'ESPONJA SINTETICA COMUM');
+  }
+  if (W('LA DE ACO|LA ACO|PALHA DE ACO|PALHA ACO|BOMBRIL|BRILLO')) return ok('LA DE ACO');
+  if (W('LUVAS?')) {
+    if (has(/(?<![A-Z])(PROCEDIMENTO|CIRURG\w*|NITRIL\w*|VINIL|C 100|C100|100UN|CX|TERMICA|FORNO|COZINHA|SILICONE|FESTA|FESTAS|GOLEIRO|BOXE|MOTO|CICLISMO|ACADEMIA|MUSCULACAO|INVERNO|LA|TOUCH|MALHA|PIGMENTADA|VAQUETA|RASPA|SOLDADOR|JARDINAGEM|TATICA|FUTEBOL|ESQUI|BEBE|RECEM)(?![A-Z])/)) return null;
+    if (has(/(?<![A-Z])(LATEX|BORRACHA|MULTIUSO|LIMPEZA|AMARELA|FORRADA|DOMESTICA|SANRO|MUCAMBO|NEOPRENE|VOLK)(?![A-Z])/)) return ok('LUVA LIMPEZA');
+    return null;
+  }
+  if (W('VASSOURAS?|VASSOURINHA|ESPANADOR')) return has(/(?<![A-Z])(BRUXA|BRINQUEDO|INFANTIL|FANTASIA)(?![A-Z])/) ? null : ok('VASSOURA');
+  if (W('RODOS?|RODINHO')) return ok('RODO');
+  if (W('MOP|ESFREGAO')) return ok('ESFREGAO');
+  if (W('BALDES?')) { if (has(/(?<![A-Z])(GELO|VINHO|CHAMPANHE|CHAMPAGNE|CERVEJ\w*|PIPOCA|PRAIA|BRINQ\w*|TINTA|MASSA|ARGAMASSA|OBRA|PEDREIRO|CONCRETO|PINTURA)(?![A-Z])/)) return null;
+    return ok(has(/(?<![A-Z])(MOP|GIRATORIO|ESPREMEDOR)(?![A-Z])/) ? 'ESFREGAO' : 'BALDE PLASTICO'); }
+  if (W('PA') && has(/(?<![A-Z])(LIXO|COLETORA|RECOLHEDORA|C CABO|COM CABO|PLAST|PLASTICA|ALCA)(?![A-Z])/) && !has(/(?<![A-Z])(PIZZA|BOLO|GELO|TORTA|PEDREIRO|CONSTRUCAO|JARDIM|BICO|CORTE)(?![A-Z])/)) return ok('PA');
+  if (W('PANOS?|FLANELAS?|PERFEX')) return has(/(?<![A-Z])(BEBE|BOCA|FRALDA|ORELHA|BANHO|MESA|AUTOMOTIVO|CARRO|PRATA|OCULOS|LENTE)(?![A-Z])/) ? null : ok('PANO');
+  if (W('(SACOS?|SC) (DE |P |PARA )?LIXO|SACO (DE )?PIA|SACO BANHEIRO|EMBALIXO|DOVER ROLL')) return ok('SACO PARA LIXO');
+  if (W('ESCOVA')) { if (has(/(?<![A-Z])(SANITARIA|SANIT|VASO)(?![A-Z])/)) return ok('ESCOVA SANITARIA');
+    if (has(/(?<![A-Z])(ROUPA|ROUPAS|LAVANDERIA|TANQUE|LAVAR ROUPA|OVAL)(?![A-Z])/) && !has(/(?<![A-Z])(CABELO|DENTE|DENTAL|PET|CACHORRO|GATO|ROUPA PET)(?![A-Z])/)) return ok('ESCOVA DE LAVANDERIA'); return null; }
+  if (W('ROLO (ADESIVO|TIRA|PEGA|LIMPA|REMOVEDOR)')) return ok('ROLO ADESIVO');
+  if (W('CERA') && !has(/(?<![A-Z])(DEPIL\w*|CAPILAR|CABELO|MODELADORA|OUVIDO|ABELHA|AUTOMOTIV\w*|CARRO|SAPATO|MOVEL|MOVEIS|VELA|ARTESANATO|CARNAUBA|POMADA|BIGODE|BARBA|FIXADORA)(?![A-Z])/)) return ok('CERA PARA PISO');
+  if (W('LUSTRA MOVE\\w*|OLEO DE PEROBA|PEROBA')) return ok('LUSTRA MOVEL');
+  if (W('GRAXA (P |PARA )?SAPATOS?|LUSTRA SAPATOS?|LIMPA TENIS|LIMPA SAPATOS?|TINTA (P |PARA )?SAPATO')) return ok('LUSTRA SAPATO');
+  if (W('ODORIZ\\w*|AROMATIZ\\w*|PURIFICADOR DE AR|BOM AR|GLADE|AIR ?WICK|DIFUSOR|HOME SPRAY|SPRAY AMBIENTE|ELIMINADOR DE ODOR\\w*|NEUTRALIZADOR DE ODOR\\w*')) {
+    if (has(/(?<![A-Z])(CARRO|AUTOMOTIV\w*|VEICULAR|CARROS)(?![A-Z])/)) return null;
+    if (has(/(?<![A-Z])(ROUPA|ROUPAS|TECIDO|TECIDOS)(?![A-Z])/)) return ok('ODORIZADOR DE ROUPA');
+    if (has(/(?<![A-Z])(SANITARIO|VASO)(?![A-Z])/)) return ok('DESODORIZADOR SANITARIO');
+    return ok('PURIFICADOR DE AR'); }
+  if (W('PASSA FACIL|PASSE FACIL|FACILITADOR|AGUA DE PASSAR|GOMA (P |PARA |SPRAY|DE )?ROUPA|GOMA SPRAY')) return ok('FACILITADOR DE PASSAR ROUPA');
+  if (W('SECANTE')) return ok('SECANTE PARA LOUCA');
+  if (W('REMOVEDOR')) return has(/(?<![A-Z])(ESMALTE|MAQUIAGEM|CUTICULA|CALOS?|COLA|ADESIVO|TINTA|FERRUGEM)(?![A-Z])/) ? null : ok('REMOVEDOR');
+  if (W('ALCOOL')) return has(/(?<![A-Z])(GEL|ANTISSEPTICO|MAOS|HIGIENIZADOR|SEM|ZERO|BEBIDA|CERVEJA|VINHO)(?![A-Z])/) ? null : ok('ALCOOL LIMPEZA');
+  if (W('PEDRA SANITARIA|BLOCO SANITARIO|GEL SANITARIO|DESODORIZADOR SANIT\\w*|HARPIC|PASTILHA SANITARIA|PATO (GEL|PURIFIC\\w*|SANITARIO|CARRINHO|REFIL|PASTILHA|ADESIVO)')) return ok('DESODORIZADOR SANITARIO');
+  if (W('EVITA MOFO|ANTI ?MOFO|NAFTALINA|TIRA UMIDADE|ABSORVE UMIDADE|CAPTA UMIDADE')) return ok('EVITA MOFO');
+  return null;
+}
 // rapadura é o produto (RAPADURA MAMAO C AMENDOIM): com amendoim -> DOCE AMENDOIM, senão DOCE OUTROS (como no arquivo ARQ1); o sabor (MAMAO, COCO…) nunca é a categoria
 const RX_RAPADURA_NAO = /(?<![A-Z])(BALA|BALAS|SORV\w*|PICOLE|BISC\w*|BOLACHA|BOLO|CHOC\w*|CAFE|SABAO|SABONETE|PACOCA|CACHACA|LICOR)(?![A-Z])/;
 function doceCat(T, C) {
@@ -753,8 +846,13 @@ function semSolidas(C) {
   C2._semSol = C2; C._semSol = C2; return C2;
 }
 // item em ML/L nunca é de categoria sólida (amendoim, pipoca, biscoito, ovo, azeitona…), venha de onde vier a categoria
+// talher/prato/copo de festa (DESC, DESCARTAVEL, FORFEST, STRAWPLAS, PS, C/50UN…) é a versão descartável
+const RX_DESCART = /(?<![A-Z])(DESC|DESCART\w*|FORFEST|STRAWPLAS|COPOBRAS|PLASTILANIA|TOTALPLAST|PRAFESTA|ULTRAFEST|MASTER FEST|BELLO FEST|FESTCOLOR|PS)(?![A-Z])/;
+const DESCART_DE = { 'TALHER': 'TALHER DESCARTAVEL', 'PRATO': 'PRATO DESCARTAVEL', 'COPO': 'COPO DESCARTAVEL' };
 function aggregate(T0, sug, C, main) {
-  const r = aggregate1(T0, sug, C, main); if (!itemML(T0) || !ehSolida(r.cat)) return r;
+  const r = aggregate1(T0, sug, C, main);
+  const dn = DESCART_DE[r.cat]; if (dn && (C.libNames || C.names).has(dn) && T0.some(t => RX_DESCART.test(t))) Object.assign(r, { cat: dn, flag: 'DESCARTAVEL', per: (r.per || []).map(x => x === r.cat ? dn : x) });
+  if (!itemML(T0) || !ehSolida(r.cat)) return r;
   const c = (r.per || []).find(x => x && x !== OUT && !ehSolida(x)) || OUT;
   return Object.assign(r, { cat: c, flag: 'UNIDADE_ML', per: (r.per || []).map(x => ehSolida(x) ? c : x) });
 }
@@ -772,6 +870,7 @@ function aggregate1(T0, sug, C, main) {
   // pipoca: o sabor (CALABRESA, PICANHA, QUEIJO, CHOCOLATE, LEITE CONDENSADO, BACON, SAL…) nunca é a categoria.
   // PIPOCA / POPCORN / POP CORN (ou MILHO) + MICRO (MICROONDAS, MICRO-ONDAS, MICROOND…) -> PIPOCA MICRO-ONDAS;
   // PIPOCA / POPCORN sem MICRO que caiu em outro alimento -> categoria de pipoca votada ou PIPOCA PRONTA
+  { const lc = limpezaCat(T, C); if (lc && lc !== r.cat) return Object.assign(r, { cat: lc, flag: 'LIMPEZA_TIPO', per: r.per.map(() => lc) }); }
   { const dc = doceCat(T, C); if (dc) return Object.assign(r, { cat: dc, flag: 'DOCE_REGRA', per: r.per.map(() => dc) }); }
   { const cp = chocPoCat(T, C); if (cp) return Object.assign(r, { cat: cp, flag: 'CHOCPO_VENCE', per: r.per.map(() => cp) }); }
   if (essenciaOTP(T, C)) return Object.assign(r, { cat: 'OTP - OUTROS TABACO', flag: 'ESSENCIA_OTP', per: r.per.map(() => 'OTP - OUTROS TABACO') });
@@ -820,8 +919,15 @@ const ehSabor = (n, cestaOf) => !!n && n !== OUT && (FRUTAS.has(n) || FLAVORS.ha
 function semSabor(C, cestaOf) { const C2 = Object.assign({}, C, { cats: C.cats.filter(x => !ehSabor(x.c.nome, cestaOf)) }); C2.names = new Set(C2.cats.map(x => x.c.nome));
   const H = headIndex(C2.cats); C2.headIdx = H.idx; C2.headWild = H.wild; return C2; }
 // tipo de produto da tabela (BISC, BOLACHA, MOLHO…) nas 4 primeiras palavras, quando a categoria votada é só um sabor
+// a categoria do objeto exclui algo da descrição (ESPETO MARSHMALLOW: GRELHA E ESPETO exclui MARSHMALLOW)
+function excluiObjeto(n, T, C) { const x = C.cats.find(y => y.c.nome === n) || (C.inativas && C.inativas().cats.find(y => y.c.nome === n)); return !!(x && x.exc && T.some(t => x.exc.test(t))); }
 function tipoNoInicio(T, cat, C, cestaOf) {
-  const lib = C.libNames || C.names; if (T.some(t => NAO_ALIM_RX.test(t))) return null; // TEMP GUACHE, TINTA TEMPERA: objeto, não tempero
+  const lib = C.libNames || C.names;
+  // objeto no começo (FORMA DE BOLO, ESPETO DUPLO, XICARA DE CHA, CONJUNTO… não; WOLFF - CONJUNTO 4 TACAS sim pelas exclusões): categoria de alimento,
+  // roupa ou construção que não conhece a palavra não vence
+  if (cat && cat !== OUT && T.length) { const ws = T[0].split(' '); const w = ws[0]; const n = OBJ_CAT[w];
+    if (n && n !== cat && lib.has(n) && CESTA_ALIMENTO.has(cestaOf(cat)) && cestaOf(n) !== cestaOf(cat) && !catVocab(C, cat).has(w) && !excluiObjeto(n, T, C)) return n; }
+  if (T.some(t => NAO_ALIM_RX.test(t)) && (!ehSabor(cat, cestaOf) || T.some(t => NAO_ALIM_FORTE_RX.test(t)))) return null; // TEMP GUACHE, TINTA TEMPERA: objeto, não tempero (POTE/CAIXA não bloqueiam MERENGUE … POTE LIMAO)
   // descrição que começa pelo tipo (BISC MAISENA DE MAIO, BISCOITOS DE NATAL, TEMPERO … FEIJAO, MOLHO … SQUEEZE): categoria de outra cesta não vence
   if (!ehSabor(cat, cestaOf)) { if (!cat || cat === OUT || !T.length) return null; const w = T[0].split(' ')[0]; const n = TIPO_CAT[w];
     if (!n || !lib.has(n) || n === cat || /^(DOCE|DOCES|DOCINHO)$/.test(w) || (itemML(T) && ehSolida(n))) return null;
@@ -836,6 +942,10 @@ function tipoNoInicio(T, cat, C, cestaOf) {
 // palavras genéricas da tabela que só valem como 1ª palavra ("ADESIVO DOCE JAPONES", "KIT ESC DONUT" não são doce)
 const TIPO_SO_INICIO = new Set(['DOCE', 'DOCES', 'DOCINHO', 'DONUT', 'DONUTS', 'SONHO', 'MOLHO', 'MOL', 'MOLH', 'CALDO', 'CALDOS', 'GELEIA', 'QUINDIM', 'FONDANT', 'SOBREMESA', 'SOBREMESAS']);
 const NAO_ALIM_RX = /(?<![A-Z])(TINTA|GUACHE|CARTUCHO|EMBALAGEM|EMBALAGENS|EMB|AMONIACO|LV|LIV|LIVRO|LIVROS|REVISTA|GIBI|SACO|SACOS|CAIXA|FORMA|FORMAS|PORTA|POTE|ADESIVO|ETIQUETA|ESTAMPA)(?![A-Z])/;
+// objeto/utensílio no começo da descrição (FORMA, ESPETO, XICARA, PREND, PALHETA…): consts tipoObjeto. Não sofre o bloqueio de NAO_ALIM_RX
+const OBJ_CAT = Object.fromEntries(Object.entries(K.tipoObjeto || {}).map(([w, c]) => [N(w), c]));
+const CESTA_ALIMENTO = new Set(['PERECIVEIS', 'MERCEARIA', 'MERCEARIA BASICA', 'BEBIDAS', 'TEXTIL', 'CONSTRUCAO E FERRAMENTA']);
+const NAO_ALIM_FORTE_RX = /(?<![A-Z])(TINTA|GUACHE|CARTUCHO|AMONIACO|LV|LIV|LIVRO|LIVROS|REVISTA|GIBI|ADESIVO|ETIQUETA|ESTAMPA)(?![A-Z])/;
 const TIPO_CAT = Object.fromEntries(Object.entries(K.tipoCategoria || {}).map(([w, c]) => [N(w), c]));
 function tipoCategoria(T, C, soTabela) {
   const lib = C.libNames || C.names; const cesta = n => { const c = cfg.categorias.find(x => x.nome === n); return c ? c.cesta : ''; };
@@ -844,6 +954,7 @@ function tipoCategoria(T, C, soTabela) {
   const naoAlim = T.some(t => NAO_ALIM_RX.test(t));
   // tabela de tipos (BISC, TEMPERO, SUSPIRO…) em qualquer posição; nome de categoria só se for a 1ª palavra (o tipo do produto):
   // "IOGURTE … MORANGO" não vira MORANGO, "RASHGUARD MANGA CURTA" não vira MANGA
+  for (const t of T.slice(0, 3)) { const w = t.split(' ')[0]; if (ok(OBJ_CAT[w])) return OBJ_CAT[w]; }
   for (const t of T.slice(0, 3)) { const ws = t.split(' ');
     for (let i = 0; i < ws.length; i++) { const w0 = ws[i]; if (w0.length < 3 || /\d/.test(w0)) continue; const w = (TOK && TOK[w0]) || w0;
       const tab = naoAlim || (i > 0 && TIPO_SO_INICIO.has(w0)) ? [] : [TIPO_CAT[w0], TIPO_CAT[w]];
