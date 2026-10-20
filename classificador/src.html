@@ -761,6 +761,8 @@ function aggregate(T0, sug, C, main) {
   return r;
 }
 // OUTRA CATEGORIA só em último caso: palavra de tipo de produto da descrição -> categoria de mesmo nome (ou "<TIPO> OUTROS")
+// palavras genéricas da tabela que só valem como 1ª palavra ("ADESIVO DOCE JAPONES", "KIT ESC DONUT" não são doce)
+const TIPO_SO_INICIO = new Set(['DOCE', 'DOCES', 'DOCINHO', 'DONUT', 'DONUTS', 'SONHO', 'MOLHO', 'MOL', 'MOLH', 'CALDO', 'CALDOS', 'GELEIA', 'QUINDIM', 'FONDANT', 'SOBREMESA', 'SOBREMESAS']);
 const TIPO_CAT = Object.fromEntries(Object.entries(K.tipoCategoria || {}).map(([w, c]) => [N(w), c]));
 function tipoCategoria(T, C, soTabela) {
   const lib = C.libNames || C.names; const cesta = n => { const c = cfg.categorias.find(x => x.nome === n); return c ? c.cesta : ''; };
@@ -771,7 +773,7 @@ function tipoCategoria(T, C, soTabela) {
   // "IOGURTE … MORANGO" não vira MORANGO, "RASHGUARD MANGA CURTA" não vira MANGA
   for (const t of T.slice(0, 3)) { const ws = t.split(' ');
     for (let i = 0; i < ws.length; i++) { const w0 = ws[i]; if (w0.length < 3 || /\d/.test(w0)) continue; const w = (TOK && TOK[w0]) || w0;
-      const tab = naoAlim ? [] : [TIPO_CAT[w0], TIPO_CAT[w]];
+      const tab = naoAlim || (i > 0 && TIPO_SO_INICIO.has(w0)) ? [] : [TIPO_CAT[w0], TIPO_CAT[w]];
       for (const n of i === 0 && !soTabela ? [...tab, w + ' OUTROS', w + ' OUTRAS', w] : tab) if (ok(n)) return n; } }
   return null;
 }
@@ -1159,6 +1161,10 @@ function bateCategoria(c, T) {
   const [inc, tip] = rxCat.get(c.nome);
   return T.some(t => (inc && inc.test(t)) || (tip && tip.test(t)));
 }
+// categoria que exige uma palavra (OVO BRANCO exige OVO/OVOS) e nenhuma descrição a tem: o arquivo está errado
+const rxTam = new Map();
+// só vale para ovos (OVO BRANCO, CAIPIRA, VERMELHO…): outras categorias da biblioteca têm palavra obrigatória incompleta (IOGURTE LIQUIDO x BEB LACTEA)
+function faltaObrigatoria(c, T) { if (!/^OVO /.test(c.nome) || c.nome === 'OVO DE PASCOA' || !(c.tambem || []).length) return false; if (!rxTam.has(c.nome)) rxTam.set(c.nome, termRx(c.tambem)); const tam = rxTam.get(c.nome); return !!tam && !T.some(t => tam.test(t)); }
 // categoria do arquivo: fica, a não ser que nenhuma descrição bata com ela E a descrição aponte para outra cesta
 const REGRA_FORTE = new Set(['DOCE_REGRA', 'CHOCPO_VENCE', 'ESSENCIA_OTP', 'PEIXE_VENCE', 'PIPOCA_VENCE', 'EMBALAGEM_OVO', 'PAPINHA_VENCE', 'DOCE_VENCE']);
 function categoriaArquivo(it, a, byName) {
@@ -1168,6 +1174,10 @@ function categoriaArquivo(it, a, byName) {
   // regra ensinada (pipoca com sabor, embalagem de ovo, papinha, bala x sabor): o sabor/ingrediente do arquivo não vale como categoria
   if (REGRA_FORTE.has(a.flag)) {
     if (passe && passe.soDesc) return Object.assign({}, a, { regraForte: s }); // só descritivo também troca: é regra ensinada (status avisa)
+    if (!sempreArq()) return Object.assign({}, a, { arqTrocada: s });
+  }
+  if (a.cat !== OUT && faltaObrigatoria(c1, a.T)) {
+    if (passe && passe.soDesc) return Object.assign({}, a, { regraForte: s });
     if (!sempreArq()) return Object.assign({}, a, { arqTrocada: s });
   }
   // categoria do arquivo de outra cesta, sem nenhuma palavra dela na descrição (SHAMPOO num doce, LEITE COMUM num doce de leite de outra cesta):
@@ -1957,7 +1967,7 @@ function migrarCategorias() {
       const add = (k, l) => { c[k] = c[k] || []; for (const t of l || []) if (!c[k].includes(t)) { c[k].push(t); n++; } };
       const del = (k, l) => { const rm = new Set(l || []); if (!rm.size || !c[k]) return; const k0 = c[k].length; c[k] = c[k].filter(t => !rm.has(t)); n += k0 - c[k].length; };
       add('tipo', p.tipo); del('tipo', p.remover_tipo);
-      if (!cfg.migracoes.includes(pid)) { add('incluir', p.incluir); add('excluir', p.excluir); add('forte', p.forte); del('incluir', p.remover_incluir); del('excluir', p.remover_excluir); del('forte', p.remover_forte); }
+      if (!cfg.migracoes.includes(pid)) { add('incluir', p.incluir); add('excluir', p.excluir); add('forte', p.forte); add('tambem', p.tambem); del('incluir', p.remover_incluir); del('excluir', p.remover_excluir); del('forte', p.remover_forte); }
     }
     if (!cfg.migracoes.includes(pid)) { cfg.migracoes.push(pid); n++; }
   }
