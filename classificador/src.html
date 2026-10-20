@@ -821,7 +821,12 @@ function semSabor(C, cestaOf) { const C2 = Object.assign({}, C, { cats: C.cats.f
   const H = headIndex(C2.cats); C2.headIdx = H.idx; C2.headWild = H.wild; return C2; }
 // tipo de produto da tabela (BISC, BOLACHA, MOLHO…) nas 4 primeiras palavras, quando a categoria votada é só um sabor
 function tipoNoInicio(T, cat, C, cestaOf) {
-  if (!ehSabor(cat, cestaOf)) return null; const lib = C.libNames || C.names;
+  const lib = C.libNames || C.names; if (T.some(t => NAO_ALIM_RX.test(t))) return null; // TEMP GUACHE, TINTA TEMPERA: objeto, não tempero
+  // descrição que começa pelo tipo (BISC MAISENA DE MAIO, BISCOITOS DE NATAL, TEMPERO … FEIJAO, MOLHO … SQUEEZE): categoria de outra cesta não vence
+  if (!ehSabor(cat, cestaOf)) { if (!cat || cat === OUT || !T.length) return null; const w = T[0].split(' ')[0]; const n = TIPO_CAT[w];
+    if (!n || !lib.has(n) || n === cat || /^(DOCE|DOCES|DOCINHO)$/.test(w) || (itemML(T) && ehSolida(n))) return null;
+    const a = cestaOf(cat), b = cestaOf(n) || (cfg.categorias.find(x => x.nome === n) || {}).cesta;
+    return a && b && a !== b && !['PET', 'FARMACIA'].includes(a) && N(cat).split(' ')[0] !== N(n).split(' ')[0] ? n : null; }
   for (const t of T.slice(0, 3)) { const ws = t.split(' ');
     for (let i = 0; i < Math.min(4, ws.length); i++) { const w = ws[i]; if (i > 0 && (/^(DOCE|DOCES|DOCINHO)$/.test(w) || /^(AO|COM|C|DE|DO|DA|NO|NA|EM|SABOR)$/.test(ws[i - 1]))) continue;
       const n = TIPO_CAT[w]; if (n && n !== cat && lib.has(n) && !ehSabor(n, cestaOf) && !(itemML(T) && ehSolida(n))) return n; } }
@@ -830,18 +835,21 @@ function tipoNoInicio(T, cat, C, cestaOf) {
 // OUTRA CATEGORIA só em último caso: palavra de tipo de produto da descrição -> categoria de mesmo nome (ou "<TIPO> OUTROS")
 // palavras genéricas da tabela que só valem como 1ª palavra ("ADESIVO DOCE JAPONES", "KIT ESC DONUT" não são doce)
 const TIPO_SO_INICIO = new Set(['DOCE', 'DOCES', 'DOCINHO', 'DONUT', 'DONUTS', 'SONHO', 'MOLHO', 'MOL', 'MOLH', 'CALDO', 'CALDOS', 'GELEIA', 'QUINDIM', 'FONDANT', 'SOBREMESA', 'SOBREMESAS']);
+const NAO_ALIM_RX = /(?<![A-Z])(TINTA|GUACHE|CARTUCHO|EMBALAGEM|EMBALAGENS|EMB|AMONIACO|LV|LIV|LIVRO|LIVROS|REVISTA|GIBI|SACO|SACOS|CAIXA|FORMA|FORMAS|PORTA|POTE|ADESIVO|ETIQUETA|ESTAMPA)(?![A-Z])/;
 const TIPO_CAT = Object.fromEntries(Object.entries(K.tipoCategoria || {}).map(([w, c]) => [N(w), c]));
 function tipoCategoria(T, C, soTabela) {
   const lib = C.libNames || C.names; const cesta = n => { const c = cfg.categorias.find(x => x.nome === n); return c ? c.cesta : ''; };
   const ml = itemML(T); const ok = n => n && lib.has(n) && cesta(n) !== 'FARMACIA' && !(ml && ehSolida(n));
   // objeto/embalagem com palavra de alimento (TINTA TEMP. GUACHE, CARTUCHO HAMBURGUER AMANTEIGADO) não usa a tabela de tipos
-  const naoAlim = T.some(t => /(?<![A-Z])(TINTA|GUACHE|CARTUCHO|EMBALAGEM|EMBALAGENS|EMB|AMONIACO|LV|LIV|LIVRO|LIVROS|REVISTA|GIBI|SACO|SACOS|CAIXA|FORMA|FORMAS|PORTA|POTE|ADESIVO|ETIQUETA|ESTAMPA)(?![A-Z])/.test(t));
+  const naoAlim = T.some(t => NAO_ALIM_RX.test(t));
   // tabela de tipos (BISC, TEMPERO, SUSPIRO…) em qualquer posição; nome de categoria só se for a 1ª palavra (o tipo do produto):
   // "IOGURTE … MORANGO" não vira MORANGO, "RASHGUARD MANGA CURTA" não vira MANGA
   for (const t of T.slice(0, 3)) { const ws = t.split(' ');
     for (let i = 0; i < ws.length; i++) { const w0 = ws[i]; if (w0.length < 3 || /\d/.test(w0)) continue; const w = (TOK && TOK[w0]) || w0;
       const tab = naoAlim || (i > 0 && TIPO_SO_INICIO.has(w0)) ? [] : [TIPO_CAT[w0], TIPO_CAT[w]];
-      for (const n of i === 0 && !soTabela ? [...tab, w + ' OUTROS', w + ' OUTRAS', w] : tab) if (ok(n)) return n; } }
+      for (const n of i === 0 && !soTabela ? [...tab, w + ' OUTROS', w + ' OUTRAS', w] : tab) { if (ok(n)) return n;
+        // item em ML e a categoria da tabela é sólida (TEMPERO INDUSTRIALIZADO): a irmã líquida (TEMPERO LIQUIDO/PASTOSO/TRITURADO)
+        if (ml && n && lib.has(n) && ehSolida(n)) { const f = N(n).split(' ')[0]; const irma = [...lib].find(x => N(x).split(' ')[0] === f && /LIQUID/.test(N(x)) && ok(x)); if (irma) return irma; } } } }
   return null;
 }
 function aggregate0(T, sug, C) {
@@ -1242,7 +1250,14 @@ const rxTam = new Map();
 function faltaObrigatoria(c, T) { if (!/^OVO /.test(c.nome) || c.nome === 'OVO DE PASCOA' || !(c.tambem || []).length) return false; if (!rxTam.has(c.nome)) rxTam.set(c.nome, termRx(c.tambem)); const tam = rxTam.get(c.nome); return !!tam && !T.some(t => tam.test(t)); }
 // categoria do arquivo: fica, a não ser que nenhuma descrição bata com ela E a descrição aponte para outra cesta
 const REGRA_FORTE = new Set(['DOCE_REGRA', 'CHOCPO_VENCE', 'ESSENCIA_OTP', 'PEIXE_VENCE', 'PIPOCA_VENCE', 'EMBALAGEM_OVO', 'PAPINHA_VENCE', 'DOCE_VENCE']);
-function categoriaArquivo(it, a, byName) {
+// biblioteca inteira (ativas e desativadas, menos farmácia), compilada uma vez por execução
+let LIB_TODA = null;
+function libToda(C) { if (LIB_TODA && LIB_TODA.base === C) return LIB_TODA.L;
+  const L = compile0(cfg.categorias.filter(c => c.cesta !== 'FARMACIA')); const H = headIndex(L.cats); L.headIdx = H.idx; L.headWild = H.wild; L.libNames = C.libNames;
+  LIB_TODA = { base: C, L }; return L; }
+// alguma palavra do nome da categoria (fora OUTROS/DE…) aparece na descrição
+function nomeNaDesc(c, T) { const ws = N(c.nome).split(' ').filter(w => w.length >= 3 && !SEG_STOP.has(w)); return T.some(t => ws.some(w => new RegExp('(?<![A-Z0-9])' + escRx(w) + '(?![A-Z0-9])').test(t))); }
+function categoriaArquivo(it, a, byName, C) {
   const s = it.sugCat; if (!prioArq() || !s || s === a.cat) return a;
   const c1 = byName.get(s); if (!c1) return a; // categoria que não existe na biblioteca
   const c0 = byName.get(a.cat);
@@ -1254,6 +1269,17 @@ function categoriaArquivo(it, a, byName) {
   if (a.cat !== OUT && (faltaObrigatoria(c1, a.T) || (ehSolida(s) && itemML(a.T)) || (!FRUTAS.has(a.cat) && faltaProduto(c1, a.T)))) {
     if (passe && passe.soDesc) return Object.assign({}, a, { regraForte: s });
     if (!sempreArq()) return Object.assign({}, a, { arqTrocada: s });
+  }
+  // app sem categoria (OUTRA CATEGORIA) e a do arquivo sem nenhuma evidência na descrição: a biblioteca inteira (também as desativadas)
+  // decide; se ela aponta outra cesta (SHAMPOO num "COM SABOR MOLHO PIMENTA TUCUPI"), troca e avisa; se nada aponta nada, só avisa
+  if (a.cat === OUT && C && c1.cesta && !bateCategoria(c1, a.T) && !nomeNaDesc(c1, a.T)) {
+    const L = libToda(C); const r2 = aggregate(a.T, '', L, it.main); let x = r2.cat !== OUT ? r2.cat : tipoCategoria(a.T, L);
+    const cx = x && byName.get(x);
+    if (cx && cx.cesta && cx.cesta !== c1.cesta && cx.cesta !== 'FARMACIA') {
+      const b = Object.assign({}, a, { cat: x, per: a.per.map(() => x), flag: 'BIBLIOTECA' });
+      if (passe && passe.soDesc) return Object.assign(b, { regraForte: s }); if (!sempreArq()) return Object.assign(b, { arqTrocada: s });
+    }
+    if (passe && passe.soDesc) return Object.assign({}, a, { cat: s, per: a.per.map(() => s), flag: 'ARQUIVO', arqCat: true, catSuspeita: OUT });
   }
   // categoria do arquivo de outra cesta, sem nenhuma palavra dela na descrição (SHAMPOO num doce, LEITE COMUM num doce de leite de outra cesta):
   // é erro do arquivo -> troca também no modo só descritivo (status avisa)
@@ -1358,7 +1384,7 @@ async function runCore(pfx = '') {
   // em blocos, para a tela não travar em backlogs grandes (200 mil itens ou mais)
   const AGG = new Array(items.length);
   for (let i = 0; i < items.length; i++) {
-    const it = items[i]; AGG[i] = categoriaArquivo(it, aggregate(it.T, it.sugCat, C, it.main), byName);
+    const it = items[i]; AGG[i] = categoriaArquivo(it, aggregate(it.T, it.sugCat, C, it.main), byName, C);
     if (i % 1000 === 0) { $('#prog').style.width = (50 * i / items.length).toFixed(1) + '%'; $('#runState').textContent = pfx + `Classificando categorias: ${i.toLocaleString('pt-BR')} de ${items.length.toLocaleString('pt-BR')}…`; await new Promise(r => setTimeout(r, 0)); }
   }
   $('#runState').textContent = pfx + 'Aprendendo as EST MER 6 do backlog…'; await new Promise(r => setTimeout(r, 0));
