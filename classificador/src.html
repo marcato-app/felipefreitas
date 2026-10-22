@@ -1025,9 +1025,9 @@ function misturaCat(T, C, cat) {
   // bebida em pó / milk shake para preparar
   if (W('BEBIDA (EM )?PO|MILK ?SHAKE|MILKSHAKE') && gr && !ml && po) return ok('MODIFICADOR OUTROS');
   // mistura de sobremesa: pudim, flan, mousse, manjar, maria mole, sorvete em pó (de marca de produto para preparar ou com PO/SACHE)
-  if (W('PUDIM|PUDINS|FLAN|MOUSSE|MANJAR|MARIA MOLE|SORVETE|SORV|CHANDELLE') && gr && !ml && poSob && !has(/(?<![A-Z])(PRONTO|PRONTA|POTE C|COPO|CONG|CONGELADO|KIBON|LACTEO|LACTEA|IOGURTE)(?![A-Z])/)) return ok('MISTURA PO SOBREMESA');
+  if (W('PUDIM|PUDINS|FLAN|MOUSSE|MANJAR|MARIA MOLE|SORVETE|SORV|CHANDELLE') && gr && !ml && poSob && !has(/(?<![A-Z])(PRONTO|PRONTA|POTE|POTE C|COPO|CONG|CONGELADO|KIBON|LACTEO|LACTEA|IOGURTE|CHOCOMOUSSE|SOBREM|SOBREMESA LACTEA)(?![A-Z])/)) return ok('MISTURA PO SOBREMESA');
   // mistura para bolo (BOLO CENOURA APTI 400G): marca de produto para preparar ou MISTURA/PO; saudável se integral/zero/sem glúten
-  if (W('BOLO|BOLOS') && gr && po && !has(/(?<![A-Z])(FATIA|FATIADO|PRONTO|CASEIRO|ROLO|RECHEADO|CONG|CONGELADO|TORTA|PULLMAN|BAUDUCCO|SEVEN BOYS|VISCONTI|PANCO|WICKBOLD)(?![A-Z])/)) {
+  if (W('BOLO|BOLOS') && gr && po && !has(/(?<![A-Z])(FATIA|FATIADO|PRONTO|CASEIRO|ROLO|RECHEADO|RECH|RECHEIO|CONG|CONGELADO|TORTA|PULLMAN|BAUDUCCO|SEVEN BOYS|VISCONTI|PANCO|WICKBOLD)(?![A-Z])/)) {
     if (has(/(?<![A-Z])(INTEGRAL|ZERO|DIET|LIGHT|SEM GLUTEN|S GLUTEN|SEM ACUCAR|S ACUCAR|FIT)(?![A-Z])/) && lib.has('MISTURA PO BOLO SAUDAVEL')) return 'MISTURA PO BOLO SAUDAVEL';
     return ok('MISTURA PO BOLO'); }
   // outras misturas para preparar: pão de queijo, bolinho de chuva, panqueca, waffle, tapioca
