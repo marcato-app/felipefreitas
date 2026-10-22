@@ -455,6 +455,8 @@ function loadDima() {
     const j = JSON.parse(await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).text());
     const dict = new Map(), R = j.rows;
     for (let i = 0; i < R.length; i += 3) { const raw = j.marcas[R[i]], mn = N(raw); if (mn) dictAdd(dict, mn, raw, j.fabs[R[i + 2]], j.segs[R[i + 1]], 1); }
+    // marcas ensinadas que a DIMA ainda não tem (catálogo do fabricante): [marca, fabricante, [categorias EST MER 6]]
+    for (const [m, f, segs] of K.marcasNovas || []) { const mn = N(m); if (mn) for (const e of segs) dictAdd(dict, mn, m, f, e, 1); }
     const alias = [];
     for (const [mi, ...ab] of j.abr) { const raw = j.marcas[mi], mn = N(raw); if (!mn) continue;
       if (!dict.has(mn)) dictAdd(dict, mn, raw, 'OUTRO FABRICANTE', '', 1);
@@ -633,8 +635,11 @@ function classifyRules(t, C) {
 // posição da palavra que diz o tipo do produto: pula código de embalagem (ENCART, UTIL...), números e marca do dicionário
 const SKIPTIPO = new Set('ENCART ENCARTELADO ENC ENCT UTIL UTI UTILID UD JD CL TRK BZ MB MC REF COD CJ EMB PCT BAZAR PAPELARIA PAPELARIAS ESCOLAR ESC OUTROS OUTRAS INATIVO SUBSTITUICAO'.split(' '));
 // categoria dinâmica: o descritivo começa pelo tipo (1ª palavra) quando é um termo da própria categoria (ex.: ESTOJO, PASTA)
+const INI_FRASES = (K.inicioFrases || []).map(N).sort((a, b) => b.length - a.length);
 function tipoIni(T, per, cat, C) {
   const x = C.cats.find(y => y.c.nome === cat); if (!x) return '';
+  // nome composto do produto no começo (MARIA MOLE, PAO DE QUEIJO, BOLINHO DE CHUVA, MILK SHAKE) é o início inteiro
+  for (let i = 0; i < T.length; i++) { if (per[i] !== cat) continue; const f = INI_FRASES.find(p => T[i] === p || T[i].startsWith(p + ' ')); if (f) return f; }
   for (let i = 0; i < T.length; i++) { if (per[i] !== cat) continue; const hp = headPos(T[i], C.headIdx); if (hp && x.words.has(hp.w)) return NOUN_MAP[hp.w] || hp.w; }
   return '';
 }
@@ -912,6 +917,7 @@ function limpezaCat0(T, C, t0) {
     if (has(/(?<![A-Z])(SANITARIO|SANITARIA)(?![A-Z])/)) return ok('DESODORIZADOR SANITARIO');
     return ok('DETERGENTE LIQUIDO');
   }
+  if (W('AMAC\\w*') && has(/(?<![A-Z])(CARNES?|AVES?|FRANGO|TEMPERO|TEMPERAPTI)(?![A-Z])/)) return null; // amaciante de carne é tempero
   if (W('AMAC\\w*')) return ok(has(/(?<![A-Z])(CONC|CONCENTRADO|CONCENT|CONCENTRADA)(?![A-Z])/) ? 'AMACIANTE CONCENTRADO' : 'AMACIANTE DILUIDO');
   if (W('LAVA PISOS?|LIMPA PISOS?|LIMPA CERAMICA|LIMPA PORCELANATO|LIMPA LAMINADO')) return ok('LIMPADOR PISO');
   if (W('LIMPA VIDROS?|LIMPADOR (DE )?VIDROS?|VIDREX')) return ok('LIMPADOR DE VIDRO');
@@ -979,6 +985,69 @@ function limpezaCat0(T, C, t0) {
   if (W('EVITA MOFO|ANTI ?MOFO|NAFTALINA|TIRA UMIDADE|ABSORVE UMIDADE|CAPTA UMIDADE')) return ok('EVITA MOFO');
   return null;
 }
+// marca de quem faz produto seco para preparar (mistura em pó, sobremesa para preparar, fermento, confeitaria):
+// a própria marca na DIMA ou, se ela tem poucas categorias lá (APTIVA, YEBA), as outras marcas do mesmo fabricante.
+// marca de laticínio (iogurte, petit suisse, requeijão: NESTLE, VIGOR, DANONE) faz sobremesa pronta, não conta
+const SEG_PO = new Set(['MISTURA EM PO', 'SOBREMESA PARA PREPARAR', 'FERMENTO', 'CONFEITARIA']);
+const SEG_LACT = new Set(['IOGURTE', 'PETIT SUISSE', 'REQUEIJAO', 'LEITE FERMENTADO', 'COALHADA']);
+let FAB_SEGS = null;
+function segsDaMarca(T) {
+  const D = data.dima; const out = []; if (!D) return out;
+  if (!FAB_SEGS) { FAB_SEGS = new Map(); for (const b of new Set(D.map.values())) for (const [f] of b.fabAll) { if (!f || f === 'OUTRO FABRICANTE') continue; let s = FAB_SEGS.get(f); if (!s) FAB_SEGS.set(f, s = new Set()); for (const [e] of b.em) if (e) s.add(e); } }
+  const seen = new Set();
+  for (const t of T.slice(0, 4)) { const ws = t.split(' ');
+    for (let i = 0; i < ws.length; i++) for (let n = 1; n <= 3 && i + n <= ws.length; n++) { const g = ws.slice(i, i + n).join(' '); if (g.length < 4 || seen.has(g) || GENERIC.has(g) || MARCA_NAO.has(g)) continue; seen.add(g);
+      const b = D.map.get(g); if (!b) continue; const own = new Set([...b.em.keys()].filter(Boolean)); let fab = null;
+      if (own.size <= 3) for (const [f] of b.fabAll) { const fs = FAB_SEGS.get(f); if (fs && fs.size <= 40) { fab = fs; break; } }
+      out.push({ g, own, fab }); } }
+  return out;
+}
+function marcaDePo(T) { return segsDaMarca(T).some(({ own, fab }) => { const s = (own.size <= 3 && fab) ? fab : own; return [...s].some(e => SEG_PO.has(e)) && ![...s].some(e => SEG_LACT.has(e)); }); }
+function marcaDeTempero(T) { return segsDaMarca(T).some(({ own, fab }) => { const s = (own.size <= 3 && fab) ? fab : own; return s.has('TEMPERO SECO'); }); }
+// produto seco para preparar escrito pelo tipo (REFRESCO, PUDIM, BOLO, SORVETE em sachê…) e tempero/especiaria seca:
+// o sabor (MORANGO, LARANJA, CHOCOLATE) e a embalagem (POTE, TUBO) nunca são a categoria
+const RX_PO = /(?<![A-Z])(PO|EM PO|SACHE|SACHET|MISTURA|MIST|PREPARAR|PREPARO|P PREPARAR)(?![A-Z])/;
+const RX_ESPECIARIA = /^(CURRY|GENGIBRE (EM )?PO|ANIS|ANIS ESTRELADO|CRAVO|CRAVO DA INDIA|NOZ MOSCADA|PIMENTA (EM )?(GRAO|PO|DO REINO|MISTA|CALABRESA|SIRIA|BRANCA|PRETA|JAMAICA|ROSA)|PIMENTA (EM PO|PRETA|BRANCA)|PAPRICA|PAPRIKA|COMINHO|CURCUMA|ACAFRAO|COLORIFICO|COLORAU|CANELA|LOURO|ENDRO|DILL|OREGANO|ERVAS FINAS|ERVAS DE PROVENCE|ZAATAR|CHIMI ?CHURRI|SALSA DESIDRATADA|MANJERONA|ESTRAGAO|SALVIA|TOMILHO|ALECRIM|MANJERICAO|COENTRO|SALSA|SALSINHA|CEBOLINHA|ERVA DOCE|ALHO|CEBOLA)(?![A-Z])/;
+const RX_SECO = /(?<![A-Z])(SACHE|SACHET|TUBO|POTE|VIDRO|GRAO|GRAOS|EM PO|PO|MOIDO|MOIDA|DESIDRATAD[AO]S?|DESID|FLOCOS|FRITO|FRITA|CRISPY|GRANULADO|GRANULADA|SECO|SECA|SECAS|SECOS|FOLHAS|CASCA|RAMA)(?![A-Z])/;
+function misturaCat(T, C, cat) {
+  if (!T.length) return null; const lib = C.libNames || C.names; const ok = n => lib.has(n) ? n : null;
+  const t = T[0].replace(/^(\*|ZZ)+/, '').trim(), all = T.join(' | ');
+  const W = rx => new RegExp('^(' + rx + ')(?![A-Z])').test(t), has = rx => rx.test(all);
+  const qs = T.flatMap(x => parseQ(textoQtd(x))); const gr = qs.some(x => x[1] === 'G' || x[1] === 'KG'), ml = qs.some(x => x[1] === 'ML' || x[1] === 'L');
+  const po = has(RX_PO) || marcaDePo(T);
+  // sem PO/SACHE escrito, a marca de produto para preparar só vale no tamanho de sachê (até 60G) ou de food service (500G+)
+  const w = qs.length ? Math.max(...qs.map(x => x[1] === 'KG' ? x[3] * 1000 : x[3] || 0)) : 0;
+  const poSob = has(RX_PO) || (marcaDePo(T) && (w <= 60 || w >= 500));
+  // refresco em pó (sachê em G): REFRESCO LARANJA APTI 20G, REFRESCO ZERO PINK LEMON 8G
+  if (W('REFRESCO|REFRESCOS|REFR|REFRESC') && gr && !ml) return ok('SUCO EM PO');
+  // bebida em pó / milk shake para preparar
+  if (W('BEBIDA (EM )?PO|MILK ?SHAKE|MILKSHAKE') && gr && !ml && po) return ok('MODIFICADOR OUTROS');
+  // mistura de sobremesa: pudim, flan, mousse, manjar, maria mole, sorvete em pó (de marca de produto para preparar ou com PO/SACHE)
+  if (W('PUDIM|PUDINS|FLAN|MOUSSE|MANJAR|MARIA MOLE|SORVETE|SORV|CHANDELLE') && gr && !ml && poSob && !has(/(?<![A-Z])(PRONTO|PRONTA|POTE C|COPO|CONG|CONGELADO|KIBON|LACTEO|LACTEA|IOGURTE)(?![A-Z])/)) return ok('MISTURA PO SOBREMESA');
+  // mistura para bolo (BOLO CENOURA APTI 400G): marca de produto para preparar ou MISTURA/PO; saudável se integral/zero/sem glúten
+  if (W('BOLO|BOLOS') && gr && po && !has(/(?<![A-Z])(FATIA|FATIADO|PRONTO|CASEIRO|ROLO|RECHEADO|CONG|CONGELADO|TORTA|PULLMAN|BAUDUCCO|SEVEN BOYS|VISCONTI|PANCO|WICKBOLD)(?![A-Z])/)) {
+    if (has(/(?<![A-Z])(INTEGRAL|ZERO|DIET|LIGHT|SEM GLUTEN|S GLUTEN|SEM ACUCAR|S ACUCAR|FIT)(?![A-Z])/) && lib.has('MISTURA PO BOLO SAUDAVEL')) return 'MISTURA PO BOLO SAUDAVEL';
+    return ok('MISTURA PO BOLO'); }
+  // outras misturas para preparar: pão de queijo, bolinho de chuva, panqueca, waffle, tapioca
+  if (W('PAO DE QUEIJO|PAO QUEIJO|BOLINHO DE CHUVA|PANQUECA|PANQUECAS|WAFFLE|CHURROS|TAPIOCA|BROA|CUSCUZ PAULISTA') && gr && po && !segsDaMarca(T).some(b => b.own.has('PAO DE QUEIJO CONGELADO') || b.own.has('SALGADO CONGELADO')) && !has(/(?<![A-Z])(CONG|CONGELADO|CONGELADA|ASSADO|PRONTO|PRONTA|RECHEADA|HIDRATADA|GOMA)(?![A-Z])/)) return ok('MISTURA PO OUTROS');
+  // confeitaria: granulado de chocolate, miçanga, estrelinha, açúcar colorido; pastilha / cereal com cobertura de chocolate
+  if (W('CHOCOLATE (FLOCOS )?GRANULADO|CHOC GRANULADO|GRANULADO (DE )?(CHOCOLATE|CHOC|COLORIDO|MACIO|CROCANTE)|CONFEITO (MICANGA|ESTRELINHA|GRANULADO|COLORIDO)|ACUCAR COLORIDO|SPRINKLES?')) return ok('CONFEITO GRANULADO');
+  if (W('(MINI )?PASTILHAS? (DE )?CHOCOLATE|CEREAL COBERTURA') && (po || has(/(?<![A-Z])(DISCOS?|CONFEITO)(?![A-Z])/))) return ok('CONFEITARIA OUTROS'); // confeitaria (marca de confeitaria na DIMA), não chocolate
+  if (W('ACUCAR (DE )?BAUNILHA|ACUCAR VANILLA|ACUCAR AROMATIZADO')) return ok('CONFEITARIA OUTROS');
+  if (W('CREME (DE )?(QUEIJO|CEBOLA|MILHO|ERVILHA|CEBOLA|LEGUMES|ALHO|MANDIOQUINHA|ABOBORA|AIPIM)') && gr && !ml && has(/(?<![A-Z])(SACHE|SACHET|PO|EM PO|INSTANTANEO)(?![A-Z])/) && marcaDePo(T)) return ok('SOPA E CREME'); // creme instantâneo em sachê
+  if (W('FAROFA|FAROFAS') && /^FARINHA/.test(cat || '') && lib.has('FAROFA')) return 'FAROFA'; // farofa temperada não é farinha pura
+  if (W('SALAMONIACO|SAL AMONIACO|BICARBONATO DE AMONIO')) return ok('BICARBONATO');
+  // tempero: TEMPERO… no começo (POTE / MOLHOS / AVES não mandam), amaciante de carne
+  if (W('AMACIANTE (DE |P |PARA )?(CARNES?|AVES?|FRANGO)|AMACIANTE \\w+ (DE |P |PARA )(CARNES?|AVES?)|AMAC (DE )?CARNES?')) return ok(ml ? 'TEMPERO LIQUIDO/PASTOSO/TRITURADO' : 'TEMPERO INDUSTRIALIZADO');
+  if (W('TEMPERO|TEMPEROS') && !/^TEMPERO/.test(cat || '') && !has(/(?<![A-Z])(VERDE|LIQUIDO|PASTOSO|PASTA|CASEIRO LIQ)(?![A-Z])/)) return ok('TEMPERO INDUSTRIALIZADO');
+  // especiaria / erva seca / alho e cebola desidratados (sachê, tubo, pote, grão, pó, frito, crispy) ou de marca de tempero
+  if (RX_ESPECIARIA.test(t) && gr && !ml && !/^TEMPERO/.test(cat || '')) {
+    const fresca = /^(ALHO|CEBOLA|SALSA|SALSINHA|CEBOLINHA|COENTRO|ALECRIM|MANJERICAO|TOMILHO|ERVA DOCE|CANELA|PIMENTA)(?![A-Z])/.test(t);
+    const seco = has(RX_SECO) || marcaDeTempero(T);
+    if (/^ERVA DOCE/.test(t) && !(has(/(?<![A-Z])(TUBO|EM PO|PO|MOIDA|GRAO)(?![A-Z])/) || marcaDeTempero(T))) return null; // erva-doce em sachê de chá
+    if (!fresca || seco) return ok('TEMPERO NATURAL/ESPECIARIA'); }
+  return null;
+}
 // rapadura é o produto (RAPADURA MAMAO C AMENDOIM): com amendoim -> DOCE AMENDOIM, senão DOCE OUTROS (como no arquivo ARQ1); o sabor (MAMAO, COCO…) nunca é a categoria
 const RX_RAPADURA_NAO = /(?<![A-Z])(BALA|BALAS|SORV\w*|PICOLE|BISC\w*|BOLACHA|BOLO|CHOC\w*|CAFE|SABAO|SABONETE|PACOCA|CACHACA|LICOR)(?![A-Z])/;
 function doceCat(T, C) {
@@ -1033,6 +1102,7 @@ function aggregate1(T0, sug, C, main) {
   if (cestaOf(r.cat) !== 'FARMACIA' || (/^DERMOCOSMETICO/.test(r.cat) && !T.some(t => RX_DERMO.test(t)))) { const pc0 = perfumariaCat(T, C); if (pc0) { const pc = infantilDe(pc0, T, C) || pc0; if (pc !== r.cat) return Object.assign(r, { cat: pc, flag: 'PERFUMARIA_TIPO', per: r.per.map(() => pc) }); return r; } }
   { const ic = cestaOf(r.cat) !== 'FARMACIA' && infantilDe(r.cat, T, C); if (ic) return Object.assign(r, { cat: ic, flag: 'INFANTIL', per: r.per.map(x => x === r.cat ? ic : x) }); }
   { const lc = limpezaCat(T, C); if (lc && lc !== r.cat) return Object.assign(r, { cat: lc, flag: 'LIMPEZA_TIPO', per: r.per.map(() => lc) }); }
+  { const mc = misturaCat(T, C, r.cat); if (mc && mc !== r.cat) return Object.assign(r, { cat: mc, flag: 'MISTURA_TIPO', per: r.per.map(() => mc) }); }
   { const dc = doceCat(T, C); if (dc) return Object.assign(r, { cat: dc, flag: 'DOCE_REGRA', per: r.per.map(() => dc) }); }
   { const cp = chocPoCat(T, C); if (cp) return Object.assign(r, { cat: cp, flag: 'CHOCPO_VENCE', per: r.per.map(() => cp) }); }
   if (essenciaOTP(T, C)) return Object.assign(r, { cat: 'OTP - OUTROS TABACO', flag: 'ESSENCIA_OTP', per: r.per.map(() => 'OTP - OUTROS TABACO') });
@@ -1151,6 +1221,7 @@ function aggregate0(T, sug, C) {
 /* brand */
 // atributos que aparecem como "marca" na base DIMA
 const PERSONAGENS = new Set([...(K.personagens || [])].map(N));
+const MARCA_NAO_FRASE = (K.marcaNaoFrase || []).map(p => new RegExp('(?<![A-Z])(' + p + ')(?![A-Z])', 'g'));
 const MARCA_NAO = new Set(['MULTI USO', 'MULTIUSO', 'INOX', 'METAL', 'SUPER UTIL', 'UNIVERSAL', 'PORCELANA', 'PRATA', 'DOURADO', 'DOURADA', 'PRETO', 'BRANCO', 'SORTIDO', 'SORTIDOS', 'COLORIDO',
   // cores nunca são marca
   'MARINHO', 'AZUL', 'VERDE', 'VERMELHO', 'VERMELHA', 'AMARELO', 'AMARELA', 'ROSA', 'PINK', 'LILAS', 'ROXO', 'ROXA', 'CINZA', 'GRAFITE', 'BEGE', 'MARROM', 'LARANJA', 'VINHO', 'BORDO', 'NUDE', 'NEON', 'PRETA', 'BRANCA', 'TRANSPARENTE', 'FUME', 'CHUMBO', 'TURQUESA', 'VIOLETA', 'MAGENTA', 'CIANO',
@@ -1196,6 +1267,8 @@ function comAlias(t) { for (const [rx, mn] of MARCA_ALIAS_RX) if (!t.includes(mn
 function findBrand(T, seg, sug, black, DD, vocab) {
   if (!DD) return null;
   if (MARCA_ALIAS_RX.length) T = T.map(comAlias);
+  // nome de produto/tamanho que contém uma marca (CRAVO DA INDIA, MARIA MOLE, APTI FAMILIA 170G) não é a marca
+  if (MARCA_NAO_FRASE.length) T = T.map(t => MARCA_NAO_FRASE.reduce((x, rx) => x.replace(rx, ' ').replace(/  +/g, ' ').trim(), t));
   // marca primeiro na categoria DIMA da planilha (EST MER 6 fixa); a aprendida do backlog só se ali não houver nenhuma
   // se ali só aparece uma abreviação cadastrada (COLOR -> COLORADO) e fora dela a marca está escrita por extenso, vale a por extenso
   const alias = g => g && DD.map.get(g) && N(DD.map.get(g).canon) !== g;
@@ -1295,6 +1368,7 @@ const RX_DZ = /(?<![A-Z0-9.])(?:(\d{1,2})\s*)?(MEIA\s+)?(?:DZ|DUZ|DUZIA|DUZIAS)(
 function parseU(t) {
   let m; RX_UN.lastIndex = 0; if ((m = RX_UN.exec(t)) && +m[1] > 0) return +m[1];
   RX_CN.lastIndex = 0; if ((m = RX_CN.exec(t)) && +m[1] > 1) return +m[1];
+  if ((m = /(?<![0-9.,A-Z])(?:(\d{1,3})\s*X\s*)?(\d{1,3})\s*(?:PACK|PACKS)(?![A-Z])/.exec(t)) && +m[2] > 1) return +m[2] * (m[1] ? +m[1] : 1); // TEMPERO … 5 PACK = 5 unidades; 10 X 5 PACK = 50
   if ((m = RX_DZ.exec(t))) return m[2] ? 6 : 12 * (m[1] ? +m[1] : 1);
   return null;
 }
@@ -1650,6 +1724,14 @@ function balaTipo(T) {
 const RX_CXN = /(?<![A-Z0-9])(?:CX|CXA|CAIXA|FD|FDO|FARDO|DP|DISPLAY|PCT|PACOTE|EMB|BDJ)\s*(?:C\/?|COM\s*)?(\d{1,3})(?![0-9.,])(?!\s*(?:G|GR|GRS|KG|K|ML|L|LT|LTS|M|MM|CM)(?![A-Z]))/;
 // número antes da embalagem: "36PCTX", "12 CX", "24 PACOTES", "6FD"
 const RX_NCX = /(?<![0-9.,A-Z])(\d{1,3})\s*(?:PCT|PCTS|PACOTE|PACOTES|PC|PCS|CX|CXS|CAIXA|CAIXAS|FD|FDS|FARDO|FARDOS|DP|DISPLAY|DISPLAYS|SACHE|SACHES|ENV|ENVELOPES|BL|BLISTER|BLISTERS)X?(?![A-Z])/;
+const RX_NIVEIS = /(?<![0-9.,A-Z])(\d{1,3})\s*X\s*(\d{1,3})\s*X\s*(\d+(?:[.,]\d+)?)\s*(G|GR|GRS|KG|ML|L|LT|UN|UND|UNID|PACK|PACKS)?(?![A-Z0-9])/;
+function caixaNiveis(Tq) {
+  for (const t of Tq) { const m = RX_NIVEIS.exec(prepQ(t)); if (!m) continue; const a = +m[1], b = +m[2], c = +String(m[3]).replace(',', '.'); const u = m[4] || '';
+    if (!(a > 1 && b > 1 && c > 0)) continue;
+    if (/^(G|GR|GRS|KG|ML|L|LT)$/.test(u)) { const [v, base] = conv(c, u === 'GR' || u === 'GRS' ? 'G' : u === 'LT' ? 'L' : u); if (v) return { tot: a * b * v, base, n: a * b, uv: v, flag: '' }; continue; }
+    return { tot: a * b * c, base: 'UN', n: 1, uv: a * b * c, flag: '' }; }
+  return null;
+}
 function packCaixa(Tq) {
   for (const t of Tq) { const p = parseQ(t).find(x => x[2] > 1 && (x[4] === 'pack' || x[4] === 'packc')); if (p) return { n: p[2], uv: p[3], base: p[1] }; }
   for (const t of Tq) { const m = RX_CXN.exec(prepQ(t)) || RX_NCX.exec(prepQ(t)); if (m && +m[1] > 1) return { n: +m[1] }; }
@@ -1770,8 +1852,10 @@ async function runCore(pfx = '') {
     // DUN-14 (caixa): conteúdo como pack quando a descrição traz a quantidade de unidades
     let cx = null;
     if (/^\d{14}$/.test(String(it.barcode ?? '').trim())) {
-      const pk = packCaixa(Tq);
-      if (q.n > 1) cx = 'pack ' + qtyText(q);
+      const pk = packCaixa(Tq); const mn = caixaNiveis(Tq);
+      // caixa de caixas (8 X 15 X 20G, 24 X 10 X 5 PACK): o conteúdo é o total de unidades da caixa
+      if (mn) { q = mn; cx = (q.n > 1 ? 'pack ' : '') + qtyText(q); qDesc = true; }
+      else if (q.n > 1) cx = 'pack ' + qtyText(q);
       else if (pk && q.base === 'UN' && q.tot === pk.n) cx = qtyText(q);
       else if (pk && q.base === 'UN' && q.tot === pk.n) cx = qtyText(q);
       else if (pk && pk.uv && (q.tot === null || (q.base === pk.base && Math.abs(q.tot - pk.uv) < 1e-6) || (q.tot === 1 && q.base === 'UN'))) { q = { tot: pk.n * pk.uv, base: pk.base, n: pk.n, uv: pk.uv, flag: '' }; cx = 'pack ' + qtyText(q); qDesc = true; }
@@ -2368,7 +2452,7 @@ function migrarCategorias() {
       const add = (k, l) => { c[k] = c[k] || []; for (const t of l || []) if (!c[k].includes(t)) { c[k].push(t); n++; } };
       const del = (k, l) => { const rm = new Set(l || []); if (!rm.size || !c[k]) return; const k0 = c[k].length; c[k] = c[k].filter(t => !rm.has(t)); n += k0 - c[k].length; };
       add('tipo', p.tipo); del('tipo', p.remover_tipo);
-      if (!cfg.migracoes.includes(pid)) { add('incluir', p.incluir); add('excluir', p.excluir); add('forte', p.forte); add('tambem', p.tambem); del('incluir', p.remover_incluir); del('excluir', p.remover_excluir); del('forte', p.remover_forte); }
+      if (!cfg.migracoes.includes(pid)) { add('incluir', p.incluir); add('excluir', p.excluir); add('forte', p.forte); add('tambem', p.tambem); if (p.inicio) { c.inicio = p.inicio; c.dinamico = false; n++; } del('incluir', p.remover_incluir); del('excluir', p.remover_excluir); del('forte', p.remover_forte); }
     }
     if (!cfg.migracoes.includes(pid)) { cfg.migracoes.push(pid); n++; }
   }
