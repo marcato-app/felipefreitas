@@ -401,3 +401,20 @@ Pontos pra checar, em ordem:
 - Farmácia intocada: a regra não troca item que o app pôs em categoria de FARMACIA, exceto DERMOCOSMETICO* com marca que não é de dermocosmético (NIVEA, SUNDOWN, NEUTROGENA voltam para PROTETOR SOLAR/HIDRATANTE; La Roche-Posay, Vichy, Avène, Eucerin, Bioderma, ISDIN, Cetaphil, CeraVe, Episol… ficam). Nenhum patch altera categoria de farmácia.
 - Vocabulário (patch): puericultura leve/pesada, refeição infantil, kits (acessório infantil, banho, cuidados corporais, limpeza facial, dental, capilar, acessórios diversos), acessório de maquiagem/cosmética/unha, palito, cutelaria, designer de sobrancelha, sombra (paleta), rosto outros (pó solto, paleta), pós-depilação, secante de esmalte, escova/esponja de banho, assadura adulto x infantil, cuidados corporais (firmador, celulite), desodorante para os pés (Tenys Pé), óleo corporal, creme facial/olhos/gel/óleo facial, pincel de coloração, tesoura de cabelo, alisante, matizador, tratamento capilar, acessório de higiene dental, touca de banho. ROUPA INFANTIL, TALHER, PRATO, TESOURA, PINCEL, MOCHILA, AMENDOA, BUCHA E PARAFUSO, GELATINA, SECANTE PARA LOUCA, UTENSILIOS etc. excluem os termos de perfumaria que roubavam.
 - Novas categorias na biblioteca: BALM PROTETOR SOLAR LABIAL, TRATAMENTO FACIAL, MAQUIAGEM OLHOS OUTROS.
+
+
+## Catálogo Scanntech (Apti) e biscoito maisena (2026-10-22)
+- `misturaCat` (pós-votação, depois de limpeza): produto seco para preparar pelo tipo no começo.
+  - REFRESCO em G → SUCO EM PO; BEBIDA EM PO / MILK SHAKE (pó) → MODIFICADOR OUTROS.
+  - PUDIM/FLAN/MOUSSE/MANJAR/MARIA MOLE/SORVETE em pó → MISTURA PO SOBREMESA (PO/SACHE escrito, ou marca registrada na DIMA em MISTURA EM PO/SOBREMESA PARA PREPARAR com até 60G ou 500G+; laticínio não conta).
+  - BOLO + PO/MISTURA ou marca de mistura → MISTURA PO BOLO (INTEGRAL/ZERO/SEM GLUTEN → SAUDAVEL); PAO DE QUEIJO/BOLINHO DE CHUVA/PANQUECA → MISTURA PO OUTROS (marca de congelado não).
+  - Granulado de chocolate, CONFEITO MICANGA/ESTRELINHA, açúcar colorido → CONFEITO GRANULADO; cereal cobertura/pastilhas de chocolate, açúcar de baunilha → CONFEITARIA OUTROS; SALAMONIACO → BICARBONATO.
+  - AMACIANTE DE CARNE → TEMPERO INDUSTRIALIZADO (em ML: TEMPERO LIQUIDO); limpezaCat não pega mais amaciante com CARNE/AVES/TEMPERO.
+  - TEMPERO… no começo → TEMPERO INDUSTRIALIZADO (POTE/MOLHOS não mandam).
+  - Especiarias/ervas secas (curry, endro, anis, cravo, noz moscada, pimenta em grão, alho frito, cebola crispy…) → TEMPERO NATURAL/ESPECIARIA; alho/cebola/erva fresca só com seco escrito (SACHE, TUBO, GRANULADO, FRITO…) e nunca CONG/ROXO/IN NATURA.
+  - FAROFA no começo que caiu em FARINHA → FAROFA.
+  - BISC/BISCOITO/BOLACHA + MAIZENA/MAISENA/MAIZ (ou MAIS logo depois) → BISCOITO MAISENA (não recheado/wafer/cookie/amanteigado). Amido MAIZENA continua AMIDO DE MILHO.
+- Caixa de caixas no DUN-14 (`caixaNiveis`): "8 X 15 X 20G" → 120X20G; "24 X 10 X 5 PACK" → 1200UN. "5 PACK" / "10 X 5 PACK" = unidades.
+- consts: `marcasNovas` (marcas que a DIMA não tem: APTEA, APTIPOWER, CHOCOTEEN, CHOCOTRIX, SLESH, APTIVA, YEBA, TEMPERAPTI, APTI extra), `marcaNaoFrase` (CRAVO DA INDIA, MARIA MOLE, FAMILIA antes do peso, TEMPER depois de FAROFA… não são marca), `inicioFrases` (MARIA MOLE, PAO DE QUEIJO, BOLINHO DE CHUVA, MILK SHAKE… como início do descritivo), PHRASE NOZ MOSCADA / PIMENTA MISTA.
+- libPatch `scanntech-2026-10` (agora aceita `inicio`): COCO RALADO começava com "FAROFA" → "COCO RALADO"; vocabulário de especiarias, bicarbonato, suco em pó, massa instantânea, biscoito maisena.
+- Testado e descartado: aceitar marca pelo fabricante (APTIVA via APTI ALIM.) trazia RED, LIMP, VARAL… como marca.

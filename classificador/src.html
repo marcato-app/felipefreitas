@@ -1003,6 +1003,8 @@ function segsDaMarca(T) {
   return out;
 }
 function marcaDePo(T) { return segsDaMarca(T).some(({ own, fab }) => { const s = (own.size <= 3 && fab) ? fab : own; return [...s].some(e => SEG_PO.has(e)) && ![...s].some(e => SEG_LACT.has(e)); }); }
+// marca que a própria DIMA registra em mistura em pó / sobremesa para preparar (APTI, DR OETKER, FLEISCHMANN…), sem laticínio
+function marcaMistura(T) { return segsDaMarca(T).some(({ own }) => (own.has('MISTURA EM PO') || own.has('SOBREMESA PARA PREPARAR')) && ![...own].some(e => SEG_LACT.has(e))); }
 function marcaDeTempero(T) { return segsDaMarca(T).some(({ own, fab }) => { const s = (own.size <= 3 && fab) ? fab : own; return s.has('TEMPERO SECO'); }); }
 // produto seco para preparar escrito pelo tipo (REFRESCO, PUDIM, BOLO, SORVETE em sachê…) e tempero/especiaria seca:
 // o sabor (MORANGO, LARANJA, CHOCOLATE) e a embalagem (POTE, TUBO) nunca são a categoria
@@ -1014,10 +1016,10 @@ function misturaCat(T, C, cat) {
   const t = T[0].replace(/^(\*|ZZ)+/, '').trim(), all = T.join(' | ');
   const W = rx => new RegExp('^(' + rx + ')(?![A-Z])').test(t), has = rx => rx.test(all);
   const qs = T.flatMap(x => parseQ(textoQtd(x))); const gr = qs.some(x => x[1] === 'G' || x[1] === 'KG'), ml = qs.some(x => x[1] === 'ML' || x[1] === 'L');
-  const po = has(RX_PO) || marcaDePo(T);
+  const po = has(RX_PO) || marcaMistura(T);
   // sem PO/SACHE escrito, a marca de produto para preparar só vale no tamanho de sachê (até 60G) ou de food service (500G+)
   const w = qs.length ? Math.max(...qs.map(x => x[1] === 'KG' ? x[3] * 1000 : x[3] || 0)) : 0;
-  const poSob = has(RX_PO) || (marcaDePo(T) && (w <= 60 || w >= 500));
+  const poSob = has(RX_PO) || (marcaMistura(T) && (w <= 60 || w >= 500));
   // refresco em pó (sachê em G): REFRESCO LARANJA APTI 20G, REFRESCO ZERO PINK LEMON 8G
   if (W('REFRESCO|REFRESCOS|REFR|REFRESC') && gr && !ml) return ok('SUCO EM PO');
   // bebida em pó / milk shake para preparar
@@ -1035,6 +1037,9 @@ function misturaCat(T, C, cat) {
   if (W('(MINI )?PASTILHAS? (DE )?CHOCOLATE|CEREAL COBERTURA') && (po || has(/(?<![A-Z])(DISCOS?|CONFEITO)(?![A-Z])/))) return ok('CONFEITARIA OUTROS'); // confeitaria (marca de confeitaria na DIMA), não chocolate
   if (W('ACUCAR (DE )?BAUNILHA|ACUCAR VANILLA|ACUCAR AROMATIZADO')) return ok('CONFEITARIA OUTROS');
   if (W('CREME (DE )?(QUEIJO|CEBOLA|MILHO|ERVILHA|CEBOLA|LEGUMES|ALHO|MANDIOQUINHA|ABOBORA|AIPIM)') && gr && !ml && has(/(?<![A-Z])(SACHE|SACHET|PO|EM PO|INSTANTANEO)(?![A-Z])/) && marcaDePo(T)) return ok('SOPA E CREME'); // creme instantâneo em sachê
+  // biscoito maisena: MAIZENA/MAISENA/MAIZ em qualquer lugar, MAIS logo depois de BISC/BOLACHA (amido MAIZENA não começa com biscoito)
+  if (W('BISCOITOS?|BISC|BISCS|BOLACHAS?|BOL') && lib.has('BISCOITO MAISENA') && (has(/(?<![A-Z])(MAIZENA|MAISENA|MAIZ|MAIZEN|MAISEN)(?![A-Z])/) || /^(BISCOITOS?|BISC|BOLACHAS?|BOL) (MAIS|MAIZ)(?![A-Z])/.test(t))
+      && !has(/(?<![A-Z])(RECHEADO|RECHEADA|RECH|WAFER|COOKIES?|SEQUILHOS?|AMANTEIGADO|AMANTEIGADA)(?![A-Z])/)) return 'BISCOITO MAISENA';
   if (W('FAROFA|FAROFAS') && /^FARINHA/.test(cat || '') && lib.has('FAROFA')) return 'FAROFA'; // farofa temperada não é farinha pura
   if (W('SALAMONIACO|SAL AMONIACO|BICARBONATO DE AMONIO')) return ok('BICARBONATO');
   // tempero: TEMPERO… no começo (POTE / MOLHOS / AVES não mandam), amaciante de carne
@@ -1043,7 +1048,9 @@ function misturaCat(T, C, cat) {
   // especiaria / erva seca / alho e cebola desidratados (sachê, tubo, pote, grão, pó, frito, crispy) ou de marca de tempero
   if (RX_ESPECIARIA.test(t) && gr && !ml && !/^TEMPERO/.test(cat || '')) {
     const fresca = /^(ALHO|CEBOLA|SALSA|SALSINHA|CEBOLINHA|COENTRO|ALECRIM|MANJERICAO|TOMILHO|ERVA DOCE|CANELA|PIMENTA)(?![A-Z])/.test(t);
-    const seco = has(RX_SECO) || marcaDeTempero(T);
+    // alho/cebola/erva fresca ou congelada (ALHO ROXO 90G, ALHO S/CASCA CONG): só vira especiaria com seco escrito na descrição
+    if (fresca && has(/(?<![A-Z])(CONG|CONGELADO|CONGELADA|IN NATURA|ROXO|NOBRE|DESCASCADO|S CASCA|SEM CASCA|DENTES?|CABECA|MACO|BANDEJA|BDJ)(?![A-Z])/)) return null;
+    const seco = fresca ? has(RX_SECO) : (has(RX_SECO) || marcaDeTempero(T));
     if (/^ERVA DOCE/.test(t) && !(has(/(?<![A-Z])(TUBO|EM PO|PO|MOIDA|GRAO)(?![A-Z])/) || marcaDeTempero(T))) return null; // erva-doce em sachê de chá
     if (!fresca || seco) return ok('TEMPERO NATURAL/ESPECIARIA'); }
   return null;
