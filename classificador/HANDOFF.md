@@ -435,3 +435,8 @@ Pontos pra checar, em ordem:
 - Só na categoria AZEITONA: AZEITONA + informações complementares + MARCA + quantidade (a marca vai depois das informações).
 - Abreviações (`azeitonaComp`): INTEIRA=INT, RECHEADA=RECH, FATIADA=FAT, SEM CAROCO=S/C, COM CAROCO=C/C, VIDRO=VD, SACHE=SCH. VIDRO/SACHE (que o app trata como embalagem) voltam como VD/SCH logo depois das abreviações. VD com outra cor na descrição (PRETA FATIADA VD) é vidro; sozinho (AZ VD) continua VERDE.
 - Ex.: "AZEITONA VERDE SEM CAROCO VIDRO LA PASTINA 200G" → "AZEITONA VERDE S/C VD LA PASTINA 200G".
+
+## Mel e própolis (2026-10-23)
+- Causa: as categorias de mel só reconheciam a frase inteira (MEL POLIFLORAL, MEL SILVESTRE…); "MEL" sozinho e os nomes de florada não votavam, e outras palavras ganhavam (MEL BISNAGA → PAO BISNAGA, MEL ASSA PEIXE → PEIXE, MEL FLOR DE LARANJEIRA → PLANTA E FLOR, COMPOSTO… GUACO → ERVA CHA).
+- `melCat` (flag MEL_TIPO, vence categoria do arquivo que não é de mel; farmácia intocada): o mel é o produto (MEL no começo, FAVO DE MEL, COMPOSTO… MEL, EXTRATO/EXT/PROPOLIS no começo), nunca sabor (sorvete, iogurte, biscoito, pão de mel, shampoo, mostarda, bala, granola, cereal, melado, Karo…). Ordem: COMPOSTO DE MEL (composto ou mel com própolis/guaco/agrião/gengibre/limão/romã…) > MEL COM FAVO > EXTRATO DE PROPOLIS > MEL ORGANICO > MEL MONOFLORAL (monofloral ou florada: eucalipto, laranjeira, assa-peixe, angico, aroeira, cipó-uva, acácia, manuka, jataí…) > MEL POLIFLORAL (silvestre, multifloral, puro, mel comum).
+- Marca: produto não é marca (marcaNaoFrase: EXTRATO DE PROPOLIS, PROPOLIS VERDE, PROPOLIS, FAVO DE MEL no começo/depois de MEL, ROMA depois de COM/E, AROEIRA depois de MEL); BAIANINHO cadastrada em MEL (marcasNovas).

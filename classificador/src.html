@@ -1056,6 +1056,30 @@ function massaInstCat(T, C) {
   if (/(?<![A-Z])(COPO|CUP|XICARA)(?![A-Z])/.test(t) && lib.has('MASSA INSTANTANEA COPO')) return 'MASSA INSTANTANEA COPO';
   return lib.has('MASSA INSTANTANEA TRADICIONAL') ? 'MASSA INSTANTANEA TRADICIONAL' : null;
 }
+// mel e própolis: o mel é o produto (MEL no começo, FAVO DE MEL, COMPOSTO… MEL, EXTRATO/PROPOLIS…), não o sabor de outro produto.
+// Ordem: COMPOSTO (mel + própolis/guaco/agrião/gengibre…) > FAVO > EXTRATO DE PROPOLIS > ORGANICO > MONOFLORAL (florada) > POLIFLORAL
+const RX_MEL_NAO = /(?<![A-Z])(SORVETE|SORV|PICOLE|IOGURTE|IOG|BISC\w*|BOLACHA\w*|PAO|PAES|SABONETE|SAB|SHAMPOO|SH|CONDICIONADOR|COND|CREME|HIDRATANTE|LOCAO|MOSTARDA|MOLHO|BALA|BALAS|PASTILHA\w*|DROPS|GRANOLA|CEREAL|AVEIA|BARRA|BARRINHA|CHA|BOLO|COOKIE\w*|TORRADA|MANTEIGA|GELEIA|DOCE|BEBIDA|CERVEJA|LICOR|CACHACA|AGUARDENTE|VINAGRE|PRESUNTO|LOMBO|FRANGO|PEITO|SALAME|PERU|BACON|QUEIJO|REQUEIJAO|CHOCOLATE|BOMBOM|SNACK|AMENDOIM|CASTANHA|NOZES|ACAI|LEITE|ACHOCOLATADO|CAFE|CAPPUCCINO|MELADO|KARO|ENGENHO|CANA|XAROPE|CAPSULA\w*|VELA|ESFOLIANTE|MASCARA|LABIAL|BATOM|PERFUME|COLONIA|DESODORANTE|RACAO|PET|CAO|GATO|LUA DE MEL KIT|TINTA|ESMALTE)(?![A-Z])/;
+const RX_MEL_ADIT = /(?<![A-Z])(PROPOLIS|GUACO|AGRIAO|GENGIBRE|LIMAO|ROMA|CANELA|ALHO|HORTELA|MENTA|POLEN|GELEIA REAL|ACEROLA|CRAVO|EQUINACEA|ECHINACEA|CEBOLA|ABACAXI|LARANJA|MARACUJA|COPAIBA|ANDIROBA|AROEIRA COM|MALVA|TOMILHO|ALCACUZ|JABORANDI)(?![A-Z])/;
+const RX_FLORADA = /(?<![A-Z])(MONOFLORAL|UNIFLORAL|EUCALIPTO|LARANJEIRA|FLOR DE LARANJ\w*|ASSA PEIXE|ASSAPEIXE|ANGICO|AROEIRA|CIPO UVA|CIPO|ACACIA|MANUKA|VASSOURINHA|MARMELEIRO|CAJUEIRO|CANOLA|TREVO|BRACATINGA|SUCUPIRA|LAVANDA|CAPIXINGUI|AVENCA|CAFE FLOR|FLOR DE CAFE|ALECRIM|GIRASSOL|JUAZEIRO|CATINGUEIRA|MALICIA|UVA JAPONESA|ORIENTE|JATAI|URUCU|MANDACAIA|JANDAIRA|URUCUM|TIUBA)(?![A-Z])/;
+function melCat(T, C, cesta0) {
+  if (!T || !T.length || !T[0] || cesta0 === 'FARMACIA') return null; // farmácia intocada
+  const lib = C.libNames || C.names; const t = T[0].replace(/^(\*|ZZ)+/, '').trim(); const ok = n => lib.has(n) ? n : null;
+  const ws = t.split(' ');
+  const melIni = /^(MEL|MELS)(?![A-Z])/.test(t) || /^FAVO (DE )?MEL(?![A-Z])/.test(t) || /^COMPOSTO (DE )?MEL(?![A-Z])/.test(t)
+    || (ws.slice(0, 3).includes('MEL') && !RX_MEL_NAO.test(t));
+  const prop = /^(EXTRATO|EXT|PROPOLIS|SOLUCAO|TINTURA)(?![A-Z])/.test(t) && /(?<![A-Z])PROPOLIS(?![A-Z])/.test(t);
+  if (!melIni && !prop) return null;
+  const nao = RX_MEL_NAO.test(t.replace(/(?<![A-Z])(GELEIA REAL|LIMAO|CANELA|ALHO)(?![A-Z])/g, ' '));
+  if (nao && !/^(COMPOSTO|MEL|EXTRATO|EXT|PROPOLIS)(?![A-Z])/.test(t)) return null;
+  if (/^(MEL|MELS)(?![A-Z])/.test(t) && /(?<![A-Z])(KARO|ENGENHO|CANA|MILHO|MELADO)(?![A-Z])/.test(t)) return null; // melado / xarope de milho não é mel
+  if (/^(MEL|MELS)(?![A-Z])/.test(t) && /(?<![A-Z])(SORVETE|IOGURTE|BISC\w*|PAO|SABONETE|SHAMPOO|MOSTARDA|BALA|BALAS|GRANOLA|CEREAL|SNACK|CHOCOLATE|CERVEJA|LICOR|CACHACA)(?![A-Z])/.test(t)) return null;
+  if (melIni && (/(?<![A-Z])COMPOSTO(?![A-Z])/.test(t) || /(?<![A-Z])(COM|C|E|MAIS)\s+/.test(t) && RX_MEL_ADIT.test(t.replace(/(?<![A-Z])(FLOR DE LARANJ\w*|LARANJEIRA)(?![A-Z])/g, ' ')) || /\+/.test(T[0]) && RX_MEL_ADIT.test(t))) return ok('COMPOSTO DE MEL');
+  if (melIni && /(?<![A-Z])(FAVO|FAVOS)(?![A-Z])/.test(t)) return ok('MEL COM FAVO');
+  if (prop) return ok('EXTRATO DE PROPOLIS');
+  if (/(?<![A-Z])(ORGANICO|ORGANICA|ORG|ORGANIC)(?![A-Z])/.test(t)) return ok('MEL ORGANICO');
+  if (RX_FLORADA.test(t)) return ok('MEL MONOFLORAL');
+  return ok('MEL POLIFLORAL');
+}
 function misturaCat(T, C, cat) {
   if (!T.length) return null; const lib = C.libNames || C.names; const ok = n => lib.has(n) ? n : null;
   const t = T[0].replace(/^(\*|ZZ)+/, '').trim(), all = T.join(' | ');
@@ -1156,6 +1180,7 @@ function aggregate1(T0, sug, C, main) {
   { const lc = limpezaCat(T, C); if (lc && lc !== r.cat) return Object.assign(r, { cat: lc, flag: 'LIMPEZA_TIPO', per: r.per.map(() => lc) }); }
   { const bc = biscoitoCat(T, C); if (bc) return Object.assign(r, { cat: bc, flag: 'BISCOITO_TIPO', per: r.per.map(() => bc) }); }
   { const mi = massaInstCat(T, C); if (mi) return Object.assign(r, { cat: mi, flag: 'MASSA_INST', per: r.per.map(() => mi) }); }
+  { const ml = melCat(T, C, cestaOf(r.cat)); if (ml) return Object.assign(r, { cat: ml, flag: 'MEL_TIPO', per: r.per.map(() => ml) }); }
   { const mc = misturaCat(T, C, r.cat); if (mc && mc !== r.cat) return Object.assign(r, { cat: mc, flag: 'MISTURA_TIPO', per: r.per.map(() => mc) }); }
   { const dc = doceCat(T, C); if (dc) return Object.assign(r, { cat: dc, flag: 'DOCE_REGRA', per: r.per.map(() => dc) }); }
   { const cp = chocPoCat(T, C); if (cp) return Object.assign(r, { cat: cp, flag: 'CHOCPO_VENCE', per: r.per.map(() => cp) }); }
@@ -1704,8 +1729,9 @@ function categoriaArquivo(it, a, byName, C) {
   // regra ensinada (pipoca com sabor, embalagem de ovo, papinha, bala x sabor): o sabor/ingrediente do arquivo não vale como categoria
   // tipo do biscoito escrito na descrição (ROSCA, AMANTEIGADO, POLVILHO…) vence BISCOITO OUTROS / categoria de fora dos biscoitos do arquivo
   const biscForte = a.flag === 'BISCOITO_TIPO' && (s === 'BISCOITO OUTROS' || !/^BISCOITO/.test(s));
-  const instForte = a.flag === 'MASSA_INST' && !/^MASSA INSTANTANEA/.test(s); // INST / LAMEN escrito: arquivo com MASSA TRADICIONAL não vale
-  if (REGRA_FORTE.has(a.flag) || biscForte || instForte) {
+  const instForte = a.flag === 'MASSA_INST' && !/^MASSA INSTANTANEA/.test(s);
+  const melForte = a.flag === 'MEL_TIPO' && !/^(MEL |COMPOSTO DE MEL|EXTRATO DE PROPOLIS)/.test(s) && c1.cesta !== 'FARMACIA'; // mel escrito vence outra categoria do arquivo (farmácia intocada) // INST / LAMEN escrito: arquivo com MASSA TRADICIONAL não vale
+  if (REGRA_FORTE.has(a.flag) || biscForte || instForte || melForte) {
     if (passe && passe.soDesc) return Object.assign({}, a, { regraForte: s }); // só descritivo também troca: é regra ensinada (status avisa)
     if (!sempreArq()) return Object.assign({}, a, { arqTrocada: s });
   }
