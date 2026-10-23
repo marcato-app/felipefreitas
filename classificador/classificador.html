@@ -1052,6 +1052,8 @@ const RX_INST_W = /(?<![A-Z])(INST|INSTANT|INSTANTANEO|INSTANTANEA|INSTANTANEOS|
 function massaInstCat(T, C) {
   if (!T || !T.length || !T[0]) return null; const lib = C.libNames || C.names; const t = T[0];
   if (!RX_MASSA_W.test(t) || !RX_INST_W.test(t)) return null;
+  // macarrão para lamen / noodles a granel (500G, 1KG) sem INST não é o instantâneo
+  if (!/(?<![A-Z])(INST|INSTANT|INSTANTANEO|INSTANTANEA|INSTANTANEOS)(?![A-Z])/.test(t)) { const q = parseQ(textoQtd(t)).find(x => x[1] === 'G'); if (q && q[0] > 300) return null; }
   if (/^(SOPA|SOPAO|CREME|CALDO|COLA|CAFE|FERMENTO|LEITE|PUDIM|GELATINA|ARROZ|PURE|POLENTA|TEMPERO|MOLHO|PANELA|TIGELA|PRATO|ESCORREDOR|POTE PLAST)(?![A-Z])/.test(t)) return null;
   if (!/(?<![A-Z])\d+(?:[.,]\d+)?\s*(G|GR|KG)(?![A-Z])/.test(T.join(' ')) && /(?<![A-Z])(PLASTICO|PLAST|PORCELANA|VIDRO|INOX|CERAMICA|MELAMINA)(?![A-Z])/.test(t)) return null; // tigela/bowl de cozinha
   if (/(?<![A-Z])(COPO|CUP|XICARA)(?![A-Z])/.test(t) && lib.has('MASSA INSTANTANEA COPO')) return 'MASSA INSTANTANEA COPO';
@@ -1062,12 +1064,15 @@ function massaInstCat(T, C) {
 const RX_MEL_NAO = /(?<![A-Z])(SORVETE|SORV|PICOLE|IOGURTE|IOG|BISC\w*|BOLACHA\w*|PAO|PAES|SABONETE|SAB|SHAMPOO|SH|CONDICIONADOR|COND|CREME|HIDRATANTE|LOCAO|MOSTARDA|MOLHO|BALA|BALAS|PASTILHA\w*|DROPS|GRANOLA|CEREAL|AVEIA|BARRA|BARRINHA|CHA|BOLO|COOKIE\w*|TORRADA|MANTEIGA|GELEIA|DOCE|BEBIDA|CERVEJA|LICOR|CACHACA|AGUARDENTE|VINAGRE|PRESUNTO|LOMBO|FRANGO|PEITO|SALAME|PERU|BACON|QUEIJO|REQUEIJAO|CHOCOLATE|BOMBOM|SNACK|AMENDOIM|CASTANHA|NOZES|ACAI|LEITE|ACHOCOLATADO|CAFE|CAPPUCCINO|MELADO|KARO|ENGENHO|CANA|XAROPE|CAPSULA\w*|VELA|ESFOLIANTE|MASCARA|LABIAL|BATOM|PERFUME|COLONIA|DESODORANTE|RACAO|PET|CAO|GATO|LUA DE MEL KIT|TINTA|ESMALTE)(?![A-Z])/;
 const RX_MEL_ADIT = /(?<![A-Z])(PROPOLIS|GUACO|AGRIAO|GENGIBRE|LIMAO|ROMA|CANELA|ALHO|HORTELA|MENTA|POLEN|GELEIA REAL|ACEROLA|CRAVO|EQUINACEA|ECHINACEA|CEBOLA|ABACAXI|LARANJA|MARACUJA|COPAIBA|ANDIROBA|AROEIRA COM|MALVA|TOMILHO|ALCACUZ|JABORANDI)(?![A-Z])/;
 const RX_FLORADA = /(?<![A-Z])(MONOFLORAL|UNIFLORAL|EUCALIPTO|LARANJEIRA|FLOR DE LARANJ\w*|ASSA PEIXE|ASSAPEIXE|ANGICO|AROEIRA|CIPO UVA|CIPO|ACACIA|MANUKA|VASSOURINHA|MARMELEIRO|CAJUEIRO|CANOLA|TREVO|BRACATINGA|SUCUPIRA|LAVANDA|CAPIXINGUI|AVENCA|CAFE FLOR|FLOR DE CAFE|ALECRIM|GIRASSOL|JUAZEIRO|CATINGUEIRA|MALICIA|UVA JAPONESA|ORIENTE|JATAI|URUCU|MANDACAIA|JANDAIRA|URUCUM|TIUBA)(?![A-Z])/;
+// marca registrada na DIMA em MEL antes da palavra MEL (BAIANINHO MEL PURO): o mel é o produto; cor/sabor MEL (AZALEIA MEL, TRAVESSA MEL) não
+function marcaDeMel(g) { const D = data.dima; if (!D || !g) return false; const b = D.map.get(N(g)); return !!(b && b.em.has('MEL')); }
 function melCat(T, C, cesta0) {
   if (!T || !T.length || !T[0] || cesta0 === 'FARMACIA') return null; // farmácia intocada
   const lib = C.libNames || C.names; const t = T[0].replace(/^(\*|ZZ)+/, '').trim(); const ok = n => lib.has(n) ? n : null;
   const ws = t.split(' ');
   const melIni = /^(MEL|MELS)(?![A-Z])/.test(t) || /^FAVO (DE )?MEL(?![A-Z])/.test(t) || /^COMPOSTO (DE )?MEL(?![A-Z])/.test(t)
-    || (ws.slice(0, 3).includes('MEL') && !RX_MEL_NAO.test(t));
+    || /^(BISNAGA|POTE|SACHE|SACHET|VIDRO|BALDE)( DE)? MEL(?![A-Z])/.test(t)
+    || (ws.slice(1, 3).includes('MEL') && !RX_MEL_NAO.test(t) && marcaDeMel(ws.slice(0, ws.indexOf('MEL')).join(' ')));
   const prop = /^(EXTRATO|EXT|PROPOLIS|SOLUCAO|TINTURA)(?![A-Z])/.test(t) && /(?<![A-Z])PROPOLIS(?![A-Z])/.test(t);
   if (!melIni && !prop) return null;
   const nao = RX_MEL_NAO.test(t.replace(/(?<![A-Z])(GELEIA REAL|LIMAO|CANELA|ALHO)(?![A-Z])/g, ' '));
