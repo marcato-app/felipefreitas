@@ -1035,6 +1035,7 @@ const BISC_TIPOS = [
   ['BISCOITO CASEIRO', /(?<![A-Z])(CASEIRO|CASEIRA|CASEIROS|ARTESANAL)(?![A-Z])/],
 ];
 function biscoitoCat(T, C) {
+  if (!T || !T.length || !T[0]) return null; // item sem descrição
   const t = T[0].replace(/^(\*|ZZ)+/, '').trim(); if (!RX_BISC_INI.test(t)) return null;
   if (/(?<![A-Z])(CAO|CAES|CACHORRO|CACHORROS|DOG|DOGS|PET|GATO|GATOS|CANINO|PETISCO)(?![A-Z])/.test(t)) return null; // biscoito para cachorro é pet
   const lib = C.libNames || C.names;
