@@ -430,3 +430,8 @@ Pontos pra checar, em ordem:
 ## Massa instantânea (2026-10-23)
 - `massaInstCat`: palavra de massa (MASSA, MAC, MACARRAO, LAMEN, RAMEN, RAMYUN, NOODLE(S), MIOJO, UDON, YAKISSOBA, BULDAK) + INST/INSTANTANEO ou LAMEN/RAMEN/RAMYUN/NOODLE/MIOJO → MASSA INSTANTANEA TRADICIONAL (COPO/CUP/XICARA → MASSA INSTANTANEA COPO; BOWL fica TRADICIONAL). Não vale começando com SOPA, CREME, CALDO, COLA, CAFE, FERMENTO… nem tigela/bowl de cozinha. Flag MASSA_INST vence a categoria do arquivo que não é massa instantânea (MASSA TRADICIONAL, PRODUTOS ORIENTAIS, RECIPIENTE).
 - marcaAlias SHIN RAMYUN / NONG SHIM → NONGSHIM. Descritivo sem MASSA TRADICIONAL MAC INST depois do início (REMOVER_PATCH).
+
+## Descritivo de AZEITONA (2026-10-23)
+- Só na categoria AZEITONA: AZEITONA + informações complementares + MARCA + quantidade (a marca vai depois das informações).
+- Abreviações (`azeitonaComp`): INTEIRA=INT, RECHEADA=RECH, FATIADA=FAT, SEM CAROCO=S/C, COM CAROCO=C/C, VIDRO=VD, SACHE=SCH. VIDRO/SACHE (que o app trata como embalagem) voltam como VD/SCH logo depois das abreviações. VD com outra cor na descrição (PRETA FATIADA VD) é vidro; sozinho (AZ VD) continua VERDE.
+- Ex.: "AZEITONA VERDE SEM CAROCO VIDRO LA PASTINA 200G" → "AZEITONA VERDE S/C VD LA PASTINA 200G".

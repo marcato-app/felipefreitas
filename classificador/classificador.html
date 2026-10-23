@@ -1567,6 +1567,21 @@ function nounOutra(T, bn) {
   for (const t of T) for (let x of t.split(' ')) { x = NOUN_MAP[deCod(x)] || deCod(x); if (bw.has(x) || FLAVORS.has(x) || /\d/.test(x) || x.length < 3) continue; return x; }
   return 'PRODUTO';
 }
+// AZEITONA (só nessa categoria): INTEIRA=INT, RECHEADA=RECH, FATIADA=FAT, SEM CAROCO=S/C, COM CAROCO=C/C, VIDRO=VD, SACHE=SCH
+const AZ_AB = { INTEIRA: 'INT', INTEIRAS: 'INT', INTEIRO: 'INT', INTEIROS: 'INT', INT: 'INT', RECHEADA: 'RECH', RECHEADAS: 'RECH', RECHEADO: 'RECH', RECHEADOS: 'RECH', REC: 'RECH', RECH: 'RECH',
+  FATIADA: 'FAT', FATIADAS: 'FAT', FATIADO: 'FAT', FATIADOS: 'FAT', FATIAS: 'FAT', FAT: 'FAT', VIDRO: 'VD', VD: 'VD', VDR: 'VD', SACHE: 'SCH', SACHES: 'SCH', SACHET: 'SCH', SCH: 'SCH', SC: 'SCH' };
+function azeitonaComp(ws) {
+  const out = [];
+  for (let i = 0; i < ws.length; i++) {
+    const w = ws[i], nx = ws[i + 1];
+    if (/^(SEM|S)$/.test(w) && /^(CAROCO|CAROCOS|CAR)$/.test(nx || '')) { out.push('SXBC'); i++; continue; }
+    if (/^(COM|C)$/.test(w) && /^(CAROCO|CAROCOS|CAR)$/.test(nx || '')) { out.push('CXBC'); i++; continue; }
+    if (/^(SEMCAROCO|SCAROCO|SC_)$/.test(w)) { out.push('SXBC'); continue; }
+    if (/^(CAROCO|CAROCOS)$/.test(w)) { out.push('CXBC'); continue; }
+    const ab = AZ_AB[w] || w; if (!out.includes(ab)) out.push(ab);
+  }
+  return out;
+}
 const cleanD = s => N(s).replace(/[^A-Z0-9. ]/g, ' ').replace(/(?<!\d)\.|\.(?!\d)/g, ' ').replace(/\s+/g, ' ').trim();
 
 /* run */
@@ -1941,12 +1956,22 @@ async function runCore(pfx = '') {
     // tamanho solto (P, M, G, GG…, sem número antes) em acessório/roupa PET: TAM G
     if (petAc || a.cat === 'VESTUARIO PET') T2 = T2.map(t => t.replace(/(?<![A-Z0-9.,])(PP|P|M|G|GG|XG|XGG|EG|EGG|XP)(?![A-Z0-9])/g, (m, z, off, str) => /\d\s*$/.test(str.slice(0, off)) ? m : 'TAM_' + z));
     const brandTxt = bn ? cleanD(marca) : '';
+    // azeitona: VD com outra cor escrita é VIDRO (PRETA FATIADA VD); sozinho continua VERDE (AZ VD)
+    if (a.cat === 'AZEITONA') T2 = T2.map(t => /(?<![A-Z])(PRETA|PRETAS|PTA|PT|VERDE|VERDES|VDE|ROXA|ROXAS|MISTA|MISTAS)(?![A-Z])/.test(t) ? t.replace(/(?<![A-Z])VD(?![A-Z])/g, 'VIDRO') : t);
     const comp = complement(T2, a.cat, bala ? ini + ' ' + bala.w + ' BALA BALAS BALINHA BALINHAS' : ini, bn || '', groupOf(a.cat), cc);
     // o descritivo é sempre padronizado pelo app (já com a categoria, marca e conteúdo mantidos do arquivo)
     // descritivo com no máximo 60 caracteres: início, marca e conteúdo são obrigatórios e ficam inteiros;
     // só o complemento (entre a marca e o conteúdo) é abreviado e, se ainda passar, perde palavras do fim
     let compW = comp ? comp.split(' ') : [], iniTxt = ini;
-    const monta = () => cleanD([iniTxt, brandTxt, compW.join(' '), qtyText(q)].filter(Boolean).join(' '));
+    // AZEITONA: AZEITONA + informações (abreviadas: INT, RECH, FAT, S/C, C/C, VD, SCH) + MARCA + quantidade
+    const azeit = a.cat === 'AZEITONA';
+    if (azeit) { compW = azeitonaComp(compW); const tt = T2.join(' ');
+      // embalagem logo depois das informações abreviadas (INT, RECH, FAT, S/C, C/C)
+      const put = w => { if (compW.includes(w)) return; let k = -1; compW.forEach((x, j) => { if (['INT', 'RECH', 'FAT', 'SXBC', 'CXBC', 'VD', 'SCH'].includes(x)) k = j; }); compW.splice(k + 1, 0, w); };
+      if (/(?<![A-Z])(VIDRO|VDR|VIDROS)(?![A-Z])/.test(tt)) put('VD');
+      if (/(?<![A-Z])(SACHE|SACHES|SACHET|SACH|SCH)(?![A-Z])/.test(tt)) put('SCH'); }
+    const monta = () => { const d = cleanD(azeit ? [iniTxt, compW.join(' '), brandTxt, qtyText(q)].filter(Boolean).join(' ') : [iniTxt, brandTxt, compW.join(' '), qtyText(q)].filter(Boolean).join(' '));
+      return azeit ? d.replace(/(?<![A-Z0-9])SXBC(?![A-Z0-9])/g, 'S/C').replace(/(?<![A-Z0-9])CXBC(?![A-Z0-9])/g, 'C/C') : d; };
     let desc = monta(), descCortado = false, descLongo = false;
     if (desc.length > DESC_MAX) {
       // 1) abrevia o complemento, da última palavra para a primeira, até caber
