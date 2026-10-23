@@ -418,3 +418,8 @@ Pontos pra checar, em ordem:
 - consts: `marcasNovas` (marcas que a DIMA não tem: APTEA, APTIPOWER, CHOCOTEEN, CHOCOTRIX, SLESH, APTIVA, YEBA, TEMPERAPTI, APTI extra), `marcaNaoFrase` (CRAVO DA INDIA, MARIA MOLE, FAMILIA antes do peso, TEMPER depois de FAROFA… não são marca), `inicioFrases` (MARIA MOLE, PAO DE QUEIJO, BOLINHO DE CHUVA, MILK SHAKE… como início do descritivo), PHRASE NOZ MOSCADA / PIMENTA MISTA.
 - libPatch `scanntech-2026-10` (agora aceita `inicio`): COCO RALADO começava com "FAROFA" → "COCO RALADO"; vocabulário de especiarias, bicarbonato, suco em pó, massa instantânea, biscoito maisena.
 - Testado e descartado: aceitar marca pelo fabricante (APTIVA via APTI ALIM.) trazia RED, LIMP, VARAL… como marca.
+
+## Tipo do biscoito com abreviação (2026-10-23)
+- Causa: com "BISC" abreviado no começo nenhuma categoria de biscoito votava (o tipo RECHEADO, AMANTEIGADO… não era reconhecido) e a tabela de tipos mandava para BISCOITO OUTROS.
+- `biscoitoCat` (dentro de `misturaCat`): BISC/BISCOITO(S)/BOLACHA nas 3 primeiras palavras (BOL só como 1ª) + tipo, na ordem WAFER/WAF, RECHEADO/RECH, COOKIE, TORTINHA, COBERTO/COB, AMANTEIGADO/AMANTEIG/AMANT/MANTEIGA/BUTTER, ROSCA/ROSQUINHA/ROSQ, SEQUILHO/SEQ, CHAMPANHE/CHAMP, AGUA E SAL/CRACKER, MAISENA/MAIZENA/MARIA, POLVILHO/POLV, PALITO, BIJU, LEITE (não LEITE COND), SALGADO/SALG, INTEGRAL/ZERO/FIT… (SAUDAVEL), CASEIRO. Biscoito para cachorro/pet não entra. ROSCA sem BISC (pão doce) fica como estava.
+- PHRASE: BISC CHAMP → BISCOITO CHAMPANHE (antes virava CHAMPIGNON no descritivo), BISC AMANT/ROSQ/SEQ/POLV/WAF/RECH por extenso.
