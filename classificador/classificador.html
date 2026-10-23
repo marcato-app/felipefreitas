@@ -1014,20 +1014,20 @@ const RX_ESPECIARIA = /^(CURRY|GENGIBRE (EM )?PO|ANIS|ANIS ESTRELADO|CRAVO|CRAVO
 const RX_SECO = /(?<![A-Z])(SACHE|SACHET|TUBO|POTE|VIDRO|GRAO|GRAOS|EM PO|PO|MOIDO|MOIDA|DESIDRATAD[AO]S?|DESID|FLOCOS|FRITO|FRITA|CRISPY|GRANULADO|GRANULADA|SECO|SECA|SECAS|SECOS|FOLHAS|CASCA|RAMA)(?![A-Z])/;
 // tipo do biscoito (descrição com BISC/BISCOITO/BOLACHA nas 3 primeiras palavras), com as abreviações do varejo:
 // RECH, WAF, AMANT/AMANTEIG, ROSQ/ROSCA, SEQ, POLV, CHAMP, SALG. Sem tipo -> fica com a votação (BISCOITO OUTROS)
-const RX_BISC_INI = /^(?:\S+ ){0,2}(BISC|BISCS|BISCOITO|BISCOITOS|BISCOIT|BOLACHA|BOLACHAS|BOLACH)(?![A-Z])|^BOL(?![A-Z])/;
+const RX_BISC_INI = /^(?:\S+ ){0,2}(BISC|BISCS|XISC|BISCOITO|BISCOITOS|BISCOIT|BOLACHA|BOLACHAS|BOLACH)(?![A-Z])|^BOL(?![A-Z])/;
 const BISC_TIPOS = [
   ['BISCOITO WAFER', /(?<![A-Z])(WAFER|WAFERS|WAF)(?![A-Z])/],
   ['BISCOITO RECHEADO', /(?<![A-Z])(RECHEADO|RECHEADOS|RECHEADA|RECHEADAS|RECH|RECHEIO)(?![A-Z])/],
   ['BISCOITO COOKIE', /(?<![A-Z])(COOKIE|COOKIES)(?![A-Z])/],
   ['BISCOITO TORTINHA', /(?<![A-Z])(TORTINHA|TORTINHAS)(?![A-Z])/],
   ['BISCOITO COBERTURA', /(?<![A-Z])(COBERTO|COBERTOS|COBERTA|COBERTURA|COB)(?![A-Z])/],
-  ['BISCOITO AMANTEIGADO', /(?<![A-Z])(AMANTEIGADO|AMANTEIGADOS|AMANTEIGADA|AMANTEIGADAS|AMANTEIG|AMANT|AMANTEIGAD|MANTEIGA|BUTTER)(?![A-Z])/],
   ['BISCOITO ROSQUINHA', /(?<![A-Z])(ROSCA|ROSCAS|ROSQUINHA|ROSQUINHAS|ROSQ|ROSQUINHAS)(?![A-Z])/],
+  ['BISCOITO AMANTEIGADO', /(?<![A-Z])(AMANTEIGADO|AMANTEIGADOS|AMANTEIGADA|AMANTEIGADAS|AMANTEIG|AMANT|AMANTEIGAD|MANTEIGA|BUTTER)(?![A-Z])/],
   ['BISCOITO SEQUILHOS', /(?<![A-Z])(SEQUILHO|SEQUILHOS|SEQ|SEQUI)(?![A-Z])/],
   ['BISCOITO CHAMPANHE', /(?<![A-Z])(CHAMPANHE|CHAMPAGNE|CHAMP)(?![A-Z])/],
   ['BISCOITO AGUA E SAL', /(?<![A-Z])(AGUA E SAL|AGUA SAL|AGUA E S|CREAM CRACKER|CR CRACKER|CRACKER|CRACKERS)(?![A-Z])/],
   ['BISCOITO MAISENA', /(?<![A-Z])(MAISENA|MAIZENA|MAIZ|MARIA)(?![A-Z])/],
-  ['BISCOITO POLVILHO', /(?<![A-Z])(POLVILHO|POLV|AVOADOR|VOADOR)(?![A-Z])/],
+  ['BISCOITO POLVILHO', /(?<![A-Z])(POLVILHO|POLV|POL|AVOADOR|VOADOR)(?![A-Z])/],
   ['BISCOITO PALITO', /(?<![A-Z])(PALITO|PALITOS|PALITINHO|PALITINHOS)(?![A-Z])/],
   ['BISCOITO BIJU', /(?<![A-Z])(BIJU|BEIJU)(?![A-Z])/],
   ['BISCOITO LEITE', /(?<![A-Z])(?<!DOCE )(?<!DOCE DE )(DE LEITE|LEITE|LTE)(?![A-Z])(?! COND)/],
@@ -1070,7 +1070,6 @@ function misturaCat(T, C, cat) {
   if (W('(MINI )?PASTILHAS? (DE )?CHOCOLATE|CEREAL COBERTURA') && (po || has(/(?<![A-Z])(DISCOS?|CONFEITO)(?![A-Z])/))) return ok('CONFEITARIA OUTROS'); // confeitaria (marca de confeitaria na DIMA), não chocolate
   if (W('ACUCAR (DE )?BAUNILHA|ACUCAR VANILLA|ACUCAR AROMATIZADO')) return ok('CONFEITARIA OUTROS');
   if (W('CREME (DE )?(QUEIJO|CEBOLA|MILHO|ERVILHA|CEBOLA|LEGUMES|ALHO|MANDIOQUINHA|ABOBORA|AIPIM)') && gr && !ml && has(/(?<![A-Z])(SACHE|SACHET|PO|EM PO|INSTANTANEO)(?![A-Z])/) && marcaDePo(T)) return ok('SOPA E CREME'); // creme instantâneo em sachê
-  { const bc = biscoitoCat(T, C); if (bc) return bc; }
   // biscoito maisena: MAIZENA/MAISENA/MAIZ em qualquer lugar, MAIS logo depois de BISC/BOLACHA (amido MAIZENA não começa com biscoito)
   if (W('BISCOITOS?|BISC|BISCS|BOLACHAS?|BOL') && lib.has('BISCOITO MAISENA') && (has(/(?<![A-Z])(MAIZENA|MAISENA|MAIZ|MAIZEN|MAISEN)(?![A-Z])/) || /^(BISCOITOS?|BISC|BOLACHAS?|BOL) (MAIS|MAIZ)(?![A-Z])/.test(t))
       && !has(/(?<![A-Z])(RECHEADO|RECHEADA|RECH|WAFER|COOKIES?|SEQUILHOS?|AMANTEIGADO|AMANTEIGADA)(?![A-Z])/)) return 'BISCOITO MAISENA';
@@ -1143,6 +1142,7 @@ function aggregate1(T0, sug, C, main) {
   if (cestaOf(r.cat) !== 'FARMACIA' || (/^DERMOCOSMETICO/.test(r.cat) && !T.some(t => RX_DERMO.test(t)))) { const pc0 = perfumariaCat(T, C); if (pc0) { const pc = infantilDe(pc0, T, C) || pc0; if (pc !== r.cat) return Object.assign(r, { cat: pc, flag: 'PERFUMARIA_TIPO', per: r.per.map(() => pc) }); return r; } }
   { const ic = cestaOf(r.cat) !== 'FARMACIA' && infantilDe(r.cat, T, C); if (ic) return Object.assign(r, { cat: ic, flag: 'INFANTIL', per: r.per.map(x => x === r.cat ? ic : x) }); }
   { const lc = limpezaCat(T, C); if (lc && lc !== r.cat) return Object.assign(r, { cat: lc, flag: 'LIMPEZA_TIPO', per: r.per.map(() => lc) }); }
+  { const bc = biscoitoCat(T, C); if (bc) return Object.assign(r, { cat: bc, flag: 'BISCOITO_TIPO', per: r.per.map(() => bc) }); }
   { const mc = misturaCat(T, C, r.cat); if (mc && mc !== r.cat) return Object.assign(r, { cat: mc, flag: 'MISTURA_TIPO', per: r.per.map(() => mc) }); }
   { const dc = doceCat(T, C); if (dc) return Object.assign(r, { cat: dc, flag: 'DOCE_REGRA', per: r.per.map(() => dc) }); }
   { const cp = chocPoCat(T, C); if (cp) return Object.assign(r, { cat: cp, flag: 'CHOCPO_VENCE', per: r.per.map(() => cp) }); }
@@ -1674,7 +1674,9 @@ function categoriaArquivo(it, a, byName, C) {
   const c1 = byName.get(s); if (!c1) return a; // categoria que não existe na biblioteca
   const c0 = byName.get(a.cat);
   // regra ensinada (pipoca com sabor, embalagem de ovo, papinha, bala x sabor): o sabor/ingrediente do arquivo não vale como categoria
-  if (REGRA_FORTE.has(a.flag)) {
+  // tipo do biscoito escrito na descrição (ROSCA, AMANTEIGADO, POLVILHO…) vence BISCOITO OUTROS / categoria de fora dos biscoitos do arquivo
+  const biscForte = a.flag === 'BISCOITO_TIPO' && (s === 'BISCOITO OUTROS' || !/^BISCOITO/.test(s));
+  if (REGRA_FORTE.has(a.flag) || biscForte) {
     if (passe && passe.soDesc) return Object.assign({}, a, { regraForte: s }); // só descritivo também troca: é regra ensinada (status avisa)
     if (!sempreArq()) return Object.assign({}, a, { arqTrocada: s });
   }
@@ -2473,7 +2475,7 @@ function migrarCategorias() {
   // início cadastrado errado na biblioteca (CREME DE AMENDOIM vinha como CHOCOLATE COBERTURA): corrige sempre
   const INICIO_FIX = { 'CREME DE AMENDOIM': ['CHOCOLATE COBERTURA', 'CREME DE AMENDOIM'] };
   for (const c of cfg.categorias || []) { const f = INICIO_FIX[c.nome]; if (f && N(c.inicio || '') === f[0]) { c.inicio = f[1]; c.dinamico = false; n++; } }
-  const REMOVER_PATCH = { 'LINGUICA DEFUMADA': ['DEF', 'DEFUM'], 'CHOCOLATE EM PO OUTROS': ['SOL'], 'OTP - OUTROS TABACO': ['ESS', 'ESSENC', 'ESSENCIAS'], 'VINAGRE ALCOOL': ['ALC', 'VINAG', 'VINAGRES'], 'CEREAL EM BARRA PROTEICO': ['PROTEINA', 'PROTEINAS', 'PROTEICA', 'PROTEICAS', 'PROTEICO', 'PROTEIN', 'BAR', 'BARS', 'BARRA', 'BARRAS', 'BARRINHA', 'BARRINHAS', 'HIPERPROTEICA'], 'CREME DE AMENDOIM': ['CREME', 'PASTA', 'MANTEIGA', 'AMENDOIM', 'CR'], 'BALA PASTILHA': ['DURA', 'DURAS', 'DUR', 'BALA', 'BALAS', 'BALINHA', 'BALINHAS'], 'SABAO LIQUIDO': ['LAVA', 'ROUPA', 'ROUPAS', 'LV', 'LAVAR', 'LQ'], 'SABAO EM PO': ['LAVA', 'ROUPA', 'ROUPAS', 'LV', 'LAVAR', 'DET'], 'SABAO EM PEDRA': ['LAVA', 'ROUPA', 'ROUPAS', 'BARRA', 'BARRAS', 'BAR'], 'SABAO EM PASTA': ['LAVA', 'ROUPA', 'ROUPAS'], 'SABAO': ['LAVA', 'ROUPA', 'ROUPAS', 'LV'], 'DETERGENTE LIQUIDO': ['LAVA', 'LOUCA', 'LOUCAS', 'DET', 'DETERG', 'LQ'], 'BISCOITO ROSQUINHA': ['ROSCA', 'ROSCAS', 'ROSQ', 'ROSQUINHAS', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS'], 'BISCOITO AMANTEIGADO': ['AMANT', 'AMANTEIG', 'AMANTEIGAD', 'AMANTEIGADOS', 'AMANTEIGADA', 'AMANTEIGADAS', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS'], 'BISCOITO RECHEADO': ['RECH', 'RECHEADOS', 'RECHEADA', 'RECHEADAS', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS'], 'BISCOITO WAFER': ['WAF', 'WAFERS', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS'], 'BISCOITO SEQUILHOS': ['SEQ', 'SEQUI', 'SEQUILHO', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS'], 'BISCOITO POLVILHO': ['POLV', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS'], 'BISCOITO CHAMPANHE': ['CHAMP', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS'], 'BISCOITO COOKIE': ['COOKIES', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS'], 'BISCOITO SALGADO OUTROS': ['SALG', 'SALGADOS', 'SALGADA', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS'], 'BISCOITO MAISENA': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS'], 'BISCOITO LEITE': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS'], 'BISCOITO AGUA E SAL': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS'], 'BISCOITO PALITO': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS'], 'BISCOITO TORTINHA': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS'], 'BISCOITO COBERTURA': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS'], 'BISCOITO CASEIRO': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS'], 'BISCOITO OUTROS': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS'], 'PIPOCA MICRO-ONDAS': ['MICROONDAS', 'MICROONDA', 'MICROWAVE', 'MICROOND', 'ONDAS', 'ONDA', 'MIC', 'PIP', 'PIPOC', 'POPCORN', 'MO'] };
+  const REMOVER_PATCH = { 'LINGUICA DEFUMADA': ['DEF', 'DEFUM'], 'CHOCOLATE EM PO OUTROS': ['SOL'], 'OTP - OUTROS TABACO': ['ESS', 'ESSENC', 'ESSENCIAS'], 'VINAGRE ALCOOL': ['ALC', 'VINAG', 'VINAGRES'], 'CEREAL EM BARRA PROTEICO': ['PROTEINA', 'PROTEINAS', 'PROTEICA', 'PROTEICAS', 'PROTEICO', 'PROTEIN', 'BAR', 'BARS', 'BARRA', 'BARRAS', 'BARRINHA', 'BARRINHAS', 'HIPERPROTEICA'], 'CREME DE AMENDOIM': ['CREME', 'PASTA', 'MANTEIGA', 'AMENDOIM', 'CR'], 'BALA PASTILHA': ['DURA', 'DURAS', 'DUR', 'BALA', 'BALAS', 'BALINHA', 'BALINHAS'], 'SABAO LIQUIDO': ['LAVA', 'ROUPA', 'ROUPAS', 'LV', 'LAVAR', 'LQ'], 'SABAO EM PO': ['LAVA', 'ROUPA', 'ROUPAS', 'LV', 'LAVAR', 'DET'], 'SABAO EM PEDRA': ['LAVA', 'ROUPA', 'ROUPAS', 'BARRA', 'BARRAS', 'BAR'], 'SABAO EM PASTA': ['LAVA', 'ROUPA', 'ROUPAS'], 'SABAO': ['LAVA', 'ROUPA', 'ROUPAS', 'LV'], 'DETERGENTE LIQUIDO': ['LAVA', 'LOUCA', 'LOUCAS', 'DET', 'DETERG', 'LQ'], 'BISCOITO ROSQUINHA': ['ROSCA', 'ROSCAS', 'ROSQ', 'ROSQUINHAS', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO AMANTEIGADO': ['AMANT', 'AMANTEIG', 'AMANTEIGAD', 'AMANTEIGADOS', 'AMANTEIGADA', 'AMANTEIGADAS', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO RECHEADO': ['RECH', 'RECHEADOS', 'RECHEADA', 'RECHEADAS', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO WAFER': ['WAF', 'WAFERS', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO SEQUILHOS': ['SEQ', 'SEQUI', 'SEQUILHO', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO POLVILHO': ['POLV', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO CHAMPANHE': ['CHAMP', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO COOKIE': ['COOKIES', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO SALGADO OUTROS': ['SALG', 'SALGADOS', 'SALGADA', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO MAISENA': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO LEITE': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO AGUA E SAL': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO PALITO': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO TORTINHA': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO COBERTURA': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO CASEIRO': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO OUTROS': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'PIPOCA MICRO-ONDAS': ['MICROONDAS', 'MICROONDA', 'MICROWAVE', 'MICROOND', 'ONDAS', 'ONDA', 'MIC', 'PIP', 'PIPOC', 'POPCORN', 'MO'] };
   for (const c of cfg.categorias || []) { const r = REMOVER_PATCH[c.nome]; if (r) for (const w of r) if (!(c.remover || []).includes(w)) { c.remover = [...(c.remover || []), w]; n++; } }
   // início fixo para categorias que estavam sem início (K.inicioPatch); quem já tem início definido fica como está
   for (const c of cfg.categorias || []) { const v = (K.inicioPatch || {})[c.nome]; if (v && !(c.inicio || '').trim()) { c.inicio = v; c.dinamico = false; n++; } }
