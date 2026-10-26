@@ -1450,6 +1450,9 @@ function nomeCmed(e) {
   const lw = new Set(N(e.lab).split(' ').filter(x => x.length >= 4)), w = N(e.produto).split(' '), r = w.filter(x => !lw.has(x));
   return (r.length ? r : w).join(' '); // ESPINHEIRA SANTA NATULAB -> ESPINHEIRA SANTA: o laboratório não entra na marca
 }
+// fabricante do arquivo que já existe na base (Hoja, DIMA, vitaminas, cadastrados): vence o laboratório da descrição/CMED
+// e a unificação por marca (nome existente sempre ganha; não cria fabricante novo nem troca MERCUR por MERCK)
+const fabArqExiste = f => fabArqOk(f) && N(f) !== 'OUTRO FABRICANTE' && baseCadastro().f.has(N(f));
 function canonFab(f) {
   if (!valido(f) || f === 'OUTRO FABRICANTE') return f;
   const C = K.farmaFabs || {};
@@ -1956,8 +1959,12 @@ async function runAll(opts = {}) {
     if (farma && !(it.vit && it.vit.m && it.vit.m.fab && !marcaArq)) { // fabricante = laboratório da descrição; sem ele, o laboratório da CMED
       const lab = labDaDescricao(T) || (it.cmed && it.cmed.lab ? (labDaDescricao([N(it.cmed.lab)]) || N(it.cmed.lab).replace(/\b(LTDA|S A|SA|EIRELI|ME|INDUSTRIA|COMERCIO|IND|COM)\b/g, ' ').replace(/\s+/g, ' ').trim()) : null);
       if (lab) {
-        if (prioArq() && fabArqOk(it.sugFab) && N(it.sugFab) !== N(lab)) arqAl.push(`Arquivo: fabricante ${it.sugFab.trim()} difere do laboratório na descrição (${lab}); usado ${lab}`);
-        fab = lab;
+        // sigla no fim da descrição feita a partir do próprio fabricante do arquivo ("... (PRO)" de PROCTER GAMBLE): o arquivo vale
+        const sg3 = (/ ([A-Z0-9]{3})$/.exec(T[0] || '') || [])[1], sf = fabArqOk(it.sugFab) ? N(it.sugFab) : '';
+        const siglaDoArq = sg3 && sf && N(sf) !== 'OUTRO FABRICANTE' && (sf.replace(/ /g, '').startsWith(sg3) || (SIG().fab || {})[sf] === sg3 || siglaGerada(it.sugFab) === sg3);
+        if (prioArq() && (fabArqExiste(it.sugFab) || siglaDoArq) && N(it.sugFab) !== N(lab)) { arqAl.push(`Arquivo: fabricante ${it.sugFab.trim()} mantido (já existe na base); laboratório da descrição/CMED: ${lab}`); fab = it.sugFab.trim(); }
+        else { if (prioArq() && fabArqOk(it.sugFab) && N(it.sugFab) !== N(lab)) arqAl.push(`Arquivo: fabricante ${it.sugFab.trim()} difere do laboratório na descrição (${lab}); usado ${lab}`);
+          fab = lab; }
       }
     }
     const marcaGen = !!(it.vit && it.vit.m && it.vit.m.gen && N(semSigla(marca)) === N(semCodLab(it.vit.m.marca, T))); // VITAMINA D3: nome genérico
@@ -2204,7 +2211,7 @@ async function runAll(opts = {}) {
       if (!dono && data.dima) { const b = data.dima.map.get(N(m)) || data.dima.map.get(N(semSigla(m))); let v = 0;
         if (b && b.fabAll) for (const f of fs) { const x = b.fabAll.get(f) || 0; if (x > v) { v = x; dono = f; } } }
       if (!dono) dono = mais(fs);
-      for (const r of rs) if (r.fab !== dono) { r.alerts.push(`Fabricante unificado: a marca ${m} tem um fabricante só (${dono}); estava ${r.fab}`); r.fab = dono; r.status = statusCadastro(r.marca, r.fab, r.farma); r.pri = r.pri || 2; }
+      for (const r of rs) if (r.fab !== dono && !(prioArq() && fabArqExiste(r.it.sugFab) && N(r.fab) === N(r.it.sugFab))) { r.alerts.push(`Fabricante unificado: a marca ${m} tem um fabricante só (${dono}); estava ${r.fab}`); r.fab = dono; r.status = statusCadastro(r.marca, r.fab, r.farma); r.pri = r.pri || 2; }
     } }
   // mesmo código de barras com produtos distintos: vai para CODIGO INTERNO, OUTRA MARCA e OUTRO FABRICANTE (o cadastro
   // decide qual produto é) e a coluna PRODUTOS DISTINTOS NO CODIGO mostra as descrições do outro produto

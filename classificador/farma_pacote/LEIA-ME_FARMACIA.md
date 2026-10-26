@@ -831,3 +831,11 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   - linha só com código: pega a descrição do backlog, das lojas ou da CMED.
   - Mostra uma tabela e tem o botão "Exportar Excel", no mesmo padrão do backlog.
 - O backlog também aceita "código de barras", "SKU" e "descritivo" como nomes de coluna.
+
+### 3.6p Fabricante do arquivo que já existe na base vence
+- O fabricante do arquivo fica quando já existe na base (Hoja, DIMA, vitaminas, cadastrados). Ele vence o laboratório da descrição ou da CMED e a "unificação por marca".
+  - Antes: MERCUR virava MERCK, BAND-AID virava OPHTHALMOS, K MED virava MEDLEY, VIDEIRA 7 virava VIDORA, CARREFOUR virava BIOLAB.
+- Também fica quando a sigla no fim da descrição foi feita a partir do próprio fabricante do arquivo. Exemplo: "(PRO)" de PROCTER GAMBLE e "(COP)" de COPERMED, que antes viravam PROMOFARMA e COPAPHARMA.
+- No Detalhe 2 de 26/10/2026 (51.298 itens sem dermocosmético), as diferenças entre o fabricante do app e o do arquivo caíram de 3.520 para 317.
+  - Quase todas as 317 são o nome já existente na base, por exemplo SANOFI FARMACEUTICA LTDA → SANOFI FARMACEUTICA e MERCUR CIA → MERCUR SA.
+- Testes: DIMA, Hoja e vitaminas sem mudança.
