@@ -1088,6 +1088,7 @@ function melCat(T, C, cesta0) {
 // garrafa térmica: garrafa/GF/bule/termo/ampola com TERMICA, ISOTERMICA, INOX, PAREDE DUPLA, VACUO, PRESSAO, TERMOS, ou de marca térmica
 const RX_GARRAFA_INI = /^(GARRAFA|GARRAFAS|GARRAF|GARR|GF|BULE|TERMO|TERMOS|AMPOLA|REFIL GARRAFA|TERMICA|TERMICO)(?![A-Z])/;
 const RX_TERMICA_W = /(?<![A-Z])(TERMICA|TERMICAS|TERMICO|TERMICOS|TERM|ISOTERMICA|ISOTERMICO|ISOTERM|INOX|ACO INOX|PAREDE DUPLA|DUPLA PAREDE|VACUO|PRESSAO|TERMOS|TERMO|STANLEY|TERMOLAR|INVICTA|SOPRANO TERM\w*|HYDRO ?FLASK|THERMOS|ZOJIRUSHI|NIGRAS|BRASFORT TERM\w*)(?![A-Z])/;
+const GARRAFA_UN = new Set(['GARRAFA TERMICA', 'GARRAFA OUTROS', 'SQUEEZE']);
 function garrafaTermicaCat(T, C) {
   if (!T || !T.length || !T[0]) return null; const lib = C.libNames || C.names; if (!lib.has('GARRAFA TERMICA')) return null;
   const t = T[0].replace(/^(\*|ZZ)+/, '').trim();
@@ -1990,12 +1991,13 @@ async function runCore(pfx = '') {
     if (q.tot === null) { const kg = Tq.some(t => /(?<![A-Z0-9])(KG|KILO|QUILO|GRANEL)(?![A-Z0-9])/.test(t));
       q = { tot: kg ? 1000 : 1, base: kg ? 'G' : 'UN', n: 1, uv: kg ? 1000 : 1, flag: 'QTD_PADRAO' }; }
     if (!q.base) q = Object.assign({}, q, { base: 'UN' });
-    // GARRAFA TERMICA: o conteúdo é a unidade (1UN, ou o pack 2UN/KIT 3); a litragem (1L, 500ML) é complemento do descritivo
+    // garrafas (GARRAFA TERMICA, GARRAFA OUTROS, SQUEEZE): o conteúdo é a unidade (1UN, ou o pack 2UN/KIT 3); a litragem (1L, 500ML) é complemento do descritivo
     let volGarrafa = '';
-    if (a.cat === 'GARRAFA TERMICA') {
+    if (GARRAFA_UN.has(a.cat)) {
       const vs = Tq.flatMap(t => parseQ(t)).filter(x => x[1] === 'ML'); if (vs.length) volGarrafa = fmtUnit(vs[0][3] || vs[0][0], 'ML');
       const kit = Tq.map(t => /(?<![A-Z])(?:KIT|JOGO|CONJUNTO|CJ|C\/?)\s*(?:COM\s*)?(\d{1,2})(?![0-9.,]|\s*(?:ML|L|LT|G|KG))|(?<![0-9.,])(\d{1,2})\s*(?:GARRAFAS|UNIDADES|UNID|UND|UN|PCS|PECAS)(?![A-Z])/.exec(t)).find(Boolean);
       if (q.base !== 'UN') { const n = (q.n && q.n > 1) ? q.n : kit ? +(kit[1] || kit[2]) : (countQty(Tq) || {}).tot || 1; q = { tot: n, base: 'UN', n: 1, uv: n, flag: '' }; qDesc = true; }
+      else if (q.tot === 1 && kit && +(kit[1] || kit[2]) > 1) { const n = +(kit[1] || kit[2]); q = { tot: n, base: 'UN', n: 1, uv: n, flag: '' }; qDesc = true; } // KIT 2 SQUEEZE -> 2UN
     }
     // Farmácia sem início fixo no manual: começa pela marca; sem marca, pelo princípio ativo (ou pelo nome do produto)
     const farmaLivre = cc && cc.cesta === 'FARMACIA' && !cc.inicio;
@@ -2004,6 +2006,7 @@ async function runCore(pfx = '') {
     let ini = farmaLivre ? (bn ? '' : paHit ? paIni(paHit, T) : nounOutra(T, bn))
       : bala ? bala.ini : (cc && cc.dinamico) ? (tipoIni(T, a.per, a.cat, C) || nounOutra(T, bn)) : a.cat === OUT ? nounOutra(T, bn) : (cc.inicio || cc.nome);
     if (a.cat === 'OTP - OUTROS TABACO' && T.some(t => RX_ESS.test(t))) ini = 'ESSENCIA'; // essência de narguilé: ESSENCIA + MARCA + informações + gramatura
+    if (a.cat === 'GARRAFA OUTROS' && ini === 'GARRAFA' && /^GARRAFAO(?![A-Z])/.test(T[0] || '')) ini = 'GARRAFAO'; // GARRAFAO 5L: não repete GARRAFA GARRAFAO
     if (bn && ini && ini.replace(/ /g, '') === bn.replace(/ /g, '')) ini = ''; // início igual à marca colada (ZEEDOG = ZEE DOG): não repete
     // acessório PET: o descritivo leva PET logo depois do tipo, com o tipo por extenso (PEIT -> PEITORAL PET ZEE DOG ...)
     const petAc = PET_ACESSORIO.has(a.cat);

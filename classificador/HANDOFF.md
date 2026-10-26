@@ -446,3 +446,9 @@ Pontos pra checar, em ordem:
 - `garrafaTermicaCat` (flag GARRAFA_TERMICA, vence GARRAFA OUTROS/TERMICO OUTROS do arquivo): GARRAFA/GF/BULE/TERMO/TERMOS/AMPOLA/REFIL GARRAFA/TERMICA no começo + TERMICA/TERM/ISOTERMICA/INOX/PAREDE DUPLA/VACUO/PRESSAO/TERMOS ou marca térmica (STANLEY, TERMOLAR, INVICTA…); marca térmica antes do tipo (TERMOLAR GARRAFA); SQUEEZE térmico. Não vale para caneca, copo, caixa, bolsa, lancheira, cuia, bebida; AMPOLA/TERMO só com TERMICA/INOX (ampola de tratamento, termo de garantia, termômetro ficam fora).
 - Marca: TERMICA/TERMICO/ISOTERMICA/MAGIC PUMP nunca são marca (marcaNaoFrase); TERMOLAR/INVICTA saíram do vocabulário da categoria (eram tipo, não marca); MOR vale como marca no bazar (é GENERIC = morango no resto).
 - Conteúdo: GARRAFA TERMICA é sempre em UN (1UN; pack 12X1L → 12UN; KIT 2 / C/2 UNIDADES → 2UN). A litragem (1L, 500ML) vai para o complemento, antes do conteúdo: "GARRAFA TERMICA INVICTA PRETA 1L 1UN". REFIL fica no descritivo.
+
+## Garrafas em geral: conteúdo em UN (GARRAFA OUTROS e SQUEEZE também)
+- Pedido: a regra da garrafa térmica vale para todas as garrafas. Em GARRAFA TERMICA, GARRAFA OUTROS e SQUEEZE (`GARRAFA_UN` em src.html) o conteúdo é sempre a unidade: 1UN, kit/jogo (KIT 2 → 2UN) ou caixa de 14 dígitos (C/12 → 12UN). A litragem (500ML, 1L) vai só no complemento do descritivo.
+- `KIT n` também vale quando a quantidade já saiu 1UN.
+- GARRAFA OUTROS começando por GARRAFAO: início GARRAFAO (não repete "GARRAFA GARRAFAO").
+- Exemplos: GARRAFA SQUEEZE ALUMINIO 750ML 1UN · GARRAFA ROLHA 1L 1UN · GARRAFAO AGUA 5L 1UN.
