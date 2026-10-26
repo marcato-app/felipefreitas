@@ -26,6 +26,8 @@ PAGINA = 'https://www.gov.br/anvisa/pt-br/assuntos/medicamentos/cmed/precos'
 PAGINA_DCB = 'https://www.gov.br/anvisa/pt-br/assuntos/farmacopeia/dcb'
 DADOS = 'https://dados.anvisa.gov.br/dados/DADOS_ABERTOS_MEDICAMENTOS.csv'
 SAUDE = 'https://dados.anvisa.gov.br/dados/TA_PRODUTO_SAUDE_SITE.csv'
+# preços de medicamentos nos dados abertos (1 linha por código de barras): traz apresentações que não estão na lista PMC do mês
+PRECOS = 'https://dados.anvisa.gov.br/dados/TA_PRECOS_MEDICAMENTOS.csv'
 # produtos para saúde (correlatos): NOME_TECNICO da Anvisa -> categoria do app (só o que se vende em farmácia de varejo)
 TECNICO = [
     (r'^(CURATIVO|COMPRESSA PARA CURATIVO|ESPARADRAPOS|ATADURAS|GAZES E ATADURAS|COMPRESSAS$)', 'CURATIVO'),
@@ -51,15 +53,18 @@ def baixa(url):
 def baixar():
     d = here / 'dados' / 'cmed'; d.mkdir(parents=True, exist_ok=True)
     html = baixa(PAGINA).decode('utf-8', 'ignore')
-    m = re.search(r'href="([^"]*xls_conformidade_site_(\d{8})[^"]*)"', html)  # "PMC - xls"
+    # "PMC - xlsx": lista_pmc__AAAAMMDD_... (desde 2026) ou xls_conformidade_site_AAAAMMDD_... (nome antigo); a data mais nova
+    ls = re.findall(r'href="([^"]*(?:lista_pmc_+|xls_conformidade_site_)(\d{8})[^"]*)"', html)
+    m = max(ls, key=lambda x: x[1]) if ls else None
     if m:
-        alvo = d / f'cmed_pmc_{m.group(2)}.xlsx'
+        alvo = d / f'cmed_pmc_{m[1]}.xlsx'
         if not alvo.exists():
-            url = m.group(1) if m.group(1).startswith('http') else 'https://www.gov.br' + m.group(1)
+            url = m[0] if m[0].startswith('http') else 'https://www.gov.br' + m[0]
             alvo.write_bytes(baixa(url)); print('baixado', alvo.name)
         else: print('lista PMC já é a mais nova:', alvo.name)
     (d / 'DADOS_ABERTOS_MEDICAMENTOS.csv').write_bytes(baixa(DADOS)); print('baixado DADOS_ABERTOS_MEDICAMENTOS.csv')
     (d / 'TA_PRODUTO_SAUDE_SITE.csv').write_bytes(baixa(SAUDE)); print('baixado TA_PRODUTO_SAUDE_SITE.csv')
+    (d / 'TA_PRECOS_MEDICAMENTOS.csv').write_bytes(baixa(PRECOS)); print('baixado TA_PRECOS_MEDICAMENTOS.csv')
     # DCB: lista consolidada mais nova ("3-2024-lista-consolidada-dcb-ago.xlsx")
     h = baixa(PAGINA_DCB).decode('utf-8', 'ignore').replace('\\u002F', '/')
     ls = set(re.findall(r'(https://www\.gov\.br/anvisa/pt-br/assuntos/farmacopeia/dcb/(\d)-(\d{4})-lista-consolidada-dcb[\w-]*\.xlsx)', h))
@@ -145,8 +150,11 @@ def ler_planilha(path):
         import xlrd
         sh = xlrd.open_workbook(path).sheet_by_index(0)
         it = (sh.row_values(i) for i in range(sh.nrows))
-    else:
-        it = openpyxl.load_workbook(path, read_only=True).worksheets[0].iter_rows(values_only=True)
+    else:  # desde 10/2026 a 1ª aba é só o aviso ("Cabeçalho") e a lista vem em "Lista PMC": acha a aba com o cabeçalho
+        wb = openpyxl.load_workbook(path, read_only=True)
+        def todas():
+            for ws in wb.worksheets: yield from ws.iter_rows(values_only=True)
+        it = todas()
     H = None
     for r in it:
         if r and any('APRESENTA' in str(v or '').upper() for v in r) and any('EAN' in str(v or '').upper() for v in r):
@@ -174,7 +182,7 @@ def historico():
     """baixa as edições anteriores da PMC (página "anos anteriores") e guarda um resumo compacto de cada uma"""
     d = here / 'dados' / 'cmed' / 'historico'; d.mkdir(parents=True, exist_ok=True)
     html = baixa(PAGINA + '/anos-anteriores').decode('utf-8', 'ignore')
-    links = sorted(set(re.findall(r'href="([^"]*xls_conformidade_site_(\d{8})[^"]*)"', html)), key=lambda x: x[1])
+    links = sorted(set(re.findall(r'href="([^"]*(?:lista_pmc_+|xls_conformidade_site_)(\d{8})[^"]*)"', html)), key=lambda x: x[1])
     for url, data_ in links:
         alvo = d / f'{data_}.json.gz'
         if alvo.exists(): continue
@@ -216,9 +224,10 @@ def main():
     if '--historico' in sys.argv: historico()
     arqs = sorted((here / 'dados' / 'cmed').glob('cmed_pmc_*.xls*'))
     if not arqs: print('sem arquivo em dados/cmed'); return
-    edicoes = [(arqs[-1].stem[-8:], ler_planilha(arqs[-1]))]
+    edicoes = [(a.stem[-8:], ler_planilha(a)) for a in reversed(arqs)]  # a mais nova primeiro; as listas anteriores baixadas também entram
+    hist_ja = {e for e, _ in edicoes}
     for h in sorted((here / 'dados' / 'cmed' / 'historico').glob('*.json.gz'), reverse=True):  # mais nova primeiro
-        edicoes.append((h.name[:8], json.loads(gzip.decompress(h.read_bytes()))))
+        if h.name[:8] not in hist_ja: edicoes.append((h.name[:8], json.loads(gzip.decompress(h.read_bytes()))))
     idx = {k: {} for k in 'prod lab cls sub tipo'.split()}
     ix = lambda k, v: idx[k].setdefault(str(v or '').strip(), len(idx[k]))
     rows, vistos, n_hist = [], set(), 0
@@ -229,18 +238,31 @@ def main():
             vistos.update(eans)
             rows.append([','.join(eans), ix('prod', prod), apres, ix('lab', lab), ix('cls', cls), ix('sub', sub), ix('tipo', tipo)] + ([data_] if k else []))
             n_hist += 1 if k else 0
+    # dados abertos de preços: códigos de barras que nenhuma edição da PMC tem (marcados 'ABERTOS'; classe pela substância)
+    sc0 = defaultdict(Counter)
+    for r in rows: sc0[';'.join(sorted(N(x) for x in re.split(r'[;,]', list(idx['sub'])[r[5]]) if N(x)))][list(idx['cls'])[r[4]]] += 1
+    cls_sub = {k: v.most_common(1)[0][0] for k, v in sc0.items()}
+    fp, n_ab = here / 'dados' / 'cmed' / 'TA_PRECOS_MEDICAMENTOS.csv', 0
+    if fp.exists():
+        for r in csv.DictReader(io.StringIO(fp.read_bytes().decode('latin-1')), delimiter=';'):
+            e = re.sub(r'\D', '', r.get('CO_EAN') or '').lstrip('0'); prod = (r.get('NO_PRODUTO') or '').strip()
+            if len(e) < 8 or e in vistos or not prod: continue
+            vistos.add(e); sub = (r.get('DS_SUBSTANCIA') or '').strip()
+            cls = cls_sub.get(';'.join(sorted(N(x) for x in re.split(r'[;,]', sub) if N(x))), '')
+            rows.append([e, ix('prod', prod), (r.get('DS_APRESENTACAO') or '').strip(), ix('lab', r.get('NO_RAZAO_SOCIAL')), ix('cls', cls), ix('sub', sub), ix('tipo', ''), 'ABERTOS']); n_ab += 1
     inv = lambda d: [k for k, _ in sorted(d.items(), key=lambda kv: kv[1])]
-    out = {'fonte': arqs[-1].name + (f' + {len(edicoes) - 1} edições anteriores' if len(edicoes) > 1 else ''), **{k: inv(v) for k, v in idx.items()}, 'rows': rows}
+    out = {'fonte': arqs[-1].name + (f' + {len(edicoes) - 1} edições anteriores' if len(edicoes) > 1 else '') + (f' + {n_ab} da base de preços (dados abertos)' if n_ab else ''), **{k: inv(v) for k, v in idx.items()}, 'rows': rows}
     # substância -> classe mais comum na CMED (para os registrados sem preço)
     sc = defaultdict(Counter)
-    for r in rows: sc[';'.join(sorted(N(x) for x in re.split(r'[;,]', out['sub'][r[5]]) if N(x)))][out['cls'][r[4]]] += 1
+    for r in rows:
+        if out['cls'][r[4]]: sc[';'.join(sorted(N(x) for x in re.split(r'[;,]', out['sub'][r[5]]) if N(x)))][out['cls'][r[4]]] += 1
     sub_cls = {k: v.most_common(1)[0][0] for k, v in sc.items()}
     out['reg'] = registrados({N(p) for p in out['prod']}, sub_cls)
     out['dcb'], out['sais'] = dcb(sub_cls)
     out['saude'] = correlatos()
     raw = json.dumps(out, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
     (here / 'cmed.json.gz').write_bytes(gzip.compress(raw, 9))
-    print(f"{arqs[-1].name} + {len(edicoes) - 1} anteriores: {len(rows)} apresentações ({n_hist} só em edições antigas), {len(vistos)} EANs, {len(idx['prod'])} produtos; "
+    print(f"{arqs[-1].name} + {len(edicoes) - 1} anteriores: {len(rows)} apresentações ({n_hist} só em edições antigas, {n_ab} só nos dados abertos de preços), {len(vistos)} EANs, {len(idx['prod'])} produtos; "
           f"{len(out['saude'])} produtos para saúde (correlatos); "
           f"DCB {len(out['dcb'])} substâncias com classe e {len(out['sais'])} sais; "
           f"{len(out['reg'])} registrados fora da lista de preços ({sum(1 for r in out['reg'] if r[2])} com classe pela substância); "

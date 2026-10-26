@@ -808,3 +808,26 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   - G01B com "creme" sozinho: precisa estar escrito DERMATOLOGICO ou outra forma de pele;
   - D11A/D03A9 sem dose (talco e desodorante do VODOL continuam onde estão).
 - Testes: DIMA, Hoja e vitaminas sem mudança.
+
+### 3.6o Base da Anvisa mais nova e completa; coluna BASE ANVISA; consulta rápida com várias linhas
+- Lista PMC da CMED atualizada para a edição de 09/10/2026.
+  - Desde outubro a planilha tem 2 abas: "Cabeçalho" e "Lista PMC". O leitor acha a aba certa.
+  - O site trocou o nome do arquivo para `lista_pmc__AAAAMMDD`. O `cmed.py --baixar` aceita o nome novo e o antigo.
+  - A lista de 09/09 virou edição anterior em `dados/cmed/historico/`.
+- Nova fonte: dados abertos de preços da Anvisa (`TA_PRECOS_MEDICAMENTOS.csv`, um código de barras por linha).
+  - Trouxe 29.170 códigos de barras que nenhuma edição da PMC tinha. A base foi de 39,7 mil para 68,8 mil códigos.
+  - Esses códigos ficam marcados como ABERTOS. A classe vem da substância.
+- Dados abertos de medicamentos registrados atualizados: de 43 mil para 228 mil linhas.
+- Não existe base da Anvisa com código de barras para cosmético, alimento ou suplemento. As consultas de cosméticos e alimentos dos dados abertos não têm EAN.
+- Coluna BASE ANVISA na Planilha1, na REVISAO e na consulta rápida, com o total no RESUMO:
+  - SIM - CMED (LISTA ATUAL);
+  - SIM - CMED (EDICAO dd/mm/aaaa);
+  - SIM - ANVISA (DADOS ABERTOS DE PRECOS);
+  - NAO.
+  - Quando é SIM, o código de barras está na base oficial: produto, apresentação e laboratório vêm da Anvisa e não precisam de validação.
+- Consulta rápida aceita várias linhas coladas do Excel:
+  - com cabeçalho: barcode, código de barras ou SKU, e descriptions ou descritivo;
+  - sem cabeçalho: a coluna só de números é o código e o texto mais longo é a descrição;
+  - linha só com código: pega a descrição do backlog, das lojas ou da CMED.
+  - Mostra uma tabela e tem o botão "Exportar Excel", no mesmo padrão do backlog.
+- O backlog também aceita "código de barras", "SKU" e "descritivo" como nomes de coluna.

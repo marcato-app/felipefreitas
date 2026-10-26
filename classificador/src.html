@@ -42,6 +42,8 @@ h1{font-family:var(--display); font-weight:800; font-size:30px; letter-spacing:-
 .card-b{padding:0 22px 22px; display:flex; flex-direction:column; gap:14px}
 /* consulta rápida */
 form.quick{display:grid; grid-template-columns:minmax(150px,220px) minmax(0,1fr) auto; gap:10px; align-items:end}
+form.quick textarea{width:100%; min-height:44px; resize:vertical; font:inherit; line-height:1.4; white-space:pre; overflow-x:auto}
+#qTbl td.anv-sim{color:var(--ok, #157f3b); font-weight:700} #qTbl td.anv-nao{color:var(--warn, #a15c00); font-weight:700}
 .quick-res{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px}
 .qv{border:1px solid var(--line); border-radius:10px; padding:10px 12px; background:var(--sunk); display:flex; flex-direction:column; gap:2px; min-width:0}
 .qv span{font-size:11.5px; font-weight:700; color:var(--ink2); text-transform:uppercase; letter-spacing:.06em}
@@ -169,17 +171,21 @@ td.alert{color:var(--warn); font-size:12px}
   <section class="card" aria-labelledby="qT">
     <div class="card-h">
       <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></div>
-      <div><h2 id="qT">Consulta rápida</h2><p>Cole a descrição de um SKU e veja a classificação aqui mesmo, sem planilha. O código é opcional: se você já anexou o backlog ou o arquivo das lojas, as descrições dele também entram.</p></div>
+      <div><h2 id="qT">Consulta rápida</h2><p>Cole a descrição de um SKU, ou várias linhas copiadas do Excel (código de barras/SKU e descrição/descritivo, com ou sem cabeçalho), e veja a classificação aqui mesmo. O código é opcional: se você já anexou o backlog ou o arquivo das lojas, as descrições dele também entram.</p></div>
     </div>
     <div class="card-b">
       <form class="quick" id="qForm" autocomplete="off">
         <label class="f">SKU / código de barras<input type="text" id="qSku" inputmode="numeric" placeholder="Opcional"></label>
-        <label class="f">Descrição<input type="text" id="qDesc" value="DIPIRONA SODICA 500MG C/10 CPR EMS" placeholder="Ex.: DIPIRONA SODICA 500MG C/10 CPR EMS"></label>
+        <label class="f">Descrição (ou várias linhas coladas do Excel)<textarea id="qDesc" rows="1" spellcheck="false" placeholder="Ex.: DIPIRONA SODICA 500MG C/10 CPR EMS&#10;ou cole do Excel: código de barras | descrição">DIPIRONA SODICA 500MG C/10 CPR EMS</textarea></label>
         <button class="pri" type="submit" id="qBtn">Classificar</button>
       </form>
       <div id="qOut" class="hidden" aria-live="polite" style="display:flex;flex-direction:column;gap:10px">
         <div class="quick-res" id="qRes"></div>
         <div class="quick-al" id="qAl"></div>
+      </div>
+      <div id="qMulti" class="hidden" aria-live="polite" style="display:flex;flex-direction:column;gap:10px">
+        <div class="bar" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><span id="qMultiSt" style="color:var(--ink2)"></span><button class="pri" type="button" id="qExport">Exportar Excel</button></div>
+        <div class="tbl" style="max-height:520px"><table id="qTbl"><thead><tr><th>Código de barras</th><th>Descritivo padronizado</th><th>Fabricante</th><th>Marca</th><th class="num">Conteúdo</th><th>Categoria</th><th>EST MER 7</th><th>Base Anvisa</th><th>Status</th><th>Alertas</th></tr></thead><tbody></tbody></table></div>
       </div>
     </div>
   </section>
@@ -191,7 +197,7 @@ td.alert{color:var(--warn); font-size:12px}
     <!-- 1 backlog -->
     <section class="step" data-step="1" data-nome="Backlog" data-sub="obrigatório*">
       <div class="step-h"><span class="eyebrow">Etapa 1 de 6</span><h2>Envie o backlog</h2>
-        <p>Colunas <code>barcode</code> e <code>descriptions</code>; se tiver, também CATEGORIA, MARCA, FABRICANTE e QUANTIDADE. Pode pular se for usar só o arquivo das lojas na próxima etapa. Os arquivos são lidos só no seu navegador.</p></div>
+        <p>Colunas <code>barcode</code> (ou código de barras / SKU) e <code>descriptions</code> (ou descritivo); se tiver, também CATEGORIA, MARCA, FABRICANTE e QUANTIDADE. Pode pular se for usar só o arquivo das lojas na próxima etapa. Os arquivos são lidos só no seu navegador.</p></div>
       <div class="grid3">
         <div class="drop" id="dropBacklog"><span class="req">Backlog</span><h3>Arraste o arquivo aqui</h3><div class="st" id="stBacklog">ou clique para escolher (.xlsx ou .csv)</div><input type="file" id="fBacklog" accept=".xlsx,.xls,.csv"></div>
       </div>
@@ -442,14 +448,16 @@ function splitCsvLine(line, d) { const out = []; let cur = '', q = false; for (l
 const normH = h => N(h).replace(/ /g, '');
 function findCol(hdr, tests) { const H = hdr.map(normH); for (const t of tests) { const i = H.findIndex(h => t(h)); if (i >= 0) return i; } return -1; }
 
-async function loadBacklog(file) {
-  data.catAlias = null;
-  const rows = await readTable(file); const hdr = rows[0] || [];
+// coluna do código: barcode, código de barras / de barra, EAN, SKU
+const COL_CODIGO = [h => h === 'BARCODE', h => h === 'CODIGOBARRAS', h => (h.includes('CODIGOBARRA') || h.includes('CODIGODEBARRA') || h.includes('CODBARRA')) && !h.includes('CONTENIDO'), h => h.includes('EAN') || h === 'GTIN', h => h.includes('BARCODE'), h => h === 'SKU' || h === 'CODIGOSKU' || h === 'SKUCODIGO'];
+async function loadBacklog(file) { data.catAlias = null; return backlogDeLinhas(await readTable(file)); }
+function backlogDeLinhas(rows, soItens) {
+  const hdr = rows[0] || [];
   // coluna auxiliar nunca é a de marca/fabricante/conteúdo/categoria: "Algoritmo Marca Propia" (NAO E MARCA PROPRIA),
   // MARCA_PRED, FABRICANTE_PRED_PREFIJO, CODIGO_BARRAS_CONTENIDO, UNIDADES_CONTENIDO, CATEGORIA_PRED (código .3.12...)
   const aux = h => /PROPIA|PROPRIA|ALGORITMO|PRED|PREFIJO|RECLASIF|CODIGOBARRAS|UNIDADES|UNITARIO|CODIGO$/.test(h);
   const ci = {
-    bc: findCol(hdr, [h => h === 'BARCODE', h => h === 'CODIGOBARRAS', h => h.includes('CODIGOBARRAS') && !h.includes('CONTENIDO'), h => h.includes('EAN'), h => h.includes('BARCODE')]),
+    bc: findCol(hdr, COL_CODIGO),
     ds: findCol(hdr, [h => h === 'DESCRIPTIONS', h => h.includes('DESCRIPTION'), h => h.includes('DESCRI') && !aux(h)]),
     cat: findCol(hdr, [h => h === 'ESTMER7DESCRIPCION', h => h.startsWith('SUBCATEGORIA') && !aux(h), h => h === 'CATEGORIA', h => h.includes('CATEGORIA') && !aux(h)]),
     cat6: findCol(hdr, [h => h === 'ESTMER6DESCRIPCION', h => h.startsWith('CATEGORIA') && !aux(h)]), // nível de cima (EST MER 6), se a subcategoria vier vazia
@@ -463,7 +471,7 @@ async function loadBacklog(file) {
   ci.main = findCol(hdr, [h => ['DESCRIPCION', 'DESCRICAO', 'DESCRITIVO', 'DESCRIPTION', 'DESCRICAOPRODUTO', 'DESCRITIVOATUAL', 'DESCRICAOPRINCIPAL'].includes(h)]);
   if (ci.main === ci.ds) ci.main = -1;
   extras = extrasDe();
-  if (ci.bc < 0 || ci.ds < 0) throw new Error('Não encontrei as colunas de código (barcode) e descrições (descriptions) no backlog.');
+  if (ci.bc < 0 || ci.ds < 0) throw new Error('Não encontrei as colunas de código (barcode, código de barras ou SKU) e descrição (descriptions ou descritivo) no backlog.');
   const items = [];
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r]; if (!row || row[ci.bc] === null || row[ci.bc] === undefined || row[ci.bc] === '') continue;
@@ -477,6 +485,7 @@ async function loadBacklog(file) {
     items.push({ barcode: row[ci.bc], D, T: D.map(N), main: !!mainD, sugCatRaw: cRaw, sugCat: cRaw ? catSugerida(cRaw, D.map(N)) : '', sugMarca: ci.mar >= 0 ? String(row[ci.mar] ?? '').trim() : '',
       sugFab: ci.fab >= 0 ? String(row[ci.fab] ?? '').trim() : '', sugQt: ci.qt >= 0 ? row[ci.qt] : null });
   }
+  if (soItens) return items;
   data.items = items; data.sugCounts = new Map();
   for (const it of items) data.sugCounts.set(it.sugCat, (data.sugCounts.get(it.sugCat) || 0) + 1);
   computeWordSug();
@@ -1772,6 +1781,14 @@ function catCmed(classe, subst, produto) {
   if (filhos.length) { const o = filhos.find(nm => /OUTR/.test(nm)); return o || filhos[filhos.length - 1]; } // N05B5 herbáceos -> N05B2
   return '';
 }
+// código de barras na base da Anvisa (lista de preços CMED do mês, edições anteriores ou dados abertos de preços):
+// produto, apresentação e laboratório oficiais -> classificação garantida, não precisa validar
+function baseAnvisa(it) {
+  const e = it && it.cmed; if (!e) return 'NAO';
+  if (e.ed === 'ABERTOS') return 'SIM - ANVISA (DADOS ABERTOS DE PRECOS)';
+  if (e.ed) return `SIM - CMED (EDICAO ${e.ed.slice(6)}/${e.ed.slice(4, 6)}/${e.ed.slice(0, 4)})`;
+  return 'SIM - CMED (LISTA ATUAL)';
+}
 function cmedNoItem(it) {
   const e = data.cmed && data.cmed.get(skuKey(it.barcode)); it.cmed = e || null; it.cmedCat = '';
   if (!e) return;
@@ -2140,7 +2157,7 @@ async function runAll(opts = {}) {
       if (D0 && D0.cat === a.cat) alerts.push(`Categoria pela DIMA: ${D0.nome} em ${D0.seg}` + (D0.esc ? ' (subcategoria escolhida; revisar)' : ''));
       if (C0) alerts.push('Categoria pelo princípio ativo ' + C0.pa + (C0.corrigido ? ' (destino corrigido em relação à base)' : C0.validar ? ' (base pede validação)' : '')); }
     if (a.regTrocou) alerts.push(`Remédio registrado: ${nomeOf(a.cat)} (o arquivo/regra dizia ${nomeOf(a.regTrocou)})`);
-    if (it.cmed) alerts.push(`Categoria pela CMED: ${it.cmed.classe || it.cmed.produto}` + (a.cmedTrocou ? ` (antes ${nomeOf(a.cmedTrocou)})` : '') + (it.cmed.ed ? ` (código de barras só na edição de ${it.cmed.ed.slice(6)}/${it.cmed.ed.slice(4, 6)}/${it.cmed.ed.slice(0, 4)})` : ''));
+    if (it.cmed) alerts.push(`Categoria pela CMED: ${it.cmed.classe || it.cmed.produto}` + (a.cmedTrocou ? ` (antes ${nomeOf(a.cmedTrocou)})` : '') + (it.cmed.ed === 'ABERTOS' ? ' (código de barras dos dados abertos de preços da Anvisa)' : it.cmed.ed ? ` (código de barras só na edição de ${it.cmed.ed.slice(6)}/${it.cmed.ed.slice(4, 6)}/${it.cmed.ed.slice(0, 4)})` : ''));
     if (a.antifTrocou) alerts.push(`Antifúngico de uso na pele: D01A1 (antes ${nomeOf(a.antifTrocou)})`);
     if (a.arqTrocada) alerts.push(`Arquivo: categoria ${a.arqTrocada} não bate com a descrição (outra cesta); usada ${a.cat}`);
     alerts.push(...arqAl);
@@ -2300,22 +2317,22 @@ function statusCadastro(marca, fab, farma) {
 }
 // mesmo código de barras com descrições de outro produto (não usadas na classificação): SIM: descrições
 const distintosTxt = r => r.distintos && r.distintos.length ? (r.distintosTipo === 'SIM' ? 'SIM: ' : 'VERIFICAR: ') + r.distintos.slice(0, 5).join(' | ').slice(0, 300) : '';
-function buildWorkbook() {
-  const R = data.results; const wb = XLSX.utils.book_new();
+function buildWorkbook(R = data.results) {
+  const wb = XLSX.utils.book_new();
   const num = v => (v === null || v === undefined || isNaN(v)) ? null : (Math.abs(v - Math.round(v)) < 1e-9 ? Math.round(v) : v);
   const bc = v => { const s = String(v).trim(); return /^\d{1,15}$/.test(s) ? Number(s) : s; };
   // EST MER 7 CODIGO: código da categoria na árvore do cliente (planilha de padrões -> estmer.py -> K.estMer7)
   const em7 = cat => (K.estMer7 || {})[cat] || '';
-  const main = [['CODIGO BARRAS', 'DESCRITIVO PADRONIZADO', 'FABRICANTE', 'MARCA', 'CONTENIDO', 'CATEGORIA', 'EST MER 7 CODIGO', 'CODIGO INTERNO', 'STATUS', 'PRODUTOS DISTINTOS NO CODIGO']];
-  for (const r of R) main.push([bc(r.it.barcode), r.desc, r.fab, r.marca, num(r.qt), nomeOf(r.cat), em7(r.cat), ciFlag(r.it.barcode), r.status || '', distintosTxt(r)]);
-  const ws = XLSX.utils.aoa_to_sheet(main); ws['!cols'] = [{ wch: 16 }, { wch: 60 }, { wch: 28 }, { wch: 24 }, { wch: 11 }, { wch: 26 }, { wch: 18 }, { wch: 22 }, { wch: 28 }];
+  const main = [['CODIGO BARRAS', 'DESCRITIVO PADRONIZADO', 'FABRICANTE', 'MARCA', 'CONTENIDO', 'CATEGORIA', 'EST MER 7 CODIGO', 'CODIGO INTERNO', 'STATUS', 'PRODUTOS DISTINTOS NO CODIGO', 'BASE ANVISA']];
+  for (const r of R) main.push([bc(r.it.barcode), r.desc, r.fab, r.marca, num(r.qt), nomeOf(r.cat), em7(r.cat), ciFlag(r.it.barcode), r.status || '', distintosTxt(r), baseAnvisa(r.it)]);
+  const ws = XLSX.utils.aoa_to_sheet(main); ws['!cols'] = [{ wch: 16 }, { wch: 60 }, { wch: 28 }, { wch: 24 }, { wch: 11 }, { wch: 26 }, { wch: 18 }, { wch: 22 }, { wch: 28 }, { wch: 30 }, { wch: 36 }];
   for (let i = 2; i <= main.length; i++) { const c = ws['A' + i]; if (c && c.t === 'n') c.z = '0'; }
   XLSX.utils.book_append_sheet(wb, ws, 'Planilha1');
-  const rv = [['CODIGO BARRAS', 'CODIGO INTERNO', 'STATUS', 'CATEGORIA', 'EST MER 7 CODIGO', 'CATEGORIA SUGERIDA', 'MARCA', 'MARCA SUGERIDA', 'FABRICANTE', 'FABRICANTE SUGERIDO', 'CONTENIDO', 'CONTENIDO SUGERIDO', 'DESCRITIVO PADRONIZADO', 'ALERTAS', 'DESCRICOES ORIGINAIS', 'PRIORIDADE', 'DESCRICAO DA LOJA USADA', 'LOJAS', 'PESQUISA GOOGLE', 'PRODUTOS DISTINTOS NO CODIGO']];
+  const rv = [['CODIGO BARRAS', 'CODIGO INTERNO', 'STATUS', 'BASE ANVISA', 'CATEGORIA', 'EST MER 7 CODIGO', 'CATEGORIA SUGERIDA', 'MARCA', 'MARCA SUGERIDA', 'FABRICANTE', 'FABRICANTE SUGERIDO', 'CONTENIDO', 'CONTENIDO SUGERIDO', 'DESCRITIVO PADRONIZADO', 'ALERTAS', 'DESCRICOES ORIGINAIS', 'PRIORIDADE', 'DESCRICAO DA LOJA USADA', 'LOJAS', 'PESQUISA GOOGLE', 'PRODUTOS DISTINTOS NO CODIGO']];
   for (const r of [...R].filter(r => r.pri || r.status || (r.distintos && r.distintos.length)).sort((a, b) => (a.pri || 9) - (b.pri || 9) || a.cat.localeCompare(b.cat)))
-    rv.push([bc(r.it.barcode), ciFlag(r.it.barcode), r.status || '', nomeOf(r.cat), em7(r.cat), r.it.sugCatRaw || r.it.sugCat, r.marca, r.it.sugMarca, r.fab, r.it.sugFab, num(r.qt), r.it.sugQt, r.desc, r.alerts.join('; '), r.it.D.slice(0, 4).join(' | ').slice(0, 500), r.pri, r.it.lojaUsada || '', r.it.nLojas || '', 'https://www.google.com/search?q=' + encodeURIComponent(String(r.it.barcode) + ' ' + (r.it.D[0] || '')), distintosTxt(r)]);
-  const ws2 = XLSX.utils.aoa_to_sheet(rv); ws2['!cols'] = [{ wch: 16 }, { wch: 22 }, { wch: 26 }, { wch: 24 }, { wch: 18 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 50 }, { wch: 55 }, { wch: 80 }, { wch: 10 }];
-  ws2['!autofilter'] = { ref: 'A1:O' + rv.length };
+    rv.push([bc(r.it.barcode), ciFlag(r.it.barcode), r.status || '', baseAnvisa(r.it), nomeOf(r.cat), em7(r.cat), r.it.sugCatRaw || r.it.sugCat, r.marca, r.it.sugMarca, r.fab, r.it.sugFab, num(r.qt), r.it.sugQt, r.desc, r.alerts.join('; '), r.it.D.slice(0, 4).join(' | ').slice(0, 500), r.pri, r.it.lojaUsada || '', r.it.nLojas || '', 'https://www.google.com/search?q=' + encodeURIComponent(String(r.it.barcode) + ' ' + (r.it.D[0] || '')), distintosTxt(r)]);
+  const ws2 = XLSX.utils.aoa_to_sheet(rv); ws2['!cols'] = [{ wch: 16 }, { wch: 22 }, { wch: 26 }, { wch: 30 }, { wch: 24 }, { wch: 18 }, { wch: 24 }, { wch: 20 }, { wch: 20 }, { wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 50 }, { wch: 55 }, { wch: 80 }, { wch: 10 }];
+  ws2['!autofilter'] = { ref: 'A1:P' + rv.length };
   XLSX.utils.book_append_sheet(wb, ws2, 'REVISAO');
   { // fabricantes que o app mandou criar: confira os parecidos antes de cadastrar (não duplicar)
     const nv = new Map(); for (const r of R) if (/CRIAR (MARCA E )?FABRICANTE/.test(r.status || '')) { const k = r.fab; if (!nv.has(k)) nv.set(k, []); nv.get(k).push(r); }
@@ -2329,6 +2346,8 @@ function buildWorkbook() {
   const sm = [['CATEGORIA', 'QTD ITENS', 'SEM MARCA', 'SEM CONTENIDO']]; for (const [k, v] of [...cnt].sort((a, b) => b[1][0] - a[1][0])) sm.push([k, ...v]);
   const ciCnt = new Map(); for (const r of R) { const f = ciFlag(r.it.barcode); ciCnt.set(f, (ciCnt.get(f) || 0) + 1); }
   sm.push([]); sm.push(['CODIGO INTERNO', 'QTD ITENS']); for (const [k, v] of ciCnt) sm.push([k, v]);
+  { const an = new Map(); for (const r of R) { const k = baseAnvisa(r.it).replace(/ \(.*$/, ''); an.set(k, (an.get(k) || 0) + 1); }
+    sm.push([]); sm.push(['BASE ANVISA', 'QTD ITENS']); for (const [k, v] of [...an].sort()) sm.push([k === 'NAO' ? 'NAO (validar)' : k + ' (garantido, não precisa validar)', v]); }
   sm.push([]); sm.push(['Configuração: ' + cfg.nome]); sm.push(['Gerado em ' + new Date().toLocaleString('pt-BR')]);
   const ws3 = XLSX.utils.aoa_to_sheet(sm); ws3['!cols'] = [{ wch: 36 }, { wch: 12 }, { wch: 12 }, { wch: 14 }];
   XLSX.utils.book_append_sheet(wb, ws3, 'RESUMO');
@@ -2854,9 +2873,73 @@ function qTile(rot, val, extra, wide) { return el('div', { class: 'qv' + (wide ?
 loadCmedEmb().then(r => { if (r && !data.cmedArquivo) { const st = $('#stCmed'); st.innerHTML = `Já embutida: <b>${r.eans.toLocaleString('pt-BR')}</b> códigos de barras (${escH(data.cmedFonte || '')}). Anexe uma lista mais nova só se quiser atualizar.`; st.closest('.drop').classList.add('done'); } });
 // abre com o exemplo já classificado (a descrição de exemplo fica no campo; é só trocar)
 (async () => { try { await loadDima(); if ($('#qDesc').value && $('#qOut').classList.contains('hidden')) $('#qForm').requestSubmit(); } catch (_) {} })();
+// várias linhas coladas do Excel: com cabeçalho (barcode / código de barras / SKU e descriptions / descritivo) ou sem
+// (coluna só de números = código; o texto mais longo = descrição). Linha só com código: descrição do backlog/lojas/CMED
+function linhasColadas(txt) {
+  const L = txt.split(/\r?\n/).map(l => l.replace(/\s+$/, '')).filter(l => l.trim());
+  const sep = L.some(l => l.includes('\t')) ? '\t' : (L.every(l => l.includes(';')) ? ';' : null);
+  const rows = L.map(l => sep ? l.split(sep).map(x => x.trim().replace(/^"(.*)"$/, '$1')) : [l.trim()]);
+  const hdr = rows[0] || [];
+  if (findCol(hdr, COL_CODIGO) >= 0 || findCol(hdr, [h => h.includes('DESCRI')]) >= 0) {
+    const r0 = hdr.slice(); if (findCol(r0, COL_CODIGO) < 0) { r0.push('BARCODE'); rows.forEach((r, i) => { if (i) r.push(''); }); }
+    if (findCol(r0, [h => h.includes('DESCRI')]) < 0) { r0.push('DESCRIPTIONS'); rows.forEach((r, i) => { if (i) r.push(''); }); }
+    rows[0] = r0;
+    const ib = findCol(r0, COL_CODIGO); rows.forEach((r, i) => { if (i && (r[ib] === '' || r[ib] == null)) r[ib] = 'LINHA ' + (i + 1); }); // sem código: a linha ainda entra
+    return backlogDeLinhas(rows, true);
+  }
+  return rows.map((r, i) => {
+    const ib = r.findIndex(x => /^\d{6,14}$/.test(x.replace(/\D/g, '') ) && /^[\d .-]+$/.test(x));
+    const resto = r.filter((x, j) => j !== ib && x); const d = resto.sort((a, b) => b.length - a.length)[0] || '';
+    const D = d ? [desgruda(d)] : [];
+    return { barcode: ib >= 0 ? r[ib] : 'LINHA ' + (i + 1), D, T: D.map(N), main: !!d, sugCatRaw: '', sugCat: '', sugMarca: '', sugFab: '', sugQt: null };
+  });
+}
+let Q_RES = null;
+async function consultaVarias(txt) {
+  const st = $('#qMultiSt'), tb = $('#qTbl tbody'), box = $('#qMulti');
+  $('#qOut').classList.add('hidden'); box.classList.remove('hidden'); tb.innerHTML = ''; st.textContent = 'Classificando…';
+  await loadDima(); await loadCmedEmb();
+  const its = linhasColadas(txt), semDesc = [];
+  for (const it of its) {
+    const k = /^LINHA /.test(String(it.barcode)) ? '' : skuKey(it.barcode); if (/^LINHA /.test(String(it.barcode))) it.barcode = '';
+    const doArq = k && data.items ? data.items.find(x => skuKey(x.barcode) === k) : null;
+    if (doArq) { for (const d of doArq.D0 || doArq.D) if (!it.D.some(x => N(x) === N(d))) it.D.push(d);
+      for (const f of ['sugCatRaw', 'sugCat', 'sugMarca', 'sugFab']) it[f] = it[f] || doArq[f]; if (it.sugQt == null) it.sugQt = doArq.sugQt; }
+    it.T = it.D.map(N);
+    if (k && data.cmed) cmedNoItem(it);
+    if (k && data.lojas) { const d0 = it.D[0]; lojasNoItem(it); cmedNoItem(it); if (d0) it.D = [d0, ...it.D.filter(d => N(d) !== N(d0))]; it.T = it.D.map(N); }
+    if (!it.barcode) it.barcode = 'SEM CODIGO';
+    if (!it.D.length) semDesc.push(it);
+  }
+  const ok = its.filter(it => it.D.length);
+  const R = ok.length ? await runAll({ items: ok, silent: true }) : [];
+  Q_RES = R;
+  for (const r of R) {
+    const an = baseAnvisa(r.it);
+    tb.append(el('tr', {}, el('td', {}, String(r.it.barcode)), el('td', {}, r.desc || ''), el('td', {}, r.fab || ''), el('td', {}, r.marca || ''),
+      el('td', { class: 'num' }, r.qt === null ? '' : String(r.qt)), el('td', {}, nomeOf(r.cat)), el('td', {}, (K.estMer7 || {})[r.cat] || ''),
+      el('td', { class: an === 'NAO' ? 'anv-nao' : 'anv-sim' }, an), el('td', {}, r.status || ''), el('td', {}, r.alerts.join('; '))));
+  }
+  for (const it of semDesc) tb.append(el('tr', {}, el('td', {}, String(it.barcode)), el('td', { colspan: '9' }, 'Sem descrição: código não está no backlog, nas lojas nem na base da Anvisa. Cole a descrição.')));
+  const nA = R.filter(r => baseAnvisa(r.it) !== 'NAO').length;
+  st.textContent = `${R.length} itens classificados` + (semDesc.length ? ` · ${semDesc.length} sem descrição` : '') + ` · ${nA} na base da Anvisa (garantidos) · ${R.length - nA} para validar`;
+  $('#qExport').disabled = !R.length;
+}
+$('#qExport').addEventListener('click', async () => {
+  if (!Q_RES || !Q_RES.length) return;
+  try { const buf = buildWorkbook(Q_RES); await salvarArquivo('CONSULTA_CLASSIFICADA.xlsx', new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); $('#qMultiSt').textContent += ' · planilha salva'; }
+  catch (e) { $('#qMultiSt').textContent = e.code === 'declined' ? 'Download cancelado.' : 'Não consegui salvar a planilha (' + (e.code || e.message) + ').'; }
+});
+// textarea cresce com o conteúdo colado (até ~10 linhas); Enter sozinho classifica, Shift+Enter quebra a linha
+$('#qDesc').addEventListener('input', e => { const t = e.target; t.rows = Math.min(10, Math.max(1, t.value.split('\n').length)); });
+$('#qDesc').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.target.value.includes('\n')) { e.preventDefault(); $('#qForm').requestSubmit(); } });
 $('#qForm').addEventListener('submit', async e => {
   e.preventDefault();
   const sku = $('#qSku').value.trim(), desc = $('#qDesc').value.trim();
+  if (desc.includes('\n') || desc.includes('\t')) { const btn = $('#qBtn'); btn.disabled = true; btn.textContent = 'Classificando…';
+    try { await consultaVarias($('#qDesc').value); } catch (err) { $('#qMultiSt').textContent = 'Não consegui classificar: ' + err.message; }
+    finally { btn.disabled = false; btn.textContent = 'Classificar'; } return; }
+  $('#qMulti').classList.add('hidden');
   const out = $('#qOut'), res = $('#qRes'), al = $('#qAl'), btn = $('#qBtn');
   const aviso = t => { res.innerHTML = ''; al.innerHTML = ''; al.append(el('div', { class: 'msg warn' }, t)); out.classList.remove('hidden'); };
   if (!sku && !desc) { aviso('Cole a descrição do produto (o código é opcional).'); $('#qDesc').focus(); return; }
@@ -2883,6 +2966,7 @@ $('#qForm').addEventListener('submit', async e => {
       qTile('Marca', r.marca),
       qTile('Fabricante', r.fab),
       qTile('Conteúdo', r.qt === null ? '' : fmtUnit(r.qt, r.qbase)),
+      qTile('Base Anvisa', baseAnvisa(r.it), baseAnvisa(r.it) === 'NAO' ? 'validar' : 'garantido, não precisa validar'),
       qTile('Descritivo padronizado', r.desc, it.lojaUsada ? 'descrição da loja usada: ' + it.lojaUsada : doArq ? 'descrições do backlog usadas também' : '', true));
     if (r.cat === OUT) al.append(el('span', { class: 'pill b' }, 'Nenhuma categoria reconhecida'));
     for (const a of r.alerts) al.append(el('span', { class: 'pill ' + (/^Categoria pel/.test(a) && !/revisar|validação|corrigido/.test(a) ? 'a' : 'w') }, a));
