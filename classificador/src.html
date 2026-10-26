@@ -1085,6 +1085,21 @@ function melCat(T, C, cesta0) {
   if (RX_FLORADA.test(t)) return ok('MEL MONOFLORAL');
   return ok('MEL POLIFLORAL');
 }
+// garrafa térmica: garrafa/GF/bule/termo/ampola com TERMICA, ISOTERMICA, INOX, PAREDE DUPLA, VACUO, PRESSAO, TERMOS, ou de marca térmica
+const RX_GARRAFA_INI = /^(GARRAFA|GARRAFAS|GARRAF|GARR|GF|BULE|TERMO|TERMOS|AMPOLA|REFIL GARRAFA|TERMICA|TERMICO)(?![A-Z])/;
+const RX_TERMICA_W = /(?<![A-Z])(TERMICA|TERMICAS|TERMICO|TERMICOS|TERM|ISOTERMICA|ISOTERMICO|ISOTERM|INOX|ACO INOX|PAREDE DUPLA|DUPLA PAREDE|VACUO|PRESSAO|TERMOS|TERMO|STANLEY|TERMOLAR|INVICTA|SOPRANO TERM\w*|HYDRO ?FLASK|THERMOS|ZOJIRUSHI|NIGRAS|BRASFORT TERM\w*)(?![A-Z])/;
+function garrafaTermicaCat(T, C) {
+  if (!T || !T.length || !T[0]) return null; const lib = C.libNames || C.names; if (!lib.has('GARRAFA TERMICA')) return null;
+  const t = T[0].replace(/^(\*|ZZ)+/, '').trim();
+  if (/^SQUEEZE(?![A-Z])/.test(t) && /(?<![A-Z])(TERMICA|TERMICO|ISOTERMICA|ISOTERMICO|PAREDE DUPLA|VACUO)(?![A-Z])/.test(t)) return 'GARRAFA TERMICA'; // squeeze térmico
+  if (/^(TERMOLAR|STANLEY|INVICTA|THERMOS|HYDRO FLASK|SOPRANO|MOR|PACCO) (GARRAFA|GF|BULE|TERMICA|TERMICO|TERMO)(?![A-Z])/.test(t)) return 'GARRAFA TERMICA'; // marca térmica antes do tipo
+  if (!RX_GARRAFA_INI.test(t) || !RX_TERMICA_W.test(t)) return null;
+  if (/^(AMPOLA|TERMO|TERMOS)(?![A-Z])/.test(t) && !/(?<![A-Z])(TERMICA|TERMICO|TERM|INOX|ISOTERMIC\w*|GARRAFA)(?![A-Z])/.test(t.replace(/^(TERMO|TERMOS) /, ''))) return null; // ampola de tratamento, termo de garantia
+  if (/(?<![A-Z])(SQUEEZE|CANECA|COPO|JARRA|CAIXA|BOLSA|BAU|BALDE|LANCHEIRA|MARMITA|POTE|CUIA|BOMBA|SACOLA|TAMPA PARA|ROLHA|ESCOVA|LIMPADOR|ADESIVO|CAPA|CERVEJA|VINHO|AGUA MINERAL|SUCO|CACHACA)(?![A-Z])/.test(t)
+      && !/^(GARRAFA|GF|BULE) TERM/.test(t)) return null;
+  if (/^(TERMO|TERMOS)(?![A-Z])/.test(t) && /(?<![A-Z])(METRO|HIGROMETRO|STATO|STATICO|DIGITAL)(?![A-Z])/.test(t)) return null; // termômetro / termostato
+  return 'GARRAFA TERMICA';
+}
 function misturaCat(T, C, cat) {
   if (!T.length) return null; const lib = C.libNames || C.names; const ok = n => lib.has(n) ? n : null;
   const t = T[0].replace(/^(\*|ZZ)+/, '').trim(), all = T.join(' | ');
@@ -1186,6 +1201,7 @@ function aggregate1(T0, sug, C, main) {
   { const bc = biscoitoCat(T, C); if (bc) return Object.assign(r, { cat: bc, flag: 'BISCOITO_TIPO', per: r.per.map(() => bc) }); }
   { const mi = massaInstCat(T, C); if (mi) return Object.assign(r, { cat: mi, flag: 'MASSA_INST', per: r.per.map(() => mi) }); }
   { const ml = melCat(T, C, cestaOf(r.cat)); if (ml) return Object.assign(r, { cat: ml, flag: 'MEL_TIPO', per: r.per.map(() => ml) }); }
+  { const gt = garrafaTermicaCat(T, C); if (gt) return Object.assign(r, { cat: gt, flag: 'GARRAFA_TERMICA', per: r.per.map(() => gt) }); }
   { const mc = misturaCat(T, C, r.cat); if (mc && mc !== r.cat) return Object.assign(r, { cat: mc, flag: 'MISTURA_TIPO', per: r.per.map(() => mc) }); }
   { const dc = doceCat(T, C); if (dc) return Object.assign(r, { cat: dc, flag: 'DOCE_REGRA', per: r.per.map(() => dc) }); }
   { const cp = chocPoCat(T, C); if (cp) return Object.assign(r, { cat: cp, flag: 'CHOCPO_VENCE', per: r.per.map(() => cp) }); }
@@ -1735,8 +1751,9 @@ function categoriaArquivo(it, a, byName, C) {
   // tipo do biscoito escrito na descrição (ROSCA, AMANTEIGADO, POLVILHO…) vence BISCOITO OUTROS / categoria de fora dos biscoitos do arquivo
   const biscForte = a.flag === 'BISCOITO_TIPO' && (s === 'BISCOITO OUTROS' || !/^BISCOITO/.test(s));
   const instForte = a.flag === 'MASSA_INST' && !/^MASSA INSTANTANEA/.test(s);
+  const gtForte = a.flag === 'GARRAFA_TERMICA' && s !== 'GARRAFA TERMICA' && c1.cesta !== 'FARMACIA'; // garrafa térmica escrita vence GARRAFA OUTROS / TERMICO OUTROS do arquivo
   const melForte = a.flag === 'MEL_TIPO' && !/^(MEL |COMPOSTO DE MEL|EXTRATO DE PROPOLIS)/.test(s) && c1.cesta !== 'FARMACIA'; // mel escrito vence outra categoria do arquivo (farmácia intocada) // INST / LAMEN escrito: arquivo com MASSA TRADICIONAL não vale
-  if (REGRA_FORTE.has(a.flag) || biscForte || instForte || melForte) {
+  if (REGRA_FORTE.has(a.flag) || biscForte || instForte || melForte || gtForte) {
     if (passe && passe.soDesc) return Object.assign({}, a, { regraForte: s }); // só descritivo também troca: é regra ensinada (status avisa)
     if (!sempreArq()) return Object.assign({}, a, { arqTrocada: s });
   }
@@ -1914,6 +1931,8 @@ async function runCore(pfx = '') {
       marca = bn ? BD.map.get(bn).canon : 'OUTRA MARCA';
       fab = bn ? fabricante(bn, seg, BD) : (prioArq() && valido(it.sugFab) ? it.sugFab.trim() : 'OUTRO FABRICANTE'); // sem marca: fica o fabricante do arquivo
       if (marcaArq && bn) arqAl.push(`Arquivo: marca ${it.sugMarca.trim()} não aparece na descrição; usada ${marca}`);
+      // MOR (utilidades) é palavra genérica (morango) para o resto: no bazar/garrafa vale como marca
+      if (!bn && !marcaArq && cc && cc.cesta === 'BAZAR' && data.dima && data.dima.map.has('MOR') && T.some(t => /(?<![A-Z])MOR(?![A-Z])/.test(t))) { bn = 'MOR'; BD = data.dima; marca = BD.map.get(bn).canon; fab = fabricante(bn, seg, BD); }
       if (!marcaArq && bn && prioArq() && valido(it.sugFab) && N(it.sugFab) !== N(fab)) {
         const b = BD.map.get(bn); const conhecidos = new Set([...b.fabAll.keys()].map(N));
         if (conhecidos.has(N(it.sugFab))) fab = it.sugFab.trim(); }
@@ -1971,6 +1990,13 @@ async function runCore(pfx = '') {
     if (q.tot === null) { const kg = Tq.some(t => /(?<![A-Z0-9])(KG|KILO|QUILO|GRANEL)(?![A-Z0-9])/.test(t));
       q = { tot: kg ? 1000 : 1, base: kg ? 'G' : 'UN', n: 1, uv: kg ? 1000 : 1, flag: 'QTD_PADRAO' }; }
     if (!q.base) q = Object.assign({}, q, { base: 'UN' });
+    // GARRAFA TERMICA: o conteúdo é a unidade (1UN, ou o pack 2UN/KIT 3); a litragem (1L, 500ML) é complemento do descritivo
+    let volGarrafa = '';
+    if (a.cat === 'GARRAFA TERMICA') {
+      const vs = Tq.flatMap(t => parseQ(t)).filter(x => x[1] === 'ML'); if (vs.length) volGarrafa = fmtUnit(vs[0][3] || vs[0][0], 'ML');
+      const kit = Tq.map(t => /(?<![A-Z])(?:KIT|JOGO|CONJUNTO|CJ|C\/?)\s*(?:COM\s*)?(\d{1,2})(?![0-9.,]|\s*(?:ML|L|LT|G|KG))|(?<![0-9.,])(\d{1,2})\s*(?:GARRAFAS|UNIDADES|UNID|UND|UN|PCS|PECAS)(?![A-Z])/.exec(t)).find(Boolean);
+      if (q.base !== 'UN') { const n = (q.n && q.n > 1) ? q.n : kit ? +(kit[1] || kit[2]) : (countQty(Tq) || {}).tot || 1; q = { tot: n, base: 'UN', n: 1, uv: n, flag: '' }; qDesc = true; }
+    }
     // Farmácia sem início fixo no manual: começa pela marca; sem marca, pelo princípio ativo (ou pelo nome do produto)
     const farmaLivre = cc && cc.cesta === 'FARMACIA' && !cc.inicio;
     const paHit = farmaLivre && !bn && C.pa ? T.map(t => matchPA(t, C.pa)).find(Boolean) : null;
@@ -1995,6 +2021,8 @@ async function runCore(pfx = '') {
     let compW = comp ? comp.split(' ') : [], iniTxt = ini;
     // AZEITONA: AZEITONA + informações (abreviadas: INT, RECH, FAT, S/C, C/C, VD, SCH) + MARCA + quantidade
     const azeit = a.cat === 'AZEITONA';
+    if (volGarrafa && !compW.includes(volGarrafa)) compW.push(volGarrafa);
+    if (a.cat === 'GARRAFA TERMICA' && T2.some(t => /(?<![A-Z])REFIL(?![A-Z])/.test(t)) && !compW.includes('REFIL')) compW.unshift('REFIL');
     if (azeit) { compW = azeitonaComp(compW); const tt = T2.join(' ');
       // embalagem logo depois das informações abreviadas (INT, RECH, FAT, S/C, C/C)
       const put = w => { if (compW.includes(w)) return; let k = -1; compW.forEach((x, j) => { if (['INT', 'RECH', 'FAT', 'SXBC', 'CXBC', 'VD', 'SCH'].includes(x)) k = j; }); compW.splice(k + 1, 0, w); };
@@ -2545,7 +2573,7 @@ function migrarCategorias() {
   // início cadastrado errado na biblioteca (CREME DE AMENDOIM vinha como CHOCOLATE COBERTURA): corrige sempre
   const INICIO_FIX = { 'CREME DE AMENDOIM': ['CHOCOLATE COBERTURA', 'CREME DE AMENDOIM'] };
   for (const c of cfg.categorias || []) { const f = INICIO_FIX[c.nome]; if (f && N(c.inicio || '') === f[0]) { c.inicio = f[1]; c.dinamico = false; n++; } }
-  const REMOVER_PATCH = { 'LINGUICA DEFUMADA': ['DEF', 'DEFUM'], 'CHOCOLATE EM PO OUTROS': ['SOL'], 'OTP - OUTROS TABACO': ['ESS', 'ESSENC', 'ESSENCIAS'], 'VINAGRE ALCOOL': ['ALC', 'VINAG', 'VINAGRES'], 'CEREAL EM BARRA PROTEICO': ['PROTEINA', 'PROTEINAS', 'PROTEICA', 'PROTEICAS', 'PROTEICO', 'PROTEIN', 'BAR', 'BARS', 'BARRA', 'BARRAS', 'BARRINHA', 'BARRINHAS', 'HIPERPROTEICA'], 'CREME DE AMENDOIM': ['CREME', 'PASTA', 'MANTEIGA', 'AMENDOIM', 'CR'], 'BALA PASTILHA': ['DURA', 'DURAS', 'DUR', 'BALA', 'BALAS', 'BALINHA', 'BALINHAS'], 'SABAO LIQUIDO': ['LAVA', 'ROUPA', 'ROUPAS', 'LV', 'LAVAR', 'LQ'], 'SABAO EM PO': ['LAVA', 'ROUPA', 'ROUPAS', 'LV', 'LAVAR', 'DET'], 'SABAO EM PEDRA': ['LAVA', 'ROUPA', 'ROUPAS', 'BARRA', 'BARRAS', 'BAR'], 'SABAO EM PASTA': ['LAVA', 'ROUPA', 'ROUPAS'], 'SABAO': ['LAVA', 'ROUPA', 'ROUPAS', 'LV'], 'DETERGENTE LIQUIDO': ['LAVA', 'LOUCA', 'LOUCAS', 'DET', 'DETERG', 'LQ'], 'BISCOITO ROSQUINHA': ['ROSCA', 'ROSCAS', 'ROSQ', 'ROSQUINHAS', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO AMANTEIGADO': ['AMANT', 'AMANTEIG', 'AMANTEIGAD', 'AMANTEIGADOS', 'AMANTEIGADA', 'AMANTEIGADAS', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO RECHEADO': ['RECH', 'RECHEADOS', 'RECHEADA', 'RECHEADAS', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO WAFER': ['WAF', 'WAFERS', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO SEQUILHOS': ['SEQ', 'SEQUI', 'SEQUILHO', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO POLVILHO': ['POLV', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO CHAMPANHE': ['CHAMP', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO COOKIE': ['COOKIES', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO SALGADO OUTROS': ['SALG', 'SALGADOS', 'SALGADA', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO MAISENA': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO LEITE': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO AGUA E SAL': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO PALITO': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO TORTINHA': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO COBERTURA': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO CASEIRO': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO OUTROS': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'MASSA INSTANTANEA TRADICIONAL': ['MASSA', 'MASSAS', 'TRADICIONAL', 'TRAD', 'MAC', 'MACARRAO', 'INST', 'INSTANT', 'INSTANTANEO', 'INSTANTANEA', 'INSTANTANEOS'], 'MASSA INSTANTANEA COPO': ['MASSA', 'MASSAS', 'TRADICIONAL', 'TRAD', 'MAC', 'MACARRAO', 'INST', 'INSTANT', 'INSTANTANEO', 'INSTANTANEA', 'INSTANTANEOS'], 'PIPOCA MICRO-ONDAS': ['MICROONDAS', 'MICROONDA', 'MICROWAVE', 'MICROOND', 'ONDAS', 'ONDA', 'MIC', 'PIP', 'PIPOC', 'POPCORN', 'MO'] };
+  const REMOVER_PATCH = { 'LINGUICA DEFUMADA': ['DEF', 'DEFUM'], 'CHOCOLATE EM PO OUTROS': ['SOL'], 'OTP - OUTROS TABACO': ['ESS', 'ESSENC', 'ESSENCIAS'], 'VINAGRE ALCOOL': ['ALC', 'VINAG', 'VINAGRES'], 'CEREAL EM BARRA PROTEICO': ['PROTEINA', 'PROTEINAS', 'PROTEICA', 'PROTEICAS', 'PROTEICO', 'PROTEIN', 'BAR', 'BARS', 'BARRA', 'BARRAS', 'BARRINHA', 'BARRINHAS', 'HIPERPROTEICA'], 'CREME DE AMENDOIM': ['CREME', 'PASTA', 'MANTEIGA', 'AMENDOIM', 'CR'], 'BALA PASTILHA': ['DURA', 'DURAS', 'DUR', 'BALA', 'BALAS', 'BALINHA', 'BALINHAS'], 'SABAO LIQUIDO': ['LAVA', 'ROUPA', 'ROUPAS', 'LV', 'LAVAR', 'LQ'], 'SABAO EM PO': ['LAVA', 'ROUPA', 'ROUPAS', 'LV', 'LAVAR', 'DET'], 'SABAO EM PEDRA': ['LAVA', 'ROUPA', 'ROUPAS', 'BARRA', 'BARRAS', 'BAR'], 'SABAO EM PASTA': ['LAVA', 'ROUPA', 'ROUPAS'], 'SABAO': ['LAVA', 'ROUPA', 'ROUPAS', 'LV'], 'DETERGENTE LIQUIDO': ['LAVA', 'LOUCA', 'LOUCAS', 'DET', 'DETERG', 'LQ'], 'BISCOITO ROSQUINHA': ['ROSCA', 'ROSCAS', 'ROSQ', 'ROSQUINHAS', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO AMANTEIGADO': ['AMANT', 'AMANTEIG', 'AMANTEIGAD', 'AMANTEIGADOS', 'AMANTEIGADA', 'AMANTEIGADAS', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO RECHEADO': ['RECH', 'RECHEADOS', 'RECHEADA', 'RECHEADAS', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO WAFER': ['WAF', 'WAFERS', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO SEQUILHOS': ['SEQ', 'SEQUI', 'SEQUILHO', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO POLVILHO': ['POLV', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO CHAMPANHE': ['CHAMP', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO COOKIE': ['COOKIES', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO SALGADO OUTROS': ['SALG', 'SALGADOS', 'SALGADA', 'BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO MAISENA': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO LEITE': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO AGUA E SAL': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO PALITO': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO TORTINHA': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO COBERTURA': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO CASEIRO': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'BISCOITO OUTROS': ['BOLACHA', 'BOLACHAS', 'BOLACH', 'BISC', 'BISCOITOS', 'XISC'], 'MASSA INSTANTANEA TRADICIONAL': ['MASSA', 'MASSAS', 'TRADICIONAL', 'TRAD', 'MAC', 'MACARRAO', 'INST', 'INSTANT', 'INSTANTANEO', 'INSTANTANEA', 'INSTANTANEOS'], 'MASSA INSTANTANEA COPO': ['MASSA', 'MASSAS', 'TRADICIONAL', 'TRAD', 'MAC', 'MACARRAO', 'INST', 'INSTANT', 'INSTANTANEO', 'INSTANTANEA', 'INSTANTANEOS'], 'GARRAFA TERMICA': ['MORANGO', 'TERM', 'GF', 'GARR', 'GARRAF'], 'PIPOCA MICRO-ONDAS': ['MICROONDAS', 'MICROONDA', 'MICROWAVE', 'MICROOND', 'ONDAS', 'ONDA', 'MIC', 'PIP', 'PIPOC', 'POPCORN', 'MO'] };
   for (const c of cfg.categorias || []) { const r = REMOVER_PATCH[c.nome]; if (r) for (const w of r) if (!(c.remover || []).includes(w)) { c.remover = [...(c.remover || []), w]; n++; } }
   // início fixo para categorias que estavam sem início (K.inicioPatch); quem já tem início definido fica como está
   for (const c of cfg.categorias || []) { const v = (K.inicioPatch || {})[c.nome]; if (v && !(c.inicio || '').trim()) { c.inicio = v; c.dinamico = false; n++; } }
