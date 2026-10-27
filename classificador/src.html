@@ -2246,6 +2246,11 @@ async function runAll(opts = {}) {
   // uma marca = um fabricante no arquivo inteiro, em todas as cestas (Farmácia genérico também: a sigla separa NIMESULIDA ALT
   // de NIMESULIDA EMS); linha da marca com OUTRO FABRICANTE ganha o fabricante da marca (ZINCO KIDS CAT).
   // Fabricante da marca: 1º o que tem a sigla da marca (CEBION MER -> MERCK), 2º o da marca na DIMA, 3º o mais comum no arquivo
+  // fabricante conhecido nunca fica com OUTRA MARCA (em nenhuma cesta): a marca é o nome do fabricante (+ sigla em Farmácia)
+  for (const r of res) { if (r.marca !== 'OUTRA MARCA' || !valido(r.fab) || r.fab === 'OUTRO FABRICANTE' || /CODIGO INTERNO/.test(r.cat)) continue;
+    const nm = N(r.fab).split(' ').filter(w => !FAB_LIXO.has(w) && !/^(LTDA|IND|COM|ALIM|IMP|EXP|ME|SA|DO|DA|DE|E|BRASIL|PRODUTOS|NATURAIS)$/.test(w)).slice(0, 2).join(' ') || N(r.fab);
+    const s2 = r.farma ? (SIG().fab[N(r.fab)] || siglaGerada(r.fab)) : ''; const m2 = nm + (s2 && !nm.endsWith(' ' + s2) ? ' ' + s2 : '');
+    r.alerts.push(`Marca ${m2} pelo nome do fabricante (fabricante conhecido não fica com OUTRA MARCA)`); r.marca = m2; r.status = statusCadastro(r.marca, r.fab, r.farma); }
   // genérico (princípio ativo + sigla): a sigla é sempre a do fabricante da linha (AMBROXOL MED com TEUTO -> AMBROXOL TEU)
   for (const r of res) { if (!r.farma || !valido(r.fab) || r.fab === 'OUTRO FABRICANTE') continue;
     const mm = /^(.*) ([A-Z0-9]{3})$/.exec(N(r.marca)); if (!mm || !ehGenericoNome(mm[1])) continue;
