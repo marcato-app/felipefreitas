@@ -875,3 +875,14 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
 - Testes:
   - DIMA: 1.567 → 1.571 categorias certas.
   - Vitaminas: marca 7.191 → 7.211 e fabricante 7.273 → 7.295.
+
+### 3.6s Fabricante conhecido nunca fica com OUTRA MARCA; Farmácia do arquivo não sai por palavra de sabor
+- Quando o arquivo diz Farmácia, a descrição pode trazer uma palavra de outra cesta. Se ela também tiver forma ou uso de farmácia, o item fica na Farmácia.
+  - Formas e usos aceitos: spray, pastilha, drops, própolis, mentol, eucalipto, gengibre, malva, reidratante, colágeno, SUPL ALIM, descartável, dentadura, prótese, bengala, muleta, pediátrico.
+  - Exemplos: BROMELIS spray não vai para a fruta ABACAXI, VICK DROPS não vai para BALA PASTILHA, agulha descartável não vai para ACESSORIO COSTURA, REHIDRAT não vai para UVA.
+- Última regra, em todas as cestas: se o fabricante é conhecido e a marca ainda é OUTRA MARCA, a marca vira o nome do fabricante (com a sigla em Farmácia).
+  - OUTRA MARCA agora só aparece com OUTRO FABRICANTE.
+- Testes:
+  - Hoja: marca certa 1.432 → 1.455.
+  - Vitaminas: marca 7.211 → 7.215 e fabricante 7.295 → 7.297.
+  - DIMA: igual.
