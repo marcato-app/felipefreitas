@@ -2263,13 +2263,13 @@ async function runAll(opts = {}) {
       const fs = [...cnt.keys()], sg = (/ ([A-Z0-9]{3})$/.exec(N(m)) || [])[1];
       const mais = l => l.sort((x, y) => cnt.get(y) - cnt.get(x))[0];
       let dono = null; const ss = sg ? fs.filter(f => siglaDoFab(sg, f)) : [];
-      // 0º o fabricante da marca na base de Farmácia do cliente (NEEDS -> RAIA DROGASIL SA)
-      { const fm = (K.farmaMarcas || []).find(x => N(x[0]) === N(semSigla(m)) || N(x[0]) === N(m).replace(/ [A-Z0-9]{3}$/, '')); if (fm && fm[2]) { const f0 = fs.find(f => N(f) === N(fm[2])); if (f0) dono = f0; } }
+      // 1º o fabricante dono da sigla da marca (DPREV MYR -> MYRALIS); 2º o da marca na base de Farmácia do cliente (NEEDS -> RAIA DROGASIL SA)
+      if (ss.length) dono = mais(ss);
+      if (!dono) { const fm = (K.farmaMarcas || []).find(x => N(x[0]) === N(semSigla(m)) || N(x[0]) === N(m).replace(/ [A-Z0-9]{3}$/, '')); if (fm && fm[2]) { const f0 = fs.find(f => N(f) === N(fm[2])); if (f0) dono = f0; } }
       // 1º o fabricante com o nome da marca (MERCUR -> MERCUR SA, não MERCK pela sigla MER; VABENE; IDEAL)
       const w0 = N(semSigla(m)).split(' ')[0];
       const comNome = w0.length >= 4 ? fs.filter(f => (N(f).split(' ').includes(w0) || N(f).replace(/ /g, '').startsWith(w0)) && baseCadastro().f.has(N(f))) : [];
       if (!dono && comNome.length) dono = mais(comNome);
-      if (!dono && ss.length) dono = mais(ss);
       // depois o fabricante do arquivo que já existe na base (BAND-AID -> KENVUE, não OPHTHALMOS da DIMA)
       if (!dono) { const arq = fs.filter(f => rs.some(r => r.fab === f && prioArq() && fabArqExiste(r.it.sugFab) && N(r.it.sugFab) === N(f))); if (arq.length) dono = mais(arq); }
       if (!dono && data.dima) { const b = data.dima.map.get(N(m)) || data.dima.map.get(N(semSigla(m))); let v = 0;
@@ -2292,7 +2292,8 @@ async function runAll(opts = {}) {
         // fabricante do arquivo que já existe e a marca não é a do arquivo (o app achou a marca por uma palavra da descrição):
         // fica o fabricante, e a marca volta a ser a do arquivo quando ela vale
         if (!gen && prioArq() && fabArqExiste(r.it.sugFab) && N(r.fab) === N(r.it.sugFab) && valido(r.it.sugMarca) && N(r.it.sugMarca) !== N(m) && !farmaNaoMarca(N(r.it.sugMarca), C)) {
-          r.alerts.push(`Marca do arquivo mantida: ${r.it.sugMarca.trim()} (${m} é de ${dono})`); r.marca = r.it.sugMarca.trim(); r.status = statusCadastro(r.marca, r.fab, r.farma); continue; }
+          const mA = r.it.sugMarca.trim(), sA = SIG().fab[N(r.fab)] || siglaGerada(r.fab); // remédio sempre com a sigla do fabricante
+          r.alerts.push(`Marca do arquivo mantida: ${mA} (${m} é de ${dono})`); r.marca = (r.farma && sA && !/ [A-Z0-9]{3}$/.test(N(mA))) ? mA + ' ' + sA : mA; r.status = statusCadastro(r.marca, r.fab, r.farma); continue; }
         // genérico de outro laboratório (AMBROXOL MED com TEUTO): a marca leva a sigla do laboratório dele, a não ser que a
         // própria descrição traga a sigla da marca (aí o fabricante é que estava errado)
         if (gen && !semFab(r)) { const s2 = SIG().fab[N(r.fab)] || siglaGerada(r.fab);
