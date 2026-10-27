@@ -1,0 +1,49 @@
+# Correções de categoria de Farmácia (revisão manual do Detalhe 2, 26/10/2026). Vale só para item já em categoria de remédio.
+# regex (na descrição normalizada)	código EphMRA da categoria certa	por quê
+(?<![A-Z])DORALGINA(?!.*DIPCAF)	A03D	dipirona + isometepteno + cafeína (como NEOSALDINA)
+(?<![A-Z])NEOSALDINA(?!.*MUSCULAR)	A03D	dipirona + isometepteno + cafeína
+(?<![A-Z])NEOSORO(?!.*(FLUID|0\.9|9 ?MG))	R01A7	nafazolina: descongestionante nasal
+(?<![A-Z])(NEOSORO|NARIX|SORINE).*(FLUID|0\.9|9 ?MG|JET|BABY)	R01A9	soro fisiológico nasal
+(?<![A-Z])PASALIX(?![A-Z])	N05B2	sedativo fitoterápico
+(?<![A-Z])GASTROGEL(?![A-Z])	A02A4	alumínio + magnésio + simeticona
+(?<![A-Z])MINOXIDIL(?!.*(CPR|COMP|CPS|CAPS))	D11A	minoxidil capilar (solução/spray), não o comprimido anti-hipertensivo
+(?<![A-Z])TOBRACORT(?![A-Z])	S01C1	tobramicina + dexametasona oftálmica
+(?<![A-Z])CIMEGRIPE.*(CPR|CPS|CAPS|COMP|SOL|ML|ENV|SACH)	R05A	antigripal (paracetamol + clorfeniramina + fenilefrina)
+(?<![A-Z])(EMLA|PASSAJA|XYLOCAINA (POMADA|GEL|SPRAY|POM))(?![A-Z])	N01B3	anestésico local tópico
+(?<![A-Z])(DORFLEX(?!.*(ICY|GEL|SPRAY|ADES|EMPLASTRO))|DORICIN|BESEROL|TANDRILAX)(?![A-Z])	M03B	relaxante muscular de ação central (orfenadrina/carisoprodol)
+(?<![A-Z])(DIPROSPAN|PERMESE)(?![A-Z])	H02A1	corticoide injetável
+(?<![A-Z])(MIRUGELL|PLENIGELL)(?![A-Z])	S01K1	lágrima artificial
+(?<![A-Z])(AMBROXMEL|EXPEC (MUCK|PULMON))(?![A-Z])	R05C	expectorante
+(?<![A-Z])(COLPATRIN|GYNOTRAN)(?![A-Z])	G01A2	tricomonicida vaginal (tópico)
+(?<![A-Z])(EVRA|NUVARING)(?![A-Z])	G03A9	contraceptivo hormonal (adesivo/anel)
+(?<![A-Z])(ASPIRINA|CAFIASPIRINA)(?!.*PREVENT)	N02B	analgésico não narcótico
+(?<![A-Z])MULTIGRIP(?![A-Z])	R05A	antigripal
+(?<![A-Z])RAPILAX LACTU	A06A6	lactulose: laxante osmótico
+(?<![A-Z])(OMEPRAZOL|PANTOPRAZOL|ESOMEPRAZOL|LANSOPRAZOL|RABEPRAZOL|DEXLANSOPRAZOL)(?![A-Z])	A02B2	inibidor da bomba de prótons
+(?<![A-Z])(ENGOV AFTER|XANTINON REIDRATANTE|ENGOV.*REIDRAT)	A07G	reidratante (não é o ENGOV comprimido)
+(?<![A-Z])ENGOV(?!.*(AFTER|REIDRAT))	N02B	analgésico (ENGOV AFTER é reidratante e fica)
+(?<![A-Z])(LUFTAL|SIMETICONA)(?!.*(MAGNES|ALUMIN|GASTRO|CARVAO))	A02A2	simeticona pura
+(?<![A-Z])CORISTINA(?![A-Z])	R05A	antigripal
+(?<![A-Z])DECONGEX(?![A-Z])	R01B	descongestionante nasal sistêmico
+(?<![A-Z])COSOPT(?![A-Z])	S01E2	antiglaucoma tópico
+(?<![A-Z])METAMUCIL(?![A-Z])	A06A3	psyllium: incrementador do bolo intestinal
+(?<![A-Z])BETRICORT(?![A-Z])	D07B3	betametasona + gentamicina + clotrimazol
+(?<![A-Z])BETACORTAZOL.*(CREME|CR|POMADA)	D07B2	betametasona + cetoconazol (creme)
+(?<![A-Z])(COD PARACETAMOL|PARACETAMOL.*CODEINA|CODEINA.*PARACETAMOL)	N02A	paracetamol + codeína: analgésico narcótico
+(?<![A-Z])VONAU(?![A-Z])	A04A1	ondansetrona
+(?<![A-Z])DRAMIN B6(?![A-Z])	A04A9	dimenidrinato + piridoxina
+(?<![A-Z])SEPURIN(?![A-Z])	G04A9	antisséptico urinário
+(?<![A-Z])CONTRACTUBEX(?![A-Z])	D11A	gel para cicatriz
+(?<![A-Z])TYLALGIN(?![A-Z])	N02B	paracetamol (+ cafeína)
+(?<![A-Z])(FERID POMADA|NEBACTRINA)(?![A-Z])	D06A	antibacteriano tópico
+(?<![A-Z])OPTI FREE(?![A-Z])	S01L	solução para lentes de contato
+(?<![A-Z])PERIVASC(?![A-Z])	C05C	diosmina + hesperidina
+(?<![A-Z])MERCILON(?![A-Z])	G03A1	desogestrel + 20 mcg de etinilestradiol
+(?<![A-Z])OTOSPORIN(?![A-Z])	S02C	antibiótico + corticoide otológico
+(?<![A-Z])CELECOXIBE(?![A-Z])	M01A3	coxib
+(?<![A-Z])PAXLOVID(?![A-Z])	J05B6	antiviral para covid
+(?<![A-Z])BEDOZE(?![A-Z])	A11F	vitamina B12 pura (CMED A11F)
+(?<![A-Z])(NUANCE|PRIMOSISTON)(?![A-Z])	G03F	estrógeno + progestógeno
+(?<![A-Z])DEXALGEN(?![A-Z])	M01B	antirreumático com corticoide
+(?<![A-Z])FUROSEMIDA(?![A-Z])	C03A2	diurético de alça
+(?<![A-Z])BENALET(?![A-Z])	R02A	pastilha para garganta

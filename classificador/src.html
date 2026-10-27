@@ -1739,16 +1739,43 @@ function labPorEAN(bc, supl) { const sk = String(bc || '').replace(/\D/g, '').re
   if (supl) { const l = deVit(); if (l) return l; }
   for (const n of (supl ? [9, 8] : [9, 8, 7])) { const l = data.cmedPref.get(sk.slice(0, n)); if (l) return labDaDescricao([l]) || l; } // suplemento: prefixo de 7 dígitos da CMED é largo demais (7898564: ABL x maca BEM ESTAR)
   return deVit(); }
+// mesma apresentação na CMED para código de barras fora da lista: produto + dose + forma iguais (de preferência do mesmo
+// laboratório pelo prefixo do código). A classe oficial dela vale para o item (PANTOPRAZOL 40MG não é antagonista H2)
+const FORMAS_AP = { SOLIDO: /(?<![A-Z])(COM|COMP|CPR|CPRS|CAP|CAPS|CPS|DRG|DRAG|DRAGEAS?|PAST|PASTILHAS?|TABS?|CM)(?![A-Z])/,
+  INJ: /(?<![A-Z])(INJ|INJETAVEL|IM|IV)(?![A-Z])/, SHAMPOO: /(?<![A-Z])(SHAMP|SHAMPOO|XAMPU)(?![A-Z])/,
+  PELE: /(?<![A-Z])(CREME|CREM|CR|POM|POMADA|GEL|LOC|LOCAO|DERM|DERMATOLOGICO|TOP)(?![A-Z])/, OLHO: /(?<![A-Z])(OFT|OFTALMICO|OFTALMICA|COLIRIO)(?![A-Z])/,
+  NARIZ: /(?<![A-Z])(NAS|NASAL)(?![A-Z])/, LIQ: /(?<![A-Z])(XPE|XAROPE|SUSP|SUSPENSAO|GOTAS|GTS|FLAC|FLACONETES?|SOL OR|SOLUCAO ORAL)(?![A-Z])/,
+  VAG: /(?<![A-Z])(VAG|VAGINAL|OVULOS?)(?![A-Z])/, INAL: /(?<![A-Z])(INAL|AEROSSOL|SPRAY ORAL)(?![A-Z])/ };
+const formaAp = t => new Set(Object.keys(FORMAS_AP).filter(k => FORMAS_AP[k].test(t)));
+const dosesAp = t => [...t.matchAll(/(\d+(?:\.\d+)*)\s*(?:MG|MCG|UI|%|MEQ|MMOL)(?![A-Z])/g)].map(m => { let x = m[1]; if (/^\d{1,3}(\.\d{3})+$/.test(x)) x = x.replace(/\./g, ''); return +x; }).sort((a, b) => a - b).join('|');
+const codClasse = c => { const m = /^\s*([A-Z])\s*(\d{1,2})\s*([A-Z])\s*(\d)?/.exec(N(c)); return m ? m[1] + m[2].padStart(2, '0') + m[3] + (m[4] || '') : ''; };
+function gemeaCmed(it) {
+  if (!data.cmedAp) return null; const sk = skuKey(it.barcode), pref = sk.length === 13 ? sk.slice(0, 7) : '';
+  for (const t of it.T || []) {
+    const d = dosesAp(t); if (!d) continue; const f = formaAp(t), w = t.split(' ');
+    for (let k = Math.min(3, w.length); k >= 1; k--) {
+      const L = data.cmedAp.get(w.slice(0, k).join(' ')); if (!L) continue;
+      const c = L.filter(x => x.doses === d && !(f.size && x.formas.size && ![...f].some(z => x.formas.has(z))));
+      const mesmo = pref ? c.filter(x => x.eans.some(e => e.startsWith(pref))) : [];
+      const use = mesmo.length ? mesmo : c; if (!use.length) continue;
+      const cods = new Set(use.map(x => codClasse(x.classe)).filter(Boolean)); if (cods.size !== 1) return null;
+      return Object.assign({ mesmoLab: !!mesmo.length }, use[0]);
+    }
+  }
+  return null;
+}
 function montaCmed(L) {
   montaPrefixos(L);
-  const m = new Map(), prod = new Map(), cls = new Map(), psub = new Map();
+  const m = new Map(), prod = new Map(), cls = new Map(), psub = new Map(), ap = new Map();
   for (const [eans, e] of L) {
+    if (e.classe && (!e.ed || (e.ed !== 'ABERTOS' && e.ed >= '20250101'))) { const kp = N(e.produto), ta = N(desgruda(e.produto + ' ' + e.apres)); // classe confiável: lista atual e de 2025 em diante
+      if (kp) { if (!ap.has(kp)) ap.set(kp, []); ap.get(kp).push({ produto: e.produto, apres: e.apres, classe: e.classe, subst: e.subst, eans: eans.map(String), doses: dosesAp(ta), formas: formaAp(ta) }); } }
     if (!psub.has(N(e.produto))) psub.set(N(e.produto), e.subst);
     { const kp = N(e.produto); if (kp) { if (!cls.has(kp)) cls.set(kp, new Map()); const c = cls.get(kp); c.set(e.classe, (c.get(e.classe) || 0) + 1); } }
     for (const k of eans) if (k && k.length >= 8) m.set(k, e);
     const n = parseU(N(desgruda(e.apres))); if (n) { const kp = N(e.produto); if (!prod.has(kp)) prod.set(kp, new Set()); prod.get(kp).add(n); }
   }
-  data.cmed = m; data.cmedProd = prod; data.cmedCls = cls; data.cmedProdSub = psub; data.cmedCod = null;
+  data.cmed = m; data.cmedProd = prod; data.cmedCls = cls; data.cmedProdSub = psub; data.cmedCod = null; data.cmedAp = ap;
   return { eans: m.size, produtos: prod.size };
 }
 let cmedP = null;
@@ -1793,8 +1820,8 @@ function baseAnvisa(it) {
   return 'SIM - CMED (LISTA ATUAL)';
 }
 function cmedNoItem(it) {
-  const e = data.cmed && data.cmed.get(skuKey(it.barcode)); it.cmed = e || null; it.cmedCat = '';
-  if (!e) return;
+  const e = data.cmed && data.cmed.get(skuKey(it.barcode)); it.cmed = e || null; it.cmedCat = ''; it.cmedGemea = null;
+  if (!e) { const g = gemeaCmed(it); if (g) { it.cmedGemea = g; it.cmedCat = catCmed(g.classe, g.subst, g.produto); } return; }
   const d = desgruda(`${e.produto} ${e.apres}`); // descrição oficial vira a principal (o laboratório vai direto para o fabricante)
   it.D = [d, ...it.D.filter(x => N(x) !== N(d))]; it.T = it.D.map(N); it.main = true; it.cmedCat = catCmed(e.classe, e.subst, e.produto);
 }
@@ -1814,8 +1841,18 @@ async function runAll(opts = {}) {
   // código de barras na lista da CMED: a classe terapêutica oficial decide quando o app deu outra cesta ou outro grupo ATC
   const cod4 = x => ((/^([A-Z]\d\d[A-Z])/.exec(nomeOf(x)) || [])[1] || '');
   items.forEach((it, i) => { const c = it.cmedCat, a = AGG[i]; if (!c || !C.names.has(c) || a.cat === c) return;
-    const cc = byName.get(a.cat); if (cc && cc.cesta === 'FARMACIA' && cod4(a.cat) && cod4(a.cat) === cod4(c)) return;
+    if (!it.cmed && it.cmedGemea && !cod4(a.cat)) return; // mesma apresentação (sem o código) só corrige item que já é remédio: FITA, suplemento NAC ficam
+    // mesmo grupo ATC: fica a subcategoria do app/arquivo, a não ser que a classe oficial diga a subcategoria (A2B2 -> A02B2, não A02B1)
+    const k5 = (/^([A-Z]\d\d[A-Z]\d)/.exec(nomeOf(c)) || [])[1], ce = it.cmed || it.cmedGemea;
+    const cc = byName.get(a.cat); if (cc && cc.cesta === 'FARMACIA' && cod4(a.cat) && cod4(a.cat) === cod4(c) && !(k5 && ce && codClasse(ce.classe) === k5)) return;
     AGG[i] = Object.assign({}, a, { cat: c, cmedTrocou: a.cat }); });
+  // correções manuais de categoria (dados/farma_correcoes_categoria.tsv): só em item que já é remédio
+  if ((K.farmaCatFix || []).length) {
+    const porCod = cod => { const c = cfg.categorias.find(x => x.cesta === 'FARMACIA' && (nomeOf(x.nome) + ' ').startsWith(cod + ' ')); return c ? c.nome : null; };
+    const FX = K.farmaCatFix.map(([r, c]) => [new RegExp(r), porCod(c)]).filter(x => x[1]);
+    items.forEach((it, i) => { const a = AGG[i]; if (!cod4(a.cat)) return; const TT = a.T || it.T;
+      for (const [rx, c] of FX) if (TT.some(t => rx.test(t))) { if (c !== a.cat) AGG[i] = Object.assign({}, a, { cat: c, per: a.per.map(() => c), fixTrocou: a.cat }); break; } });
+  }
   // antifúngico em creme/pomada/aerossol/pó de uso na pele vai para D01A1, mesmo quando a marca, o princípio ativo ou a CMED
   // dão a classe ginecológica/sistêmica/oral (ISOCONAZOL CREME DERMATOLOGICO, IZONAX CREME, VODOL AEROSOL, NISTATINA + ÓXIDO DE ZINCO)
   if (C.names.has(ANTIF_DERM)) items.forEach((it, i) => { const a = AGG[i]; if (!ANTIF_OUTRA.test(a.cat)) return;
@@ -2165,6 +2202,8 @@ async function runAll(opts = {}) {
       if (C0) alerts.push('Categoria pelo princípio ativo ' + C0.pa + (C0.corrigido ? ' (destino corrigido em relação à base)' : C0.validar ? ' (base pede validação)' : '')); }
     if (a.regTrocou) alerts.push(`Remédio registrado: ${nomeOf(a.cat)} (o arquivo/regra dizia ${nomeOf(a.regTrocou)})`);
     if (it.cmed) alerts.push(`Categoria pela CMED: ${it.cmed.classe || it.cmed.produto}` + (a.cmedTrocou ? ` (antes ${nomeOf(a.cmedTrocou)})` : '') + (it.cmed.ed === 'ABERTOS' ? ' (código de barras dos dados abertos de preços da Anvisa)' : it.cmed.ed ? ` (código de barras só na edição de ${it.cmed.ed.slice(6)}/${it.cmed.ed.slice(4, 6)}/${it.cmed.ed.slice(0, 4)})` : ''));
+    else if (it.cmedGemea && a.cat === it.cmedCat) alerts.push(`Categoria pela mesma apresentação na CMED${it.cmedGemea.mesmoLab ? ' (mesmo laboratório)' : ''}: ${it.cmedGemea.produto} ${it.cmedGemea.apres} (código ${it.cmedGemea.eans[0]}), classe ${it.cmedGemea.classe}` + (a.cmedTrocou ? ` (antes ${nomeOf(a.cmedTrocou)})` : ''));
+    if (a.fixTrocou) alerts.push(`Categoria pela tabela de correções: ${nomeOf(a.cat)} (antes ${nomeOf(a.fixTrocou)})`);
     if (a.antifTrocou) alerts.push(`Antifúngico de uso na pele: D01A1 (antes ${nomeOf(a.antifTrocou)})`);
     if (a.arqTrocada) alerts.push(`Arquivo: categoria ${a.arqTrocada} não bate com a descrição (outra cesta); usada ${a.cat}`);
     alerts.push(...arqAl);

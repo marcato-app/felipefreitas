@@ -839,3 +839,17 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
 - No Detalhe 2 de 26/10/2026 (51.298 itens sem dermocosmético), as diferenças entre o fabricante do app e o do arquivo caíram de 3.520 para 317.
   - Quase todas as 317 são o nome já existente na base, por exemplo SANOFI FARMACEUTICA LTDA → SANOFI FARMACEUTICA e MERCUR CIA → MERCUR SA.
 - Testes: DIMA, Hoja e vitaminas sem mudança.
+
+### 3.6q Categoria pela classe oficial da CMED, inclusive a subcategoria; mesma apresentação; tabela de correções
+- Código de barras na CMED: a classe oficial já trocava o grupo ATC. Agora troca também a subcategoria quando a classe diz qual é.
+  - Exemplos: A2B2 dá A02B2 e não A02B1, então PANTOPRAZOL sai inibidor da bomba de prótons. N6A4 dá N06A4, então SERTRALINA sai SSRI e não "antidepressivo com ervas".
+  - Antes ficava a subcategoria do arquivo do cliente, que estava errada em centenas de itens.
+- Código fora da CMED: o app procura a mesma apresentação na lista atual (a partir de 2025), com mesmo produto, mesma dose e mesma forma, de preferência do mesmo laboratório (prefixo do código).
+  - Se todas as apresentações encontradas têm a mesma classe oficial, ela vale para o item.
+  - Só corrige item que já é remédio. Suplemento e correlato nunca viram remédio por aqui.
+  - O alerta é "Categoria pela mesma apresentação na CMED".
+- Tabela `dados/farma_correcoes_categoria.tsv`, com regex, código EphMRA e motivo. Vale só para item em categoria de remédio e entra depois da CMED.
+  - Veio da revisão manual do Detalhe 2. Exemplos: DORALGINA e NEOSALDINA em A03D, MINOXIDIL capilar em D11A, DIPROSPAN e PERMESE em H02A1, DORFLEX comprimido em M03B, soro nasal em R01A9, MIRUGELL em S01K1, simeticona pura em A02A2, ENGOV AFTER em A07G.
+  - Para corrigir outro caso, é só acrescentar uma linha e rodar `farma_marcas.py` e `build.py`.
+- Detalhe 2 (26/10/2026), 28.924 itens: 1.467 categorias corrigidas. O arquivo está em `dados/saidas/Detalhe_2_FINAL_classificado.xlsx`.
+- Testes: DIMA 1.563 → 1.567 categorias certas, vitaminas 7.976 → 7.977, Hoja igual.

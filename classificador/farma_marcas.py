@@ -96,6 +96,8 @@ def main():
         tot = sum(d.values()); f = top(d)
         if d[f] / tot >= 0.8: codlab[cod] = f
     c['farmaMarcas'] = marcas; c['farmaCodLab'] = codlab
+    fx = here / 'dados' / 'farma_correcoes_categoria.tsv'  # correções manuais de categoria (regex -> código EphMRA)
+    c['farmaCatFix'] = [l.rstrip('\n').split('\t')[:2] for l in open(fx, encoding='utf-8') if l.strip() and not l.startswith('#')] if fx.exists() else []
     c['farmaMarcasD01'] = sorted(nome for nome, d in com.items() if 'ANTIFUNGICOS DERMATOLOGICOS TOPICOS' in d['cat'])  # marca com antifúngico de pele
     (here / 'consts.json').write_text(json.dumps(c, ensure_ascii=False), encoding='utf-8')
     print(f"{n} linhas -> {len(marcas)} marcas comerciais ({sum(1 for m in marcas if m[1])} com categoria, "
