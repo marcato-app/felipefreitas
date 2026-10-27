@@ -126,7 +126,7 @@ COM FORT VITAN                   | marca FORT VITAN SNC         (esp. FORT VITAN
 COM ALQUIMIA                     | marca OUTRA MARCA            (esp. ALQUIMIA) | fab ALQUIMIA               (esp. ALQUIMIA) | OUTRA CATEGORIA | ALQUIMIA COMPOSTO 30UN
 COM TROPICAL                     | marca OUTRA MARCA            (esp. TROPICAL) | fab OUTRO FABRICANTE       (esp. TROPICAL CONDIMENTOS) | OUTRA CATEGORIA | TROPICAL COMPOSTO 30UN
 COM CONLIFE FAC                  | marca OUTRA MARCA            (esp. CONLIFE) | fab FARMA CONDE            (esp. FARMA CONDE) | OUTRA CATEGORIA | CONLIFE COMPOSTO FAC 30UN
-COM UNIAO VEGETAL                | marca UNIAO UVG              (esp. UNIAO VEGETAL) | fab UNIAO QUIMICA          (esp. UNIAO VEGETAL) | VITAMINA OUTRO | SUPL ALIM UNIAO 10MG 30CPRS (UVG)
+COM UNIAO VEGETAL                | marca OUTRA MARCA            (esp. UNIAO VEGETAL) | fab OUTRO FABRICANTE       (esp. UNIAO VEGETAL) | TUBO E CONEXAO | UNIAO VEGETAL COMPOSTO 30UN
 COM WOLFS                        | marca WOLFS                  (esp. WOLFS) | fab WOLFS                  (esp. APISNUTRI) | OUTRA CATEGORIA | COMP WOLFS COMPOSTO 30UN
 COM UP RISE                      | marca RISE                   (esp. UP) | fab OUTRO FABRICANTE       (esp. SIN PROVEEDOR ASOCIADO) | OUTRA CATEGORIA | COMP RISE COMPOSTO 30UN
 COM REIDRAT                      | marca REIDRAT GNN            (esp. REIDRAT) | fab GREEN NUTRITION        (esp. REIDRAT IND E COM DE PROD ALIM LTDA) | A07G REPOSITORES ELECTROLITICOS ORAIS | REIDRAT 10MG 30CPRS (GNN)

@@ -853,3 +853,25 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   - Para corrigir outro caso, é só acrescentar uma linha e rodar `farma_marcas.py` e `build.py`.
 - Detalhe 2 (26/10/2026), 28.924 itens: 1.467 categorias corrigidas. O arquivo está em `dados/saidas/Detalhe_2_FINAL_classificado.xlsx`.
 - Testes: DIMA 1.563 → 1.567 categorias certas, vitaminas 7.976 → 7.977, Hoja igual.
+
+### 3.6r Uma marca = um fabricante (revisão de 27/10/2026)
+- No Detalhe 2 eram 175 marcas com mais de um fabricante, fora OUTRA MARCA. Agora não sobra nenhuma.
+- Unificação por marca, nesta ordem:
+  1. o dono da sigla da marca, aceitando qualquer sigla do grupo (GER e LEG da EMS, NEO da Hypera);
+  2. o fabricante da marca na base de Farmácia do cliente;
+  3. o fabricante com o nome da marca que existe na base (MERCUR → MERCUR SA, não MERCK);
+  4. o fabricante do arquivo que existe na base;
+  5. a DIMA;
+  6. o mais comum.
+- Genérico (princípio ativo + sigla): a sigla é sempre a do fabricante da linha. Exemplo: AMBROXOL MED com TEUTO vira AMBROXOL TEU, e o descritivo também.
+  - Sigla do mesmo grupo continua: PANTOPRAZOL GER (EMS), DIPIRONA NEO (Hypera).
+- Produto da CMED com outro nome: a marca vem do nome na CMED. Exemplo: "PARA AMPICILINA" da EUGIA não é o PARÁ da SUPERA.
+- Fabricante do arquivo que existe na base, com a marca do app achada por uma palavra da descrição: volta a marca do arquivo, com a sigla do fabricante.
+- Palavras que não são marca: TUTTI, FRUTTI, CLO, DICLOR, AMOX, UNIAO.
+- Ajustes manuais só no arquivo do Detalhe 2:
+  - ZANIDIP → APSEN;
+  - CONAP → COOP NACIONAL DE APICULTORES;
+  - "MOUNJARO" em cápsula, chá ou composto natural é suplemento de outra empresa: VITAMINA OUTRO, sem Eli Lilly.
+- Testes:
+  - DIMA: 1.567 → 1.571 categorias certas.
+  - Vitaminas: marca 7.191 → 7.211 e fabricante 7.273 → 7.295.
