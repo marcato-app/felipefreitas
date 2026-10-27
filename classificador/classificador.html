@@ -1453,6 +1453,15 @@ function nomeCmed(e) {
 // fabricante do arquivo que já existe na base (Hoja, DIMA, vitaminas, cadastrados): vence o laboratório da descrição/CMED
 // e a unificação por marca (nome existente sempre ganha; não cria fabricante novo nem troca MERCUR por MERCK)
 const fabArqExiste = f => fabArqOk(f) && N(f) !== 'OUTRO FABRICANTE' && baseCadastro().f.has(N(f));
+// nome genérico (princípio ativo da DCB/dicionário, com ou sem o sal): AMBROXOL, CLOR DE HIDROXIZINA, OMEPRAZOL
+let GEN_NOMES = null;
+function ehGenericoNome(g) {
+  if (!GEN_NOMES) { GEN_NOMES = new Set(); for (const r of K.farmaPA || []) for (const p of r.partes || []) for (const a of String(p).split('|')) if (N(a)) GEN_NOMES.add(N(a));
+    for (const x of data.dcb || []) GEN_NOMES.add(N(x[0])); }
+  const n = N(g); if (GEN_NOMES.has(n)) return true;
+  const b = n.split(' ').filter(w => !SAIS_DCB.has(w) && !/^(CLOR|CLORID|DICLOR|DE|DO|DA|SOD|SODICO|SODICA|POT|CALCICO)$/.test(w)).join(' ');
+  return !!b && GEN_NOMES.has(b);
+}
 function canonFab(f) {
   if (!valido(f) || f === 'OUTRO FABRICANTE') return f;
   const C = K.farmaFabs || {};
@@ -1552,6 +1561,7 @@ function ehLab(m) { const n = N(semSigla(m)); if (!n) return false; const L = la
 function palavraLab(w) { const L = labIndex(); return (w.length >= 3 && !LAB_COD_NAO.has(w) && (L.chave.has(w) || !!LAB_ALIAS[w] || ehSigla(w))); }
 /* ---- Farmácia: marca = nome comercial; genérico: marca = princípio ativo (fabricante = laboratório) ---- */
 const FARMA_NAO_MARCA = new Set(('GENERICO GENERICA GENERICOS SIMILAR MEDICAMENTO REFERENCIA INFANTIL ADULTO PEDIATRICO ' +
+  'TUTTI FRUTTI CLO DICLOR AMOX UNIAO ' + // sabor e prefixos de cadastro que viraram marca (TUTTI SEC, CLO ACH, UNIAO EUROPEIA)
   'SOLUCAO POMADA CREME GEL LOCAO SPRAY XAROPE GOTAS CAPSULA CAPSULAS LIQUIDO PLANTAR SUSPENSAO DRAGEAS FLACONETES ' +
   'SUN DRY PROT TOQUE DOUTOR MASSAGEM LIGHT ICE BLUE PES PERNAS ORAL ' + // palavra comum que é marca solta na DIMA (NIVEA SUN não é SUN)
   'CLOR CLORID CLORIDR HCL SOD POT MAL MAG SUCC ACET SULF FOSF BESIL MESIL TART BROM BROMETO BUT BUTILBROMETO ' +
@@ -2232,6 +2242,12 @@ async function runAll(opts = {}) {
   // uma marca = um fabricante no arquivo inteiro, em todas as cestas (Farmácia genérico também: a sigla separa NIMESULIDA ALT
   // de NIMESULIDA EMS); linha da marca com OUTRO FABRICANTE ganha o fabricante da marca (ZINCO KIDS CAT).
   // Fabricante da marca: 1º o que tem a sigla da marca (CEBION MER -> MERCK), 2º o da marca na DIMA, 3º o mais comum no arquivo
+  // genérico (princípio ativo + sigla): a sigla é sempre a do fabricante da linha (AMBROXOL MED com TEUTO -> AMBROXOL TEU)
+  for (const r of res) { if (!r.farma || !valido(r.fab) || r.fab === 'OUTRO FABRICANTE') continue;
+    const mm = /^(.*) ([A-Z0-9]{3})$/.exec(N(r.marca)); if (!mm || !ehGenericoNome(mm[1])) continue;
+    const s2 = SIG().fab[N(r.fab)] || siglaGerada(r.fab); if (!s2 || s2 === mm[2]) continue;
+    r.alerts.push(`Marca genérica com a sigla do fabricante: ${mm[1]} ${s2} (estava ${r.marca})`); r.marca = mm[1] + ' ' + s2;
+    r.desc = String(r.desc).replace(new RegExp('\\(' + mm[2] + '\\)\\s*$'), '(' + s2 + ')'); r.status = statusCadastro(r.marca, r.fab, r.farma); }
   { const por = new Map();
     const semFab = r => !valido(r.fab) || r.fab === 'OUTRO FABRICANTE';
     for (const r of res) { if (r.marca === 'OUTRA MARCA' || !valido(r.marca)) continue; // todas as cestas
@@ -2246,11 +2262,41 @@ async function runAll(opts = {}) {
       const fs = [...cnt.keys()], sg = (/ ([A-Z0-9]{3})$/.exec(N(m)) || [])[1];
       const mais = l => l.sort((x, y) => cnt.get(y) - cnt.get(x))[0];
       let dono = null; const ss = sg ? fs.filter(f => (SIG().fab[N(f)] || siglaGerada(f)) === sg) : [];
-      if (ss.length) dono = mais(ss);
+      // 1º o fabricante com o nome da marca (MERCUR -> MERCUR SA, não MERCK pela sigla MER; VABENE; IDEAL)
+      const w0 = N(semSigla(m)).split(' ')[0];
+      const comNome = w0.length >= 4 ? fs.filter(f => (N(f).split(' ').includes(w0) || N(f).replace(/ /g, '').startsWith(w0)) && baseCadastro().f.has(N(f))) : [];
+      if (comNome.length) dono = mais(comNome);
+      if (!dono && ss.length) dono = mais(ss);
+      // depois o fabricante do arquivo que já existe na base (BAND-AID -> KENVUE, não OPHTHALMOS da DIMA)
+      if (!dono) { const arq = fs.filter(f => rs.some(r => r.fab === f && prioArq() && fabArqExiste(r.it.sugFab) && N(r.it.sugFab) === N(f))); if (arq.length) dono = mais(arq); }
       if (!dono && data.dima) { const b = data.dima.map.get(N(m)) || data.dima.map.get(N(semSigla(m))); let v = 0;
         if (b && b.fabAll) for (const f of fs) { const x = b.fabAll.get(f) || 0; if (x > v) { v = x; dono = f; } } }
       if (!dono) dono = mais(fs);
-      for (const r of rs) if (r.fab !== dono && !(prioArq() && fabArqExiste(r.it.sugFab) && N(r.fab) === N(r.it.sugFab))) { r.alerts.push(`Fabricante unificado: a marca ${m} tem um fabricante só (${dono}); estava ${r.fab}`); r.fab = dono; r.status = statusCadastro(r.marca, r.fab, r.farma); r.pri = r.pri || 2; }
+      const baseM = sg ? N(m).replace(/ [A-Z0-9]{3}$/, '') : N(m);
+      const gen = sg && ehGenericoNome(baseM);
+      if (gen && !ss.length) { // genérico sem o dono da sigla no arquivo: cada linha com a sigla do próprio laboratório
+        for (const r of rs) { if (semFab(r)) continue; const s2 = SIG().fab[N(r.fab)] || siglaGerada(r.fab); if (!s2 || s2 === sg) continue;
+          const m2 = baseM + ' ' + s2; r.alerts.push(`Marca genérica com a sigla do laboratório: ${m2} (estava ${m})`); r.marca = m2;
+          r.desc = String(r.desc).replace(new RegExp('\\(' + sg + '\\)\\s*$'), '(' + s2 + ')'); r.status = statusCadastro(r.marca, r.fab, r.farma); }
+        continue; }
+      for (const r of rs) if (r.fab !== dono) {
+        // produto da CMED com outro nome (PARA AMPICILINA da EUGIA não é PARÁ da SUPERA): a marca vem do nome na CMED
+        if (r.farma && r.it.cmed && !semFab(r)) { const pn = N(nomeCmed(r.it.cmed)), base = N(baseM);
+          if (pn && !pn.startsWith(base) && !base.startsWith(pn)) { const s2 = SIG().fab[N(r.fab)] || siglaGerada(r.fab), m2 = pn + (s2 ? ' ' + s2 : '');
+            r.alerts.push(`Marca pelo nome do produto na CMED: ${m2} (estava ${m}, que é de ${dono})`); r.marca = m2;
+            r.desc = String(r.desc).replace(new RegExp('^' + base + ' '), pn.startsWith(base) ? '' : '').replace(new RegExp('\\(' + (sg || 'ZZZ') + '\\)\\s*$'), s2 ? '(' + s2 + ')' : '');
+            r.status = statusCadastro(r.marca, r.fab, r.farma); continue; } }
+        // fabricante do arquivo que já existe e a marca não é a do arquivo (o app achou a marca por uma palavra da descrição):
+        // fica o fabricante, e a marca volta a ser a do arquivo quando ela vale
+        if (prioArq() && fabArqExiste(r.it.sugFab) && N(r.fab) === N(r.it.sugFab) && valido(r.it.sugMarca) && N(r.it.sugMarca) !== N(m) && !farmaNaoMarca(N(r.it.sugMarca), C)) {
+          r.alerts.push(`Marca do arquivo mantida: ${r.it.sugMarca.trim()} (${m} é de ${dono})`); r.marca = r.it.sugMarca.trim(); r.status = statusCadastro(r.marca, r.fab, r.farma); continue; }
+        // genérico de outro laboratório (AMBROXOL MED com TEUTO): a marca leva a sigla do laboratório dele, a não ser que a
+        // própria descrição traga a sigla da marca (aí o fabricante é que estava errado)
+        if (gen && !semFab(r)) { const s2 = SIG().fab[N(r.fab)] || siglaGerada(r.fab);
+          const dsg = (r.it.D || []).some(d => new RegExp('\\(' + sg + '\\)\\s*$').test(String(d).toUpperCase()));
+          if (s2 && s2 !== sg && !dsg) { const m2 = baseM + ' ' + s2; r.alerts.push(`Marca genérica com a sigla do laboratório: ${m2} (estava ${m})`); r.marca = m2;
+            r.desc = String(r.desc).replace(new RegExp('\\(' + sg + '\\)\\s*$'), '(' + s2 + ')'); r.status = statusCadastro(r.marca, r.fab, r.farma); continue; } }
+        r.alerts.push(`Fabricante unificado: a marca ${m} tem um fabricante só (${dono}); estava ${r.fab}`); r.fab = dono; r.status = statusCadastro(r.marca, r.fab, r.farma); r.pri = r.pri || 2; }
     } }
   // mesmo código de barras com produtos distintos: vai para CODIGO INTERNO, OUTRA MARCA e OUTRO FABRICANTE (o cadastro
   // decide qual produto é) e a coluna PRODUTOS DISTINTOS NO CODIGO mostra as descrições do outro produto
