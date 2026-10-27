@@ -868,6 +868,9 @@ function vitDe(T, cat, farma, C, prova) {
 }
 // sinal de remédio na descrição: dose (MG, UI, %), forma farmacêutica ou código de laboratório no fim
 const RX_SINAL_FARMA = /(?<![A-Z])(\d+(\.\d+)?\s*(MG|MCG|UI|MEQ)|COMP|COMPR|COMPRIMIDOS?|CPR|CAPS|CAPSULAS?|DRG|DRAGEAS?|GTS|GOTAS|XPE|XAROPE|POMADA|COLIRIO|AMPOLAS?|INJETAVEL|SUSP|SUSPENSAO|SOL ORAL|EFERV|EFERVESCENTE|SPRAY NASAL|OVULOS?|SUPOSITORIOS?)(?![A-Z])/;
+// arquivo diz Farmácia e a descrição tem forma/uso de farmácia (spray de própolis, pastilha, agulha descartável, reidratante):
+// a palavra de sabor ou de outra cesta (ABACAXI, LIMAO, BALA, TEMPERO, COSTURA) não tira o item da Farmácia
+const RX_FARMA_ARQ = /(?<![A-Z])(SPRAY|PASTILHAS?|PAST|DROPS|PROPOLIS|MENTOL|EUCALIPTO|GENGIBRE|MALVA|REIDRAT\w*|HIDRAT\w* ORAL|COLAGENO|SUPL|SUP ALIM|SUPLEMENTO|DESCARTAVEL|DENTADURA|PROTESE|BENGALA|MULETA|PEDIATRIC\w*|PEDIA)(?![A-Z])/;
 function sinalFarma(t) { if (RX_SINAL_FARMA.test(t)) return true; const w = t.split(' '), l = w[w.length - 1]; return w.length > 1 && !!((K.farmaCodLab || {})[l] || labIndex().codigo.has(l)); }
 // termo da DIMA: de uma palavra só vale no começo da descrição ou com sinal de remédio (FRONTAL em "CAIXA ... FRONTAL" não)
 function matchFD(t, C) { const g = matchFM([t], C.fd); if (!g) return null; if (g.nome.includes(' ') || t.startsWith(g.nome + ' ') || t === g.nome || sinalFarma(t)) return g; return null; }
@@ -1658,7 +1661,7 @@ function categoriaArquivo(it, a, byName) {
     return Object.assign({}, a, { arqTrocada: s });
   const c0 = byName.get(a.cat);
   // (no arquivo é Farmácia e a descrição tem sinal de remédio -XAROPE, MG, CAPS-: vale o arquivo; NOVOLACT XAROPE AMEIXA não é fruta)
-  if (!bateCategoria(c1, a.T) && c0 && c1.cesta && c0.cesta !== c1.cesta && !(c1.cesta === 'FARMACIA' && a.T.some(sinalFarma))) // categoria sem cesta (CHOCOLATE CANDY BAR) também é outra cesta
+  if (!bateCategoria(c1, a.T) && c0 && c1.cesta && c0.cesta !== c1.cesta && !(c1.cesta === 'FARMACIA' && (a.T.some(sinalFarma) || a.T.some(t => RX_FARMA_ARQ.test(t))))) // categoria sem cesta (CHOCOLATE CANDY BAR) também é outra cesta
     return Object.assign({}, a, { arqTrocada: s });
   return Object.assign({}, a, { cat: s, per: a.per.map(() => s), flag: 'ARQUIVO', arqCat: true });
 }
