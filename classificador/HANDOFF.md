@@ -452,3 +452,14 @@ Pontos pra checar, em ordem:
 - `KIT n` também vale quando a quantidade já saiu 1UN.
 - GARRAFA OUTROS começando por GARRAFAO: início GARRAFAO (não repete "GARRAFA GARRAFAO").
 - Exemplos: GARRAFA SQUEEZE ALUMINIO 750ML 1UN · GARRAFA ROLHA 1L 1UN · GARRAFAO AGUA 5L 1UN.
+
+## Função "Padronizar descritivo + sugestões" (botão separado no passo 4)
+- Pedido: uma função à parte que só padroniza o descritivo e traz colunas de sugestão, sem mexer em nenhuma coluna do arquivo.
+- Saída (`buildSugWorkbook`): a planilha do arquivo exatamente como veio (todas as colunas e cabeçalhos, `it.row` / `data.hdr`) + DESCRITIVO PADRONIZADO, MARCA SUGERIDA, FABRICANTE SUGERIDO, QUANTIDADE SUGERIDA, CATEGORIA SUGERIDA + aba RESUMO. Arquivo: BACKLOG_DESCRITIVO_SUGESTOES.xlsx.
+- `runSugestao`: passada 1 = app livre (sugestão de quantidade/categoria); passada 2 = `passe.fixo` (descritivo com a categoria do arquivo, nunca trocada; quantidade do arquivo, 1UN do arquivo não é trocado pela descrição; número sem medida diferente do peso da descrição = UN; mesmo total = pack da descrição; UNIDADES x CONTENIDO UNITARIO do arquivo vira o pack 12X395G).
+- Marca no modo fixo: votação por descrição (`findBrand` em cada descrição + marca da DIMA escrita em 2+ descrições; marca cortada no fim conta: ALTO GI, RIO; marca contida em outra perde: MAKE x MAKE ONE). Vale a mais citada (2+ descrições, ou a 1ª descrição se a marca é do segmento). Marca do arquivo escrita na descrição: fica a do arquivo, sem sugestão.
+- Sugestões só quando diferem do arquivo: fabricante igual com outra grafia (NESTLE x NESTLE CIA) não conta; quantidade só com 2+ descrições trazendo o mesmo número; categoria só se a do arquivo não bate com a descrição E (o nome inteiro da categoria do app está na descrição OU a descrição bate e a marca é da categoria na DIMA). Arquivo vazio: a sugestão preenche.
+- Leitura do arquivo: coluna CONTENIDO (total) tem prioridade sobre CONTENIDO UNITARIO; UNIDADES e CONTENIDO UNITARIO são lidas (`arqUn`, `arqCu`).
+- Cutelaria (vale também no Classificar normal): CUTELARIA OUTROS começa com o tipo + DE UNHA / DE CUTICULA (CORTADOR DE UNHA, TESOURA DE UNHA, RASPADOR DE UNHA, LIXA DE UNHA, PALITO DE UNHA, ESPATULA DE CUTICULA; LIXA de pé, tesoura de cabelo e cortador de calos ficam fora); UNHA/CUTICULA/P/PARA saem do complemento; abreviações por extenso (PEQ, GDE, INF, CAB, MET, IMPORT, EMBORR, ESP, LAM, DOBR); CM/MM sem número e REF saem.
+- marcaNaoFrase: UNI / UNID depois de número ("COM 3 UNI") não é marca.
+- Teste: `testes/testar_sugestao.js` com `testes/sugestao_exemplo.xlsx` (colunas do arquivo idênticas + 14 linhas esperadas): 31/31. testar_regras 821/821.

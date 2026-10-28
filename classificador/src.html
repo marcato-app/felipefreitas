@@ -176,7 +176,7 @@ td.alert{color:var(--warn); font-size:12px}
   <section class="step" aria-labelledby="s4">
     <div class="step-h"><span class="n">4</span><h2 id="s4">Classificar</h2>
       <p>Categoria por votação entre as descrições de cada código (as primeiras pesam mais; a sugerida desempata). Conteúdo em g ou ml, packs somados. Descritivo = início + marca + complementos + quantidade.</p></div>
-    <div class="bar"><button class="pri" id="btnRun" disabled>Classificar</button><button id="btnDownload" disabled>Baixar planilha .xlsx</button><span class="note" id="runState">Envie o backlog para começar.</span></div>
+    <div class="bar"><button class="pri" id="btnRun" disabled>Classificar</button><button id="btnSug" disabled title="Não mexe em nenhuma coluna do arquivo: só acrescenta o DESCRITIVO PADRONIZADO e as colunas MARCA SUGERIDA, FABRICANTE SUGERIDO, QUANTIDADE SUGERIDA e CATEGORIA SUGERIDA">Padronizar descritivo + sugestões</button><button id="btnDownload" disabled>Baixar planilha .xlsx</button><span class="note" id="runState">Envie o backlog para começar.</span></div>
     <div class="progress" aria-hidden="true"><div id="prog"></div></div>
     <div id="results" class="hidden" style="display:flex;flex-direction:column;gap:14px">
       <div class="sum" id="kpis"></div>
@@ -370,11 +370,12 @@ async function loadBacklog(file) {
     cat: findCol(hdr, [h => isCat(h) && SUG(h), h => h === 'CATEGORIA', isCat]),
     mar: findCol(hdr, [h => isMar(h) && SUG(h), h => h === 'MARCA', isMar]),
     fab: findCol(hdr, [h => isFab(h) && SUG(h), h => h === 'FABRICANTE', isFab]),
-    qt: findCol(hdr, [h => isQt(h) && !h.includes('UNITCONTENT') && SUG(h), h => isQt(h) && !h.includes('UNITCONTENT')]),
+    qt: findCol(hdr, [h => isQt(h) && !h.includes('UNITCONTENT') && SUG(h), h => ['CONTENIDO', 'CONTEUDO', 'QUANTIDADE', 'CONTENIDOTOTAL', 'CONTEUDOTOTAL'].includes(h), h => isQt(h) && !h.includes('UNITCONTENT') && !h.includes('UNITARIO')]),
     // formato Scanntech: quantity_sugerida = total (g, ml ou unidades), measurement_sugerido = UN/G/KG/ML/L, unit_content_sugerido = unidades no pack
     me: findCol(hdr, [h => h.includes('MEASUREMENT') && SUG(h), h => h.includes('MEASUREMENT')]),
     uc: findCol(hdr, [h => h.includes('UNITCONTENT') && SUG(h), h => h.includes('UNITCONTENT')]),
-    an: findCol(hdr, [h => h === 'ANALISTA', h => h.includes('ANALISTA')]), // só repassado para a planilha
+    an: findCol(hdr, [h => h === 'ANALISTA', h => h.includes('ANALISTA')]),
+    un: findCol(hdr, [h => h === 'UNIDADES', h => h === 'UNIDADESPACK', h => h === 'QTDUNIDADES']), cu: findCol(hdr, [h => h === 'CONTENIDOUNITARIO', h => h === 'CONTEUDOUNITARIO']), // só repassado para a planilha
   };
   // descrição principal (a do cadastro do produto), se o arquivo tiver: vira a referência do tipo do item
   ci.main = findCol(hdr, [h => ['DESCRIPCION', 'DESCRICAO', 'DESCRITIVO', 'DESCRIPTION', 'DESCRICAOPRODUTO', 'DESCRITIVOATUAL', 'DESCRICAOPRINCIPAL'].includes(h)]);
@@ -388,11 +389,11 @@ async function loadBacklog(file) {
     if (mainD) { const k = D.findIndex(x => N(x) === N(mainD)); if (k >= 0) D.splice(k, 1); D.unshift(mainD); }
     const subV = ci.sub >= 0 ? limpaArq(row[ci.sub]) : '', catV = subV || (ci.cat >= 0 ? limpaArq(row[ci.cat]) : '');
     items.push({ barcode: row[ci.bc], D, T: D.map(N), main: !!mainD, sugCatRaw: catV, sugCat: catV ? catInterna(catV) : '', sugMarca: ci.mar >= 0 ? limpaArq(row[ci.mar]) : '',
-      sugFab: ci.fab >= 0 ? limpaArq(row[ci.fab]) : '', ...qtdColunas(row, ci), analista: ci.an >= 0 ? String(row[ci.an] ?? '').trim() : '' });
+      sugFab: ci.fab >= 0 ? limpaArq(row[ci.fab]) : '', ...qtdColunas(row, ci), row, arqUn: ci.un >= 0 ? parseFloat(String(row[ci.un] ?? '').replace(',', '.')) : NaN, arqCu: ci.cu >= 0 ? parseFloat(String(row[ci.cu] ?? '').replace(',', '.')) : NaN, analista: ci.an >= 0 ? String(row[ci.an] ?? '').trim() : '' });
   }
   const nomeCol = i => i >= 0 ? String(hdr[i]) : '—';
   data.colunas = `Colunas lidas: categoria <b>${escH(nomeCol(ci.cat))}</b> · subcategoria <b>${escH(nomeCol(ci.sub))}</b> · marca <b>${escH(nomeCol(ci.mar))}</b> · fabricante <b>${escH(nomeCol(ci.fab))}</b> · conteúdo <b>${escH(nomeCol(ci.qt))}</b>${ci.me >= 0 ? ` + medida <b>${escH(nomeCol(ci.me))}</b>` : ''}${ci.uc >= 0 ? ` + unidades <b>${escH(nomeCol(ci.uc))}</b>` : ''}`;
-  data.items = items; data.sugCounts = new Map();
+  data.items = items; data.hdr = hdr; data.sugCounts = new Map();
   for (const it of items) data.sugCounts.set(it.sugCat, (data.sugCounts.get(it.sugCat) || 0) + 1);
   // categorias que o arquivo traz e estão desligadas na biblioteca: ativa (senão o item cai em OUTRA CATEGORIA)
   data.reativadas = 0; for (const c of cfg.categorias) if (c.ativa === false && data.sugCounts.has(c.nome)) { c.ativa = true; data.reativadas++; }
@@ -1747,6 +1748,7 @@ function nomeNaDesc(c, T) { const ws = N(c.nome).split(' ').filter(w => w.length
 function categoriaArquivo(it, a, byName, C) {
   const s = it.sugCat; if (!prioArq() || !s || s === a.cat) return a;
   const c1 = byName.get(s); if (!c1) return a; // categoria que não existe na biblioteca
+  if (passe && passe.fixo) return Object.assign({}, a, { cat: s, per: a.per.map(() => s), flag: 'ARQUIVO', arqCat: true }); // descritivo + sugestões: o descritivo segue sempre a categoria do arquivo
   const c0 = byName.get(a.cat);
   // regra ensinada (pipoca com sabor, embalagem de ovo, papinha, bala x sabor): o sabor/ingrediente do arquivo não vale como categoria
   // tipo do biscoito escrito na descrição (ROSCA, AMANTEIGADO, POLVILHO…) vence BISCOITO OUTROS / categoria de fora dos biscoitos do arquivo
@@ -1891,7 +1893,7 @@ async function runCore(pfx = '') {
     if (i % 1000 === 0) { $('#prog').style.width = (50 * i / items.length).toFixed(1) + '%'; $('#runState').textContent = pfx + `Classificando categorias: ${i.toLocaleString('pt-BR')} de ${items.length.toLocaleString('pt-BR')}…`; await new Promise(r => setTimeout(r, 0)); }
   }
   $('#runState').textContent = pfx + 'Aprendendo as EST MER 6 do backlog…'; await new Promise(r => setTimeout(r, 0));
-  const segOf = segmentosEstMer6(AGG, items, byName, C);
+  const segOf = segmentosEstMer6(AGG, items, byName, C); data.segOf = segOf;
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
     const a = AGG[i]; const T = a.T;
@@ -1907,6 +1909,20 @@ async function runCore(pfx = '') {
     const sm = N(it.sugMarca), marcaArq = prioArq() && valido(it.sugMarca) && (!C.black.has(sm) || arqOk || soD);
     const outraArq = false; // OUTRA MARCA do arquivo não trava: se a descrição traz marca da categoria, vale ela
     let marca, fab;
+    // descritivo + sugestões: cada descrição vota na marca que o app acha nela; vale a mais citada (2 ou mais descrições, ou a 1ª)
+    let voto = null;
+    if (passe && passe.fixo) { const v = new Map();
+      for (const DD of brandDicts()) { for (let j = 0; j < T.length; j++) { const b = findBrand([T[j]], seg, '', C.black, DD, vocab); if (!b) continue;
+          const k = DD.map.get(b).canon; if (!v.has(k)) v.set(k, { n: 0, first: j, bn: b, DD }); } if (v.size) break; }
+      // marca da DIMA escrita em 2+ descrições, mesmo fora dos segmentos calculados do arquivo (arquivo pequeno: CHAZAK, ALTO GIRO)
+      if (data.dima) { const vistos = new Set(); for (const t of T) { const ws = t.split(' ');
+        for (let i = 0; i < ws.length; i++) for (let n = 1; n <= 3 && i + n <= ws.length; n++) { const g = ws.slice(i, i + n).join(' '); if (vistos.has(g)) continue; vistos.add(g);
+          if (g.length < 3 || !data.dima.map.has(g) || !validCand(g, C.black)) continue; const k = data.dima.map.get(g).canon; if (!v.has(k)) v.set(k, { n: 0, first: 99, bn: g, DD: data.dima, livre: true }); } } }
+      for (const e of v.values()) { const ap = T.map((t, j) => marcaCortada(N(e.DD.map.get(e.bn).canon), t) || marcaCortada(e.bn, t) ? j : -1).filter(j => j >= 0); e.n = ap.length; if (ap.length) e.first = ap[0]; }
+      const contida = e => [...v.values()].some(x => x !== e && x.bn !== e.bn && (' ' + x.bn + ' ').includes(' ' + e.bn + ' ')); // MAKE dentro de MAKE ONE
+      const best = [...v.values()].filter(e => (!e.livre || e.n >= 2) && !contida(e)).sort((x, y) => y.n - x.n || x.first - y.first || y.bn.length - x.bn.length)[0];
+      const arqNaDesc = valido(it.sugMarca) && N(it.sugMarca) !== 'OUTRA MARCA' && T.some(t => marcaCortada(sm, t)); // marca do arquivo escrita na descrição: fica a do arquivo
+      if (best && !arqNaDesc && (best.n >= 2 || (best.first === 0 && marcaDoSeg(best.DD.map.get(best.bn), seg)))) voto = { bn: best.bn, DD: best.DD, marca: best.DD.map.get(best.bn).canon, fab: fabricante(best.bn, seg, best.DD) }; }
     if (marcaArq && manter && !marcaNaDesc(sm, T)) arqAl.push(`Arquivo (mantido): marca ${it.sugMarca.trim()} não aparece na descrição`);
     if (marcaArq && !manter && !marcaNaDesc(sm, T)) { // marca do arquivo não aparece: troca só se a descrição trouxer outra marca da categoria
       for (const DD of brandDicts()) { bn = findBrand(T, seg, '', C.black, DD, vocab); if (bn) { BD = DD; break; } }
@@ -1928,7 +1944,8 @@ async function runCore(pfx = '') {
       else if (fs) { fab = fabricante(sm, seg, BD); arqAl.push(`Arquivo: fabricante ${fs} não é de ${marca} na base; usado ${fab}`); }
       else fab = b ? fabricante(sm, seg, BD) : 'OUTRO FABRICANTE';
     } else {
-      if (!marcaArq && !outraArq) for (const DD of brandDicts()) { bn = findBrand(T, seg, it.sugMarca, C.black, DD, vocab); if (bn) { BD = DD; break; } }
+      if (passe && passe.fixo) { if (!marcaArq && voto) { bn = voto.bn; BD = voto.DD; } }
+      else if (!marcaArq && !outraArq) for (const DD of brandDicts()) { bn = findBrand(T, seg, it.sugMarca, C.black, DD, vocab); if (bn) { BD = DD; break; } }
       marca = bn ? BD.map.get(bn).canon : 'OUTRA MARCA';
       fab = bn ? fabricante(bn, seg, BD) : (prioArq() && valido(it.sugFab) ? it.sugFab.trim() : 'OUTRO FABRICANTE'); // sem marca: fica o fabricante do arquivo
       if (marcaArq && bn) arqAl.push(`Arquivo: marca ${it.sugMarca.trim()} não aparece na descrição; usada ${marca}`);
@@ -1955,7 +1972,7 @@ async function runCore(pfx = '') {
       const u = countQty(Tq); if (u && u.tot >= (cc ? 20 : 100)) q = u; }
     let qf = prioArq() ? qtdArquivo(it.sugQt) : null, qDesc = false;
     // arquivo com 1 (UN) é o valor padrão: se a descrição traz quantidade de verdade, vale a da descrição
-    if (qf && qf.tot === 1 && (!qf.base || qf.base === 'UN')) {
+    if (qf && qf.tot === 1 && (!qf.base || qf.base === 'UN') && !(passe && passe.fixo)) {
       const qd = q.tot !== null ? q : (countQty(Tq) || { tot: null }); // peso/volume ou contagem (C/10, 10UN) da descrição
       if (qd.tot !== null && qd.flag !== 'QTD_PADRAO' && !(qd.tot === 1 && qd.base === 'UN')) {
         q = qd; arqAl.push(`Arquivo com 1UN; usada a quantidade da descrição (${qtyText(q)})`); qf = null; qDesc = true; } }
@@ -1967,7 +1984,12 @@ async function runCore(pfx = '') {
       if (mesmo && (r > 2 || r < 0.5) && !manter) arqAl.push(`Arquivo: conteúdo ${qf.base ? qtyText(qf) : fmtn(qf.tot)} muito diferente da descrição (${qtyText(q)}); usado o da descrição`);
       else if (qf.base) { if (mesmo && (r > 2 || r < 0.5)) arqAl.push(`Arquivo (mantido): conteúdo ${qtyText(qf)} muito diferente da descrição (${qtyText(q)})`); q = qf; }
       else { if (mesmo && (r > 2 || r < 0.5)) arqAl.push(`Arquivo (mantido): conteúdo ${fmtn(qf.tot)} muito diferente da descrição (${qtyText(q)})`);
-        q = q.tot !== null ? Object.assign({}, q, { tot: qf.tot, n: 1, uv: qf.tot, flag: '' }) : qf; }
+        if ((passe && passe.fixo) && q.tot !== null && Math.abs(q.tot - qf.tot) < 1e-6) { /* mesmo total: fica o da descrição (12X395G) */ }
+        else {
+        const kgArq = q.tot !== null && qf.tot <= 60 && Math.abs(q.tot - qf.tot * 1000) < 1e-6; // arquivo 1 = 1KG / 1L
+        if ((passe && passe.fixo) && q.tot !== null && (q.base === 'G' || q.base === 'ML') && !kgArq && Math.abs(q.tot - qf.tot) > 1e-6) q = { tot: qf.tot, base: 'UN', n: 1, uv: qf.tot, flag: '' }; // número do arquivo sem medida e diferente do peso da descrição: unidades
+        else if (!((passe && passe.fixo) && kgArq)) q = q.tot !== null ? Object.assign({}, q, { tot: qf.tot, n: 1, uv: qf.tot, flag: '' }) : qf; } }
+      if ((passe && passe.fixo) && it.arqUn > 1 && it.arqCu > 0 && q.tot !== null && Math.abs(it.arqUn * it.arqCu - q.tot) < 1e-6) q = Object.assign({}, q, { n: it.arqUn, uv: it.arqCu });
       if (q === qf && !qf.base) { // número sem unidade no arquivo: unidade pela contagem da descrição ou pela unidade sugerida da categoria
         const u = countQty(T); const us = cc && cc.unidadeSugerida;
         q = Object.assign({}, qf, { base: u ? u.base : us ? String(us).toUpperCase() : '' }); }
@@ -2006,6 +2028,8 @@ async function runCore(pfx = '') {
     let ini = farmaLivre ? (bn ? '' : paHit ? paIni(paHit, T) : nounOutra(T, bn))
       : bala ? bala.ini : (cc && cc.dinamico) ? (tipoIni(T, a.per, a.cat, C) || nounOutra(T, bn)) : a.cat === OUT ? nounOutra(T, bn) : (cc.inicio || cc.nome);
     if (a.cat === 'OTP - OUTROS TABACO' && T.some(t => RX_ESS.test(t))) ini = 'ESSENCIA'; // essência de narguilé: ESSENCIA + MARCA + informações + gramatura
+    // cutelaria: o tipo sai com o "de unha / de cutícula" (CORTADOR DE UNHA, TESOURA DE UNHA, ESPATULA DE CUTICULA…)
+    const cutIni = a.cat === 'CUTELARIA OUTROS' ? cutelariaIni(ini, T) : ''; if (cutIni) ini = cutIni;
     if (a.cat === 'GARRAFA OUTROS' && ini === 'GARRAFA' && /^GARRAFAO(?![A-Z])/.test(T[0] || '')) ini = 'GARRAFAO'; // GARRAFAO 5L: não repete GARRAFA GARRAFAO
     if (bn && ini && ini.replace(/ /g, '') === bn.replace(/ /g, '')) ini = ''; // início igual à marca colada (ZEEDOG = ZEE DOG): não repete
     // acessório PET: o descritivo leva PET logo depois do tipo, com o tipo por extenso (PEIT -> PEITORAL PET ZEE DOG ...)
@@ -2022,6 +2046,9 @@ async function runCore(pfx = '') {
     // descritivo com no máximo 60 caracteres: início, marca e conteúdo são obrigatórios e ficam inteiros;
     // só o complemento (entre a marca e o conteúdo) é abreviado e, se ainda passar, perde palavras do fim
     let compW = comp ? comp.split(' ') : [], iniTxt = ini;
+    if (cutIni || CUT_CATS.has(a.cat)) compW = compW.map(w => CUT_EXT[w] || w);
+    if (cutIni || CUT_CATS.has(a.cat)) compW = compW.filter(w => !/^(CM|MM|REF|R|COD)$/.test(w)); // medida que perdeu o número, referência
+    if (cutIni || a.cat === 'ALICATES DE CUTICULA') compW = compW.filter(w => !/^(UNHA|UNHAS|UNH|CUTICULA|CUTICULAS|CUTIC|CUTI|CUT|P|PARA|DE)$/.test(w)); // já estão no início
     // AZEITONA: AZEITONA + informações (abreviadas: INT, RECH, FAT, S/C, C/C, VD, SCH) + MARCA + quantidade
     const azeit = a.cat === 'AZEITONA';
     if (volGarrafa && !compW.includes(volGarrafa)) compW.push(volGarrafa);
@@ -2032,6 +2059,7 @@ async function runCore(pfx = '') {
       if (/(?<![A-Z])(VIDRO|VDR|VIDROS)(?![A-Z])/.test(tt)) put('VD');
       if (/(?<![A-Z])(SACHE|SACHES|SACHET|SACH|SCH)(?![A-Z])/.test(tt)) put('SCH'); }
     const monta = () => { const d = cleanD(azeit ? [iniTxt, compW.join(' '), brandTxt, qtyText(q)].filter(Boolean).join(' ') : [iniTxt, brandTxt, compW.join(' '), qtyText(q)].filter(Boolean).join(' '));
+      if (cutIni || CUT_CATS.has(a.cat)) return d.replace(/(?<![0-9A-Z.,])(CM|MM)(?![A-Z0-9])/g, '').replace(/\s+/g, ' ').trim(); // medida que perdeu o número
       return azeit ? d.replace(/(?<![A-Z0-9])SXBC(?![A-Z0-9])/g, 'S/C').replace(/(?<![A-Z0-9])CXBC(?![A-Z0-9])/g, 'C/C') : d; };
     let desc = monta(), descCortado = false, descLongo = false;
     if (desc.length > DESC_MAX) {
@@ -2067,7 +2095,7 @@ async function runCore(pfx = '') {
     // por que a marca ficou diferente da do arquivo (resumo da planilha e da tela)
     const mMot = !N(it.sugMarca) ? 'arquivo sem marca' : N(marca) === sm ? 'igual ao arquivo' : !prioArq() ? 'prioridade do arquivo desligada'
       : !valido(it.sugMarca) ? 'arquivo com ' + sm : C.black.has(sm) ? 'marca do arquivo é palavra bloqueada' : 'trocada: marca do arquivo não aparece na descrição';
-    res.push({ it, cat: a.cat, marca, fab, qt: q.tot, qbase: q.base, qn: q.tot === null ? null : (q.n || 1), quv: q.tot === null ? null : (q.n > 1 ? q.uv : q.tot), desc, alerts, pri, mMot, catErrada: !!a.arqTrocada, catSuspeita: a.catSuspeita || '', regraForte: a.regraForte || '', qDesc, persArq: !!persArq });
+    res.push({ it, cat: a.cat, marca, fab, qt: q.tot, qbase: q.base, qPadrao: q.flag === 'QTD_PADRAO', qn: q.tot === null ? null : (q.n || 1), quv: q.tot === null ? null : (q.n > 1 ? q.uv : q.tot), desc, alerts, pri, mMot, catErrada: !!a.arqTrocada, catSuspeita: a.catSuspeita || '', regraForte: a.regraForte || '', qDesc, persArq: !!persArq, ...((passe && passe.fixo) ? { segCat: seg, voto: voto ? { marca: voto.marca, fab: voto.fab } : null } : {}) });
     if (i % 250 === 0) { $('#prog').style.width = (50 + 50 * i / items.length).toFixed(1) + '%'; $('#runState').textContent = pfx + `Marca, conteúdo e descritivo: ${i.toLocaleString('pt-BR')} de ${items.length.toLocaleString('pt-BR')}…`; await new Promise(r => setTimeout(r, 0)); }
   }
   $('#prog').style.width = '100%';
@@ -2103,6 +2131,81 @@ function statusSug(it, sug) {
   cmp('conteúdo', it.sugQt === null || it.sugQt === undefined ? '' : String(it.sugQt), sug.qt, () => { const q = qtdArquivo(it.sugQt); return !q || sug.qt === null || Math.abs(q.tot - sug.qt) < 1e-6; });
   const st = dif.length ? 'SUGESTÃO DIFERENTE: ' + dif.join(', ') : 'ARQUIVO CONFIRMADO';
   return vaz.length ? st + ' | ARQUIVO VAZIO: ' + vaz.join(', ') : st;
+}
+// DESCRITIVO + SUGESTÕES: as colunas do arquivo ficam exatamente como vieram; o app só acrescenta o DESCRITIVO PADRONIZADO
+// (montado com a categoria, marca e conteúdo do arquivo) e MARCA / FABRICANTE / QUANTIDADE / CATEGORIA SUGERIDA (só quando o app acha diferente ou o arquivo está vazio)
+async function runSugestao() {
+  const t0 = performance.now(); let res;
+  try {
+    passe = { prio: false, sempre: false }; const sug = await runCore('Passada 1/2 (sugestão do app) · ');
+    passe = { prio: true, sempre: false, soDesc: true, fixo: true }; res = await runCore('Passada 2/2 (descritivo com os dados do arquivo) · ');
+    for (let i = 0; i < res.length; i++) res[i].sugCols = colunasSugestao(res[i].it, sug[i], res[i]);
+  } finally { passe = null; }
+  res.modoSug = true; data.results = res;
+  const n = res.filter(r => Object.values(r.sugCols).some(v => v !== '')).length;
+  $('#runState').textContent = `${res.length.toLocaleString('pt-BR')} descritivos padronizados em ${((performance.now() - t0) / 1000).toFixed(1)}s · ${n.toLocaleString('pt-BR')} itens com sugestão.`;
+  renderResults();
+}
+// marca da DIMA com algum segmento (EST MER 6) da categoria; sem segmento conhecido para a categoria, não dá para julgar
+const CUT_CATS = new Set(['CUTELARIA OUTROS', 'ALICATES DE CUTICULA', 'REMOVEDOR DE CALOS']);
+const CUT_EXT = { PEQ: 'PEQUENO', PQ: 'PEQUENO', GDE: 'GRANDE', GD: 'GRANDE', GDDE: 'GRANDE', GR: 'GRANDE', INF: 'INFANTIL', CAB: 'CABO', MET: 'METAL', IMPORT: 'IMPORTADO', EMBOR: 'EMBORRACHADO', EMBORR: 'EMBORRACHADO', ESP: 'ESPATULA', ESPAT: 'ESPATULA', LAM: 'LAMINA', DOBR: 'DOBRAVEL' };
+const CUT_TIPO = { CORTADOR: 'UNHA', CORT: 'UNHA', TESOURA: 'UNHA', RASPADOR: 'UNHA', LIXA: 'UNHA', PALITO: 'UNHA', ESPATULA: 'CUTICULA', EMPURRADOR: 'CUTICULA', TIRADOR: 'CUTICULA', AFASTADOR: 'CUTICULA' };
+function cutelariaIni(ini, T) {
+  const w = (ini || '').split(' ')[0]; if (!(w in CUT_TIPO) || / DE /.test(ini || '')) return '';
+  const tt = T.slice(0, 3).join(' ');
+  if (w === 'LIXA' && /(?<![A-Z])(PE|PES|CALO|CALOS|PEDICURE)(?![A-Z])/.test(tt)) return '';
+  if (/^(CORTADOR|CORT)$/.test(w) && /(?<![A-Z])(CALO|CALOS)(?![A-Z])/.test(tt)) return 'CORTADOR DE CALOS';
+  if (w === 'TESOURA' && /(?<![A-Z])(CABELO|CAB)(?![A-Z])/.test(tt)) return '';
+  const nome = w === 'CORT' ? 'CORTADOR' : w;
+  const cut = /(?<![A-Z])(CUTICULA|CUTICULAS|CUTIC)(?![A-Z])/.test(tt), unha = /(?<![A-Z])(UNHA|UNHAS|UNH)(?![A-Z])/.test(tt);
+  return nome + ' DE ' + (cut && !unha ? 'CUTICULA' : unha && !cut ? 'UNHA' : CUT_TIPO[w]);
+}
+// marca escrita na descrição, também cortada no fim (ALTO GI = ALTO GIRO, CORTADOR DE UNHA RIO = RIO TIJUCAS)
+function marcaCortada(mn, t) { if (!mn) return false; if (marcaNaDesc(mn, [t])) return true; const bw = mn.split(' '), tw = t.split(' '); if (bw.length < 2) return false;
+  for (let i = 0; i < tw.length; i++) { if (tw[i] !== bw[0]) continue; let k = 1; while (k < bw.length && i + k < tw.length && tw[i + k] === bw[k]) k++;
+    if (i + k === tw.length && k < bw.length) return true; // a descrição acabou no meio da marca
+    if (i + k === tw.length - 1 && k < bw.length && tw[i + k].length >= 2 && bw[k].startsWith(tw[i + k])) return true; }
+  return false; }
+function marcaDoSeg(b, seg) { if (!b || !b.em || !seg || !seg.length || seg.livre) return true; return [...b.em.keys()].some(e => seg.includes(e)); }
+function marcaDaCategoria(m, cat) { if (!N(m) || N(m) === 'OUTRA MARCA' || !data.segOf) return false; const sg = data.segOf(cat) || [];
+  for (const DD of brandDicts()) { const b = DD.map.get(N(m)); if (b && b.em && sg.length && [...b.em.keys()].some(e => sg.includes(e))) return true; } return false; }
+function nomeTodoNaDesc(c, T) { const ws = N(c.nome).split(' ').filter(w => w.length >= 3 && !SEG_STOP.has(w)); return ws.length > 0 && T.some(t => ws.every(w => new RegExp('(?<![A-Z0-9])' + escRx(w) + 'S?(?![A-Z0-9])').test(t))); }
+function colunasSugestao(it, g, r) {
+  const real = (v, padrao) => !!N(v) && N(v) !== padrao, igual = (a, b) => N(a).replace(/[^A-Z0-9]/g, '') === N(b).replace(/[^A-Z0-9]/g, '');
+  const bDe = m => { for (const DD of brandDicts()) { const b = DD.map.get(N(m)); if (b) return b; } return null; };
+  const seg = r.segCat || [];
+  // marca: a mais votada entre as descrições (com marca da DIMA no segmento da categoria do arquivo)
+  let marca = '', fab = '';
+  if (r.voto && !igual(r.voto.marca, it.sugMarca)) { marca = r.voto.marca; fab = r.voto.fab; }
+  if (!marca && igual(g.marca, it.sugMarca)) fab = g.fab; // mesma marca: só o fabricante pode estar errado (LUXCAR com OUTRO FABRICANTE)
+  if (!marca && r.voto && igual(r.voto.marca, it.sugMarca) && !fab) fab = r.voto.fab;
+  const cola = x => N(x).replace(/[^A-Z0-9]/g, ''); const mesmaEmp = (a, b) => !!cola(a) && !!cola(b) && (cola(a).includes(cola(b)) || cola(b).includes(cola(a)));
+  if (!real(fab, 'OUTRO FABRICANTE') || igual(fab, it.sugFab) || mesmaEmp(fab, it.sugFab)) fab = '';
+  // quantidade: só quando pelo menos duas descrições (ou a única) trazem a mesma quantidade
+  const qArq = it.sugQtOut ?? (it.sugQt === null || it.sugQt === undefined || it.sugQt === '' ? null : parseFloat(String(it.sugQt).replace(',', '.')));
+  const qApp = g.qt === null || g.qt === undefined || isNaN(g.qt) || g.qPadrao ? null : Math.round(g.qt * 1000) / 1000;
+  let qt = '';
+  if (qApp !== null && (qArq === null || isNaN(qArq) || Math.abs(qArq - qApp) > 1e-6)) {
+    const apoio = it.T.filter(t => { const q = itemQty([textoQtd(t)], null); const u = q.tot === null || (q.tot === 1 && q.base === 'UN') ? countQty([textoQtd(t)]) || q : q; return u.tot !== null && Math.abs(u.tot - qApp) < 1e-6; }).length;
+    if (apoio >= 2 || (it.T.length === 1 && apoio === 1)) qt = qApp; }
+  // categoria: só quando a do arquivo não bate com a descrição (ou o arquivo veio sem categoria)
+  const c1 = it.sugCat && (cfg.categorias.find(c => c.nome === it.sugCat));
+  const catOk = c1 && (bateCategoria(c1, it.T) || nomeNaDesc(c1, it.T) || abrevNaDesc(c1, it.T));
+  const gc = cfg.categorias.find(c => c.nome === g.cat);
+  const cat = g.cat && g.cat !== OUT && g.cat !== it.sugCat && (!it.sugCat || (!catOk && gc && (nomeTodoNaDesc(gc, it.T.slice(0, 3)) || (bateCategoria(gc, it.T) && marcaDaCategoria(g.marca, g.cat))))) ? nomeOf(g.cat) : '';
+  return { marca, fab, qt, cat };
+}
+function buildSugWorkbook() {
+  const R = data.results, hdr = data.hdr || [], w = hdr.length; const wb = XLSX.utils.book_new();
+  const aoa = [[...hdr.map(h => h ?? ''), 'DESCRITIVO PADRONIZADO', 'MARCA SUGERIDA', 'FABRICANTE SUGERIDO', 'QUANTIDADE SUGERIDA', 'CATEGORIA SUGERIDA']];
+  for (const r of R) { const row = (r.it.row || []).slice(0, w); while (row.length < w) row.push(null); const s = r.sugCols; aoa.push([...row, r.desc, s.marca, s.fab, s.qt, s.cat]); }
+  const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = [...hdr.map(() => ({ wch: 16 })), { wch: 60 }, { wch: 20 }, { wch: 26 }, { wch: 12 }, { wch: 28 }];
+  for (let i = 2; i <= aoa.length; i++) { const c = ws['A' + i]; if (c && c.t === 'n') c.z = '0'; }
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: aoa.length - 1, c: w + 4 } }) };
+  XLSX.utils.book_append_sheet(wb, ws, 'Planilha1');
+  const cnt = k => R.filter(r => r.sugCols[k] !== '').length;
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['SUGESTÃO', 'QTD ITENS'], ['MARCA SUGERIDA', cnt('marca')], ['FABRICANTE SUGERIDO', cnt('fab')], ['QUANTIDADE SUGERIDA', cnt('qt')], ['CATEGORIA SUGERIDA', cnt('cat')], ['TOTAL DE ITENS', R.length], [], ['Configuração: ' + cfg.nome], ['Gerado em ' + new Date().toLocaleString('pt-BR')]]), 'RESUMO');
+  return XLSX.write(wb, { bookType: 'xlsx', type: 'array', compression: true });
 }
 async function runAll() {
   const t0 = performance.now(); let res;
@@ -2145,7 +2248,7 @@ function catInterna(v) {
   const n = N(raw); return data.catAlias.get(n) || data.catAlias.get(n.replace(/^[A-Z]\d{2}[A-Z]?\d?\s+/, '')) || raw;
 }
 function buildWorkbook() {
-  nomeCache = null;
+  nomeCache = null; if (data.results && data.results.modoSug) return buildSugWorkbook();
   const R = data.results; const wb = XLSX.utils.book_new();
   const num = v => (v === null || v === undefined || isNaN(v)) ? null : (Math.abs(v - Math.round(v)) < 1e-9 ? Math.round(v) : v);
   const bc = v => { const s = String(v).trim(); return /^\d{1,15}$/.test(s) ? Number(s) : s; };
@@ -2305,7 +2408,7 @@ function status(id, html, ok) { const s = $(id); s.innerHTML = html; s.closest('
 const escH = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 setupDrop('#dropBacklog', '#fBacklog', async file => {
   status('#stBacklog', 'Lendo ' + escH(file.name) + '…');
-  try { const n = await loadBacklog(file); status('#stBacklog', `<b>${n.toLocaleString('pt-BR')}</b> itens · ${escH(file.name)}<br>${data.sugCounts.size} categorias sugeridas<br>${data.colunas || ''}${data.reativadas ? `<br>${data.reativadas} categorias do arquivo estavam desligadas e foram ativadas` : ''}`, true); $('#btnRun').disabled = false; $('#runState').textContent = data.dict ? 'Pronto para classificar.' : 'Pronto. Sem o dicionário, a marca vem só da base DIMA embutida.'; autoSegments(); renderCats(); }
+  try { const n = await loadBacklog(file); status('#stBacklog', `<b>${n.toLocaleString('pt-BR')}</b> itens · ${escH(file.name)}<br>${data.sugCounts.size} categorias sugeridas<br>${data.colunas || ''}${data.reativadas ? `<br>${data.reativadas} categorias do arquivo estavam desligadas e foram ativadas` : ''}`, true); $('#btnRun').disabled = false; $('#btnSug').disabled = false; $('#runState').textContent = data.dict ? 'Pronto para classificar.' : 'Pronto. Sem o dicionário, a marca vem só da base DIMA embutida.'; autoSegments(); renderCats(); }
   catch (e) { status('#stBacklog', 'Não consegui ler: ' + escH(e.message)); }
 });
 setupDrop('#dropDict', '#fDict', async file => {
@@ -2324,7 +2427,8 @@ setupDrop('#dropCats', '#fCats', async file => {
     status('#stCats', `<b>${add}</b> categorias novas · ${upd} inícios atualizados`, true); saveDraft(); renderCats();
   } catch (e) { status('#stCats', 'Não consegui ler: ' + escH(e.message)); }
 });
-$('#btnRun').addEventListener('click', async () => { const b = $('#btnRun'); b.disabled = true; $('#btnDownload').disabled = true; try { await runAll(); } catch (e) { $('#runState').textContent = 'Erro ao classificar: ' + e.message; } b.disabled = false; });
+$('#btnSug').addEventListener('click', async () => { const b = $('#btnSug'); b.disabled = true; $('#btnRun').disabled = true; $('#btnDownload').disabled = true; try { await runSugestao(); } catch (e) { $('#runState').textContent = 'Erro ao padronizar: ' + e.message; } b.disabled = false; $('#btnRun').disabled = false; });
+$('#btnRun').addEventListener('click', async () => { const b = $('#btnRun'); b.disabled = true; $('#btnDownload').disabled = true; $('#btnSug').disabled = true; try { await runAll(); } catch (e) { $('#runState').textContent = 'Erro ao classificar: ' + e.message; } b.disabled = false; $('#btnSug').disabled = false; });
 $('#fltCat').addEventListener('change', renderPreview); $('#fltMode').addEventListener('change', renderPreview);
 // Salva pelo Claude quando a página roda lá; fora dele (arquivo aberto direto no navegador) baixa por link comum.
 async function salvarArquivo(filename, blob) {
@@ -2336,7 +2440,7 @@ async function salvarArquivo(filename, blob) {
 $('#btnDownload').addEventListener('click', async () => {
   const b = $('#btnDownload'); b.disabled = true;
   $('#runState').textContent = `Gerando a planilha de ${data.results.length.toLocaleString('pt-BR')} itens… (backlogs grandes podem levar alguns minutos)`; await new Promise(r => setTimeout(r, 50));
-  try { const buf = buildWorkbook(); await salvarArquivo('BACKLOG_CLASSIFICADO.xlsx', new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); $('#runState').textContent = 'Planilha salva.'; }
+  try { const buf = buildWorkbook(); await salvarArquivo(data.results && data.results.modoSug ? 'BACKLOG_DESCRITIVO_SUGESTOES.xlsx' : 'BACKLOG_CLASSIFICADO.xlsx', new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); $('#runState').textContent = 'Planilha salva.'; }
   catch (e) { $('#runState').textContent = e.code === 'declined' ? 'Download cancelado.' : 'Não consegui salvar a planilha (' + (e.code || e.message) + ').'; }
   b.disabled = false;
 });
