@@ -8,7 +8,7 @@ const ESP = [
   [1, 'CORTADOR DE UNHA UTIL MIL 1UN', 'UTIL MIL', 'UTIL MIL', '', ''],
   [2, 'CORTADOR DE UNHA CHAZAK ACO 1UN', 'CHAZAK', 'CHAZAK IMPORTACOES', '', ''],
   [3, 'ALICATES DE CUTICULA ALTO GIRO 1UN', 'ALTO GIRO', 'ALTO GIRO ENCARTELADORA LTDA', '', ''],
-  [4, 'CORTADOR DE UNHA BELLIZ RICCA GRANDE 1UN', 'RICCA', '', '', ''],
+  [4, 'CORTADOR DE UNHA BELLIZ GRANDE 1UN', 'RICCA', '', '', ''],
   [5, null, 'ETIHOME', 'ETILUX', '', ''],
   [6, null, '', 'LUXCAR', '', ''],
   [7, 'CORTADOR DE UNHA RIO TIJUCAS 1UN', 'RIO TIJUCAS', 'RIO TIJUCAS', '', ''],
@@ -33,5 +33,9 @@ const ESP = [
   for (let i = 0; i < inp.length; i++) { n++; const a = JSON.stringify((inp[i] || []).slice(0, W).map(v => v ?? '')), o = JSON.stringify(out[i].slice(0, W)); if (a === o) ok++; else console.log('COLUNA DO ARQUIVO MUDOU na linha', i + 1, a, o); }
   for (const [i, d, m, f, q, c] of ESP) { n++; const r = out[i].slice(W); const exp = [d ?? r[0], m, f, q, c];
     if (JSON.stringify(r) === JSON.stringify(exp)) ok++; else console.log('ERRO linha', i + 1, '| esperado', JSON.stringify(exp), '| saiu', JSON.stringify(r)); }
+  // regra da marca: com marca no arquivo, o descritivo leva a marca do arquivo; com OUTRA MARCA, a marca sugerida (se houver)
+  const iM = inp[0].findIndex(h => String(h).trim().toUpperCase() === 'MARCA'); const norm = v => String(v ?? '').toUpperCase().replace(/\s+/g, ' ').trim();
+  for (let i = 1; i < out.length; i++) { n++; const m = norm(out[i][iM]), d = ' ' + norm(out[i][W]) + ' ', sg = norm(out[i][W + 1]);
+    const exp = m && m !== 'OUTRA MARCA' ? m : sg; if (!exp || d.includes(' ' + exp + ' ')) ok++; else console.log('MARCA ERRADA NO DESCRITIVO linha', i + 1, '| esperado', exp, '| descritivo', d.trim()); }
   console.log(`${ok} de ${n} verificações corretas`); await b.close(); process.exit(ok === n ? 0 : 1);
 })();

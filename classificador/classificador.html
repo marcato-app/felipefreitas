@@ -1905,7 +1905,8 @@ async function runCore(pfx = '') {
     // categoria do arquivo coerente com a descrição -> mantém tudo do arquivo (marca, fabricante, conteúdo); só avisa
     const arqOk = prioArq() && !!it.sugCat && a.cat === it.sugCat && !a.arqAviso && !(cc && cc.cesta === 'FARMACIA');
     // modo só descritivo: marca, fabricante e conteúdo do arquivo ficam sempre (mesmo quando a categoria é ajustada)
-    const soD = !!(passe && passe.soDesc) && !(cc && cc.cesta === 'FARMACIA');
+    // descritivo + sugestões (fixo): a marca do arquivo vale sempre, também na farmácia; só OUTRA MARCA usa a marca sugerida (votação)
+    const soD = (!!(passe && passe.soDesc) && !(cc && cc.cesta === 'FARMACIA')) || !!(passe && passe.fixo);
     const manter = sempreArq() || arqOk || soD;
     const sm = N(it.sugMarca), marcaArq = prioArq() && valido(it.sugMarca) && (!C.black.has(sm) || arqOk || soD);
     const outraArq = false; // OUTRA MARCA do arquivo não trava: se a descrição traz marca da categoria, vale ela
@@ -1932,7 +1933,7 @@ async function runCore(pfx = '') {
     }
     // marca do arquivo que é personagem/licença (THOR, MARVEL…) com outra marca na descrição (ZEEDOG): vale a da descrição
     let persArq = null;
-    if (marcaArq && !bn && PERSONAGENS.has(sm)) for (const DD of brandDicts()) { const b2 = findBrand(T, seg, '', C.black, DD, vocab); if (b2 && !PERSONAGENS.has(b2)) { persArq = b2; bn = b2; BD = DD; break; } }
+    if (marcaArq && !bn && PERSONAGENS.has(sm) && !(passe && passe.fixo)) for (const DD of brandDicts()) { const b2 = findBrand(T, seg, '', C.black, DD, vocab); if (b2 && !PERSONAGENS.has(b2)) { persArq = b2; bn = b2; BD = DD; break; } }
     if (persArq) { marca = BD.map.get(bn).canon; fab = fabricante(bn, seg, BD); arqAl.push(`Arquivo: marca ${it.sugMarca.trim()} é personagem/licença; usada ${marca} da descrição`); }
     else if (marcaArq && !bn) {
       bn = sm; BD = brandDicts().find(D => D.map.has(sm)) || null;
@@ -2047,6 +2048,9 @@ async function runCore(pfx = '') {
     // descritivo com no máximo 60 caracteres: início, marca e conteúdo são obrigatórios e ficam inteiros;
     // só o complemento (entre a marca e o conteúdo) é abreviado e, se ainda passar, perde palavras do fim
     let compW = comp ? comp.split(' ') : [], iniTxt = ini;
+    // descritivo + sugestões: com marca no arquivo, a marca sugerida (outra) não entra no descritivo (BELLIZ, não BELLIZ RICCA)
+    if ((passe && passe.fixo) && voto && valido(it.sugMarca) && !igualMarca(voto.marca, it.sugMarca)) { const tira = new Set(N(voto.marca).split(' ')); const jt = ' ' + compW.join(' ') + ' ', fr = ' ' + N(voto.marca) + ' ';
+      compW = jt.includes(fr) ? jt.replace(fr, ' ').trim().split(' ').filter(Boolean) : compW.filter(w => !(tira.size === 1 && tira.has(w))); }
     if (cutIni || CUT_CATS.has(a.cat)) compW = compW.map(w => CUT_EXT[w] || w);
     if (cutIni || CUT_CATS.has(a.cat)) compW = compW.filter(w => !/^(CM|MM|REF|R|COD)$/.test(w)); // medida que perdeu o número, referência
     if (cutIni || a.cat === 'ALICATES DE CUTICULA') compW = compW.filter(w => !/^(UNHA|UNHAS|UNH|CUTICULA|CUTICULAS|CUTIC|CUTI|CUT|P|PARA|DE)$/.test(w)); // já estão no início
@@ -2162,6 +2166,7 @@ function cutelariaIni(ini, T) {
   return nome + ' DE ' + (cut && !unha ? 'CUTICULA' : unha && !cut ? 'UNHA' : CUT_TIPO[w]);
 }
 // marca escrita na descrição, também cortada no fim (ALTO GI = ALTO GIRO, CORTADOR DE UNHA RIO = RIO TIJUCAS)
+const igualMarca = (a, b) => N(a).replace(/[^A-Z0-9]/g, '') === N(b).replace(/[^A-Z0-9]/g, '');
 function marcaCortada(mn, t) { if (!mn) return false; if (marcaNaDesc(mn, [t])) return true; const bw = mn.split(' '), tw = t.split(' '); if (bw.length < 2) return false;
   for (let i = 0; i < tw.length; i++) { if (tw[i] !== bw[0]) continue; let k = 1; while (k < bw.length && i + k < tw.length && tw[i + k] === bw[k]) k++;
     if (i + k === tw.length && k < bw.length) return true; // a descrição acabou no meio da marca
