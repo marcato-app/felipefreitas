@@ -1989,7 +1989,9 @@ async function runCore(pfx = '') {
         if ((passe && passe.fixo) && q.tot !== null && Math.abs(q.tot - qf.tot) < 1e-6) { /* mesmo total: fica o da descrição (12X395G) */ }
         else {
         const kgArq = q.tot !== null && qf.tot <= 60 && Math.abs(q.tot - qf.tot * 1000) < 1e-6; // arquivo 1 = 1KG / 1L
-        if ((passe && passe.fixo) && q.tot !== null && (q.base === 'G' || q.base === 'ML') && !kgArq && Math.abs(q.tot - qf.tot) > 1e-6) q = { tot: qf.tot, base: 'UN', n: 1, uv: qf.tot, flag: '' }; // número do arquivo sem medida e diferente do peso da descrição: unidades
+        const uniQ = q.tot !== null ? (q.n > 1 ? q.uv : q.tot) : null, mult = uniQ ? qf.tot / uniQ : 0; // 2800 do arquivo com 140G na descrição = 20X140G (caixa)
+        if ((passe && passe.fixo) && q.tot !== null && (q.base === 'G' || q.base === 'ML') && !kgArq && Math.abs(q.tot - qf.tot) > 1e-6 && mult >= 1 && Math.abs(mult - Math.round(mult)) < 1e-6) q = { tot: qf.tot, base: q.base, n: Math.round(mult), uv: uniQ, flag: '' };
+        else if ((passe && passe.fixo) && q.tot !== null && (q.base === 'G' || q.base === 'ML') && !kgArq && Math.abs(q.tot - qf.tot) > 1e-6) q = { tot: qf.tot, base: 'UN', n: 1, uv: qf.tot, flag: '' }; // número do arquivo sem medida e diferente do peso da descrição: unidades
         else if (!((passe && passe.fixo) && kgArq)) q = q.tot !== null ? Object.assign({}, q, { tot: qf.tot, n: 1, uv: qf.tot, flag: '' }) : qf; } }
       if ((passe && passe.fixo) && it.arqUn > 1 && it.arqCu > 0 && q.tot !== null && Math.abs(it.arqUn * it.arqCu - q.tot) < 1e-6) q = Object.assign({}, q, { n: it.arqUn, uv: it.arqCu });
       if (q === qf && !qf.base) { // número sem unidade no arquivo: unidade pela contagem da descrição ou pela unidade sugerida da categoria
@@ -2206,7 +2208,10 @@ function colunasSugestao(it, g, r) {
   const qArq = it.sugQtOut ?? (it.sugQt === null || it.sugQt === undefined || it.sugQt === '' ? null : parseFloat(String(it.sugQt).replace(',', '.')));
   const qApp = g.qt === null || g.qt === undefined || isNaN(g.qt) || g.qPadrao ? null : Math.round(g.qt * 1000) / 1000;
   let qt = '';
-  if (qApp !== null && (qArq === null || isNaN(qArq) || Math.abs(qArq - qApp) > 1e-6)) {
+  // arquivo com caixa coerente com a descrição (20 x 140G, ou código de 14 dígitos com total múltiplo do peso): não é erro
+  const dun14 = /^\d{14}$/.test(String(it.barcode).trim()), kx = qApp ? qArq / qApp : 0;
+  const packOk = qApp !== null && qArq !== null && !isNaN(qArq) && ((it.arqUn > 1 && Math.abs(it.arqCu - qApp) < 1e-6) || (dun14 && kx > 1 && Math.abs(kx - Math.round(kx)) < 1e-6));
+  if (qApp !== null && !packOk && (qArq === null || isNaN(qArq) || Math.abs(qArq - qApp) > 1e-6)) {
     const apoio = it.T.filter(t => { const q = itemQty([textoQtd(t)], null); const u = q.tot === null || (q.tot === 1 && q.base === 'UN') ? countQty([textoQtd(t)]) || q : q; return u.tot !== null && Math.abs(u.tot - qApp) < 1e-6; }).length;
     if (apoio >= 2 || (it.T.length === 1 && apoio === 1)) qt = qApp; }
   // categoria: só quando a do arquivo não bate com a descrição (ou o arquivo veio sem categoria)
@@ -2217,7 +2222,7 @@ function colunasSugestao(it, g, r) {
   // unidades e conteúdo unitário (pack): com a quantidade sugerida, ou com o mesmo total e o pack escrito em 2+ descrições (ou código de 14 dígitos)
   let un = '', cu = '';
   const nApp = g.qt === null || g.qt === undefined || g.qPadrao ? null : (g.qn || 1), uvApp = nApp === null ? null : Math.round((g.quv ?? g.qt) * 1000) / 1000;
-  if (nApp !== null) {
+  if (nApp !== null && !packOk) {
     const difUn = isNaN(it.arqUn) || Math.abs(it.arqUn - nApp) > 1e-6, difCu = isNaN(it.arqCu) || Math.abs(it.arqCu - uvApp) > 1e-6;
     const dun = /^\d{14}$/.test(String(it.barcode).trim());
     const apoioPack = nApp > 1 && (dun || it.T.filter(t => { const q = itemQty([textoQtd(t)], null); return q.tot !== null && q.n === nApp; }).length >= Math.min(2, it.T.length));

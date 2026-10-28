@@ -23,6 +23,8 @@ const ESP = [
   [17, 'GARRAFA TERMICA ALADDIN AZEITONA 1L 6X1UN', '', '', '', ''], // sem TERMICO / ALADIN repetidos
   [18, 'BISCOITO RECHEADO NESTLE CHOCOLATE 140G', '', 'DPA', '', ''], // sem RECHEADA / NESTLLE
   [19, 'LEITE CONDENSADO MOCA 12X395G', '', '', '', 12, 395, ''], // mesmo total, pack escrito nas descrições
+  [20, 'BATATA PALHA YOKI 20X140G', '', '', '', ''], // caixa: 2800 do arquivo = 20 x 140G (gramas, não UN)
+  [21, 'BATATA PALHA YOKI TRADICIONAL 140G', '', '', '', ''],
 ];
 (async () => {
   const b = await chromium.launch(); const ctx = await b.newContext();
