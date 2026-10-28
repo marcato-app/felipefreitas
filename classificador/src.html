@@ -176,7 +176,7 @@ td.alert{color:var(--warn); font-size:12px}
   <section class="step" aria-labelledby="s4">
     <div class="step-h"><span class="n">4</span><h2 id="s4">Classificar</h2>
       <p>Categoria por votação entre as descrições de cada código (as primeiras pesam mais; a sugerida desempata). Conteúdo em g ou ml, packs somados. Descritivo = início + marca + complementos + quantidade.</p></div>
-    <div class="bar"><button class="pri" id="btnRun" disabled>Classificar</button><button id="btnSug" disabled title="Não mexe em nenhuma coluna do arquivo: só acrescenta o DESCRITIVO PADRONIZADO e as colunas MARCA SUGERIDA, FABRICANTE SUGERIDO, QUANTIDADE SUGERIDA e CATEGORIA SUGERIDA">Padronizar descritivo + sugestões</button><button id="btnDownload" disabled>Baixar planilha .xlsx</button><span class="note" id="runState">Envie o backlog para começar.</span></div>
+    <div class="bar"><button class="pri" id="btnRun" disabled>Classificar</button><button id="btnSug" disabled title="Não mexe em nenhuma coluna do arquivo: só acrescenta o DESCRITIVO PADRONIZADO e as colunas MARCA SUGERIDA, FABRICANTE SUGERIDO, QUANTIDADE SUGERIDA, UNIDADES SUGERIDA, CONTENIDO UNITARIO SUGERIDO e CATEGORIA SUGERIDA">Padronizar descritivo + sugestões</button><button id="btnDownload" disabled>Baixar planilha .xlsx</button><span class="note" id="runState">Envie o backlog para começar.</span></div>
     <div class="progress" aria-hidden="true"><div id="prog"></div></div>
     <div id="results" class="hidden" style="display:flex;flex-direction:column;gap:14px">
       <div class="sum" id="kpis"></div>
@@ -2213,18 +2213,27 @@ function colunasSugestao(it, g, r) {
   const catOk = c1 && (bateCategoria(c1, it.T) || nomeNaDesc(c1, it.T) || abrevNaDesc(c1, it.T));
   const gc = cfg.categorias.find(c => c.nome === g.cat);
   const cat = g.cat && g.cat !== OUT && g.cat !== it.sugCat && (!it.sugCat || (!catOk && gc && (nomeTodoNaDesc(gc, it.T.slice(0, 3)) || (bateCategoria(gc, it.T) && marcaDaCategoria(g.marca, g.cat))))) ? nomeOf(g.cat) : '';
-  return { marca, fab, qt, cat };
+  // unidades e conteúdo unitário (pack): com a quantidade sugerida, ou com o mesmo total e o pack escrito em 2+ descrições (ou código de 14 dígitos)
+  let un = '', cu = '';
+  const nApp = g.qt === null || g.qt === undefined || g.qPadrao ? null : (g.qn || 1), uvApp = nApp === null ? null : Math.round((g.quv ?? g.qt) * 1000) / 1000;
+  if (nApp !== null) {
+    const difUn = isNaN(it.arqUn) || Math.abs(it.arqUn - nApp) > 1e-6, difCu = isNaN(it.arqCu) || Math.abs(it.arqCu - uvApp) > 1e-6;
+    const dun = /^\d{14}$/.test(String(it.barcode).trim());
+    const apoioPack = nApp > 1 && (dun || it.T.filter(t => { const q = itemQty([textoQtd(t)], null); return q.tot !== null && q.n === nApp; }).length >= Math.min(2, it.T.length));
+    if (qt !== '' || apoioPack) { if (difUn) un = nApp; if (difCu) cu = uvApp; }
+  }
+  return { marca, fab, qt, un, cu, cat };
 }
 function buildSugWorkbook() {
   const R = data.results, hdr = data.hdr || [], w = hdr.length; const wb = XLSX.utils.book_new();
-  const aoa = [[...hdr.map(h => h ?? ''), 'DESCRITIVO PADRONIZADO', 'MARCA SUGERIDA', 'FABRICANTE SUGERIDO', 'QUANTIDADE SUGERIDA', 'CATEGORIA SUGERIDA']];
-  for (const r of R) { const row = (r.it.row || []).slice(0, w); while (row.length < w) row.push(null); const s = r.sugCols; aoa.push([...row, r.desc, s.marca, s.fab, s.qt, s.cat]); }
-  const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = [...hdr.map(() => ({ wch: 16 })), { wch: 60 }, { wch: 20 }, { wch: 26 }, { wch: 12 }, { wch: 28 }];
+  const aoa = [[...hdr.map(h => h ?? ''), 'DESCRITIVO PADRONIZADO', 'MARCA SUGERIDA', 'FABRICANTE SUGERIDO', 'QUANTIDADE SUGERIDA', 'UNIDADES SUGERIDA', 'CONTENIDO UNITARIO SUGERIDO', 'CATEGORIA SUGERIDA']];
+  for (const r of R) { const row = (r.it.row || []).slice(0, w); while (row.length < w) row.push(null); const s = r.sugCols; aoa.push([...row, r.desc, s.marca, s.fab, s.qt, s.un, s.cu, s.cat]); }
+  const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = [...hdr.map(() => ({ wch: 16 })), { wch: 60 }, { wch: 20 }, { wch: 26 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 28 }];
   for (let i = 2; i <= aoa.length; i++) { const c = ws['A' + i]; if (c && c.t === 'n') c.z = '0'; }
-  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: aoa.length - 1, c: w + 4 } }) };
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: aoa.length - 1, c: w + 6 } }) };
   XLSX.utils.book_append_sheet(wb, ws, 'Planilha1');
   const cnt = k => R.filter(r => r.sugCols[k] !== '').length;
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['SUGESTÃO', 'QTD ITENS'], ['MARCA SUGERIDA', cnt('marca')], ['FABRICANTE SUGERIDO', cnt('fab')], ['QUANTIDADE SUGERIDA', cnt('qt')], ['CATEGORIA SUGERIDA', cnt('cat')], ['TOTAL DE ITENS', R.length], [], ['Configuração: ' + cfg.nome], ['Gerado em ' + new Date().toLocaleString('pt-BR')]]), 'RESUMO');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['SUGESTÃO', 'QTD ITENS'], ['MARCA SUGERIDA', cnt('marca')], ['FABRICANTE SUGERIDO', cnt('fab')], ['QUANTIDADE SUGERIDA', cnt('qt')], ['UNIDADES SUGERIDA', cnt('un')], ['CONTENIDO UNITARIO SUGERIDO', cnt('cu')], ['CATEGORIA SUGERIDA', cnt('cat')], ['TOTAL DE ITENS', R.length], [], ['Configuração: ' + cfg.nome], ['Gerado em ' + new Date().toLocaleString('pt-BR')]]), 'RESUMO');
   return XLSX.write(wb, { bookType: 'xlsx', type: 'array', compression: true });
 }
 async function runAll() {

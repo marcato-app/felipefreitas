@@ -4,6 +4,7 @@
 const { chromium } = require('playwright'); const path = require('path');
 const [,, html, xlsxjs] = process.argv; const file = path.join(__dirname, 'sugestao_exemplo.xlsx');
 // [linha, descritivo, marca sugerida, fabricante sugerido, quantidade sugerida, categoria sugerida]
+// ou [linha, descritivo, marca, fabricante, quantidade, unidades sugerida, conteúdo unitário sugerido, categoria]
 const ESP = [
   [1, 'CORTADOR DE UNHA UTIL MIL 1UN', 'UTIL MIL', 'UTIL MIL', '', ''],
   [2, 'CORTADOR DE UNHA CHAZAK ACO 1UN', 'CHAZAK', 'CHAZAK IMPORTACOES', '', ''],
@@ -14,13 +15,14 @@ const ESP = [
   [7, 'CORTADOR DE UNHA RIO TIJUCAS 1UN', 'RIO TIJUCAS', 'RIO TIJUCAS', '', ''],
   [8, 'TESOURA DE UNHA EASE CARE 1UN', '', '', '', ''],
   [9, null, '', '', '', ''],
-  [10, 'LIXA DE UNHA CAPRICHOSA OURO 1UN', '', '', 6, ''],
+  [10, 'LIXA DE UNHA CAPRICHOSA OURO 1UN', '', '', 6, '', 6, ''],
   [11, 'LEITE CONDENSADO MOCA 395G', '', '', '', ''],
   [14, 'LEITE CONDENSADO MOCA 12X395G', '', '', '', ''],
   [15, null, '', '', '', 'REFRIGERANTE'],
-  [16, 'ARROZ BRANCO TIO JOAO 5KG', 'TIO JOAO', 'JOSAPAR SA', 5000, 'ARROZ BRANCO'],
+  [16, 'ARROZ BRANCO TIO JOAO 5KG', 'TIO JOAO', 'JOSAPAR SA', 5000, 1, 5000, 'ARROZ BRANCO'],
   [17, 'GARRAFA TERMICA ALADDIN AZEITONA 1L 6X1UN', '', '', '', ''], // sem TERMICO / ALADIN repetidos
   [18, 'BISCOITO RECHEADO NESTLE CHOCOLATE 140G', '', 'DPA', '', ''], // sem RECHEADA / NESTLLE
+  [19, 'LEITE CONDENSADO MOCA 12X395G', '', '', '', 12, 395, ''], // mesmo total, pack escrito nas descrições
 ];
 (async () => {
   const b = await chromium.launch(); const ctx = await b.newContext();
@@ -33,7 +35,7 @@ const ESP = [
   const inp = await p.evaluate(async () => [data.hdr, ...data.items.map(i => i.row)]);
   let ok = 0, n = 0; const W = inp[0].length;
   for (let i = 0; i < inp.length; i++) { n++; const a = JSON.stringify((inp[i] || []).slice(0, W).map(v => v ?? '')), o = JSON.stringify(out[i].slice(0, W)); if (a === o) ok++; else console.log('COLUNA DO ARQUIVO MUDOU na linha', i + 1, a, o); }
-  for (const [i, d, m, f, q, c] of ESP) { n++; const r = out[i].slice(W); const exp = [d ?? r[0], m, f, q, c];
+  for (const E of ESP) { n++; const [i, d, m, f, q] = E; const [un, cu, c] = E.length === 8 ? E.slice(5) : ['', '', E[5]]; const r = out[i].slice(W); const exp = [d ?? r[0], m, f, q, un, cu, c];
     if (JSON.stringify(r) === JSON.stringify(exp)) ok++; else console.log('ERRO linha', i + 1, '| esperado', JSON.stringify(exp), '| saiu', JSON.stringify(r)); }
   // regra da marca: com marca no arquivo, o descritivo leva a marca do arquivo; com OUTRA MARCA, a marca sugerida (se houver)
   const iM = inp[0].findIndex(h => String(h).trim().toUpperCase() === 'MARCA'); const norm = v => String(v ?? '').toUpperCase().replace(/\s+/g, ' ').trim();

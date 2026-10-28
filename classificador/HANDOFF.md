@@ -470,3 +470,9 @@ Pontos pra checar, em ordem:
 - `semVariantes` (antes de montar o descritivo): tira do complemento a palavra que repete o início ou outra palavra do complemento em outro gênero/plural (TERMICO x TERMICA, RECHEADA x RECHEADO, CREMOSO x CREMOSA) e a que é a marca com grafia parecida (letra dobrada ou 1 letra de diferença: ALADIN x ALADDIN, NESTLLE x NESTLE, BAIANA x BAHIANA).
 - Não mexe em palavras com menos de 4 letras (DE, COM), números/medidas; gênero/plural não é comparado com a marca (FLORES fica com APIS FLORA).
 - Impacto medido nos 821 exemplos ensinados: 5 descritivos mudaram, todos tirando repetição; CUTELARIA_2: nenhum. testar_sugestao 53/53 (com a garrafa ALADDIN e o biscoito NESTLLE).
+
+## Descritivo + sugestões: UNIDADES SUGERIDA e CONTENIDO UNITARIO SUGERIDO
+- Colunas novas logo depois de QUANTIDADE SUGERIDA (ordem: DESCRITIVO, MARCA, FABRICANTE, QUANTIDADE, UNIDADES, CONTENIDO UNITARIO, CATEGORIA) e contadas na aba RESUMO.
+- Vêm da passada 1 (qn / quv do app) e só quando diferem do arquivo (UNIDADES / CONTENIDO UNITARIO lidos em `arqUn` / `arqCu`; coluna ausente = sugere).
+- Saem junto com a QUANTIDADE SUGERIDA, ou, com o mesmo total, quando o pack (n unidades) está escrito em 2+ descrições (ou na única) ou o código tem 14 dígitos: arquivo 1 x 4740 com "12X395G" -> 12 e 395. Quantidade padrão (1UN sem informação) não gera sugestão.
+- testar_sugestao 56/56 (lixa C/6 -> CU 6; arroz sem dados -> 1 e 5000; leite condensado 1x4740 -> 12 e 395).
