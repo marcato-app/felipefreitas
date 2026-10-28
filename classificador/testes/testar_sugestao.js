@@ -19,6 +19,8 @@ const ESP = [
   [14, 'LEITE CONDENSADO MOCA 12X395G', '', '', '', ''],
   [15, null, '', '', '', 'REFRIGERANTE'],
   [16, 'ARROZ BRANCO TIO JOAO 5KG', 'TIO JOAO', 'JOSAPAR SA', 5000, 'ARROZ BRANCO'],
+  [17, 'GARRAFA TERMICA ALADDIN AZEITONA 1L 6X1UN', '', '', '', ''], // sem TERMICO / ALADIN repetidos
+  [18, 'BISCOITO RECHEADO NESTLE CHOCOLATE 140G', '', 'DPA', '', ''], // sem RECHEADA / NESTLLE
 ];
 (async () => {
   const b = await chromium.launch(); const ctx = await b.newContext();

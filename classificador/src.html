@@ -2062,6 +2062,7 @@ async function runCore(pfx = '') {
       const put = w => { if (compW.includes(w)) return; let k = -1; compW.forEach((x, j) => { if (['INT', 'RECH', 'FAT', 'SXBC', 'CXBC', 'VD', 'SCH'].includes(x)) k = j; }); compW.splice(k + 1, 0, w); };
       if (/(?<![A-Z])(VIDRO|VDR|VIDROS)(?![A-Z])/.test(tt)) put('VD');
       if (/(?<![A-Z])(SACHE|SACHES|SACHET|SACH|SCH)(?![A-Z])/.test(tt)) put('SCH'); }
+    compW = semVariantes(compW, [...(iniTxt || '').split(' '), ...(brandTxt || '').split(' ')], (brandTxt || '').split(' ')); // TERMICO com TERMICA, ALADIN com ALADDIN
     const monta = () => { const d = cleanD(azeit ? [iniTxt, compW.join(' '), brandTxt, qtyText(q)].filter(Boolean).join(' ') : [iniTxt, brandTxt, compW.join(' '), qtyText(q)].filter(Boolean).join(' '));
       if (cutIni || CUT_CATS.has(a.cat)) return d.replace(/(?<![0-9A-Z.,])(CM|MM)(?![A-Z0-9])/g, '').replace(/\s+/g, ' ').trim(); // medida que perdeu o número
       return azeit ? d.replace(/(?<![A-Z0-9])SXBC(?![A-Z0-9])/g, 'S/C').replace(/(?<![A-Z0-9])CXBC(?![A-Z0-9])/g, 'C/C') : d; };
@@ -2165,6 +2166,20 @@ function cutelariaIni(ini, T) {
   return nome + ' DE ' + (cut && !unha ? 'CUTICULA' : unha && !cut ? 'UNHA' : CUT_TIPO[w]);
 }
 // marca escrita na descrição, também cortada no fim (ALTO GI = ALTO GIRO, CORTADOR DE UNHA RIO = RIO TIJUCAS)
+// palavras do complemento que repetem, em outra forma, o início, a marca ou outra palavra do complemento:
+// gênero/plural (TERMICO x TERMICA, RECHEADA x RECHEADO, PRETOS x PRETO) e, só para a marca, grafia parecida (ALADIN x ALADDIN, NESTLLE x NESTLE)
+const raizPal = w => w.length >= 5 ? w.replace(/(AS|OS|ES|S)$/, '').replace(/[AO]$/, '') : w;
+const semDobro = w => w.replace(/([A-Z])\1+/g, '$1');
+function quaseIgual(a, b) { if (a.length < 4 || b.length < 4) return false; if (semDobro(a) === semDobro(b)) return true; if (Math.min(a.length, b.length) < 5 || Math.abs(a.length - b.length) > 1) return false;
+  let i = 0, j = 0, d = 0; while (i < a.length && j < b.length) { if (a[i] === b[j]) { i++; j++; continue; } if (++d > 1) return false; if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; } } return d + (a.length - i) + (b.length - j) <= 1; }
+function semVariantes(ws, fixas, marcaWs) {
+  const ok = w => w.length >= 4 && /[A-Z]/.test(w) && !/\d/.test(w); // conectivos (DE, COM) e medidas ficam
+  const M = marcaWs.filter(w => w && ok(w)), F = fixas.filter(w => w && ok(w) && !M.includes(w)), out = []; // gênero/plural só contra o início (FLORES fica com APIS FLORA)
+  for (const w of ws) { if (!ok(w)) { out.push(w); continue; }
+    const rep = x => x !== w && raizPal(x) === raizPal(w) && raizPal(w).length >= 4;
+    if (F.some(rep) || M.some(m => m !== w && quaseIgual(m, w)) || out.some(x => ok(x) && (x === w || rep(x)))) continue;
+    out.push(w); }
+  return out; }
 const igualMarca = (a, b) => N(a).replace(/[^A-Z0-9]/g, '') === N(b).replace(/[^A-Z0-9]/g, '');
 function marcaCortada(mn, t) { if (!mn) return false; if (marcaNaDesc(mn, [t])) return true; const bw = mn.split(' '), tw = t.split(' '); if (bw.length < 2) return false;
   for (let i = 0; i < tw.length; i++) { if (tw[i] !== bw[0]) continue; let k = 1; while (k < bw.length && i + k < tw.length && tw[i + k] === bw[k]) k++;

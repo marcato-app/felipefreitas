@@ -464,3 +464,9 @@ Pontos pra checar, em ordem:
 - marcaNaoFrase: UNI / UNID depois de número ("COM 3 UNI") não é marca.
 - Teste: `testes/testar_sugestao.js` com `testes/sugestao_exemplo.xlsx` (colunas do arquivo idênticas + 14 linhas esperadas): 31/31. testar_regras 821/821.
 - Regra da marca no descritivo (pedido do usuário): o descritivo usa a marca, a quantidade e a categoria do arquivo; só quando o arquivo traz OUTRA MARCA o descritivo usa a MARCA SUGERIDA. No modo fixo isso vale também na farmácia e com marca de personagem (sem troca pela da descrição). Com marca no arquivo, a marca sugerida (outra) sai do complemento: CORTADOR DE UNHA BELLIZ GRANDE, não BELLIZ RICCA. Conferido no testar_sugestao.js (linha a linha).
+
+## Descritivo sem palavras repetidas em outra forma (vale em todos os modos)
+- Pedido: "GARRAFA TERMICA ALADDIN TERMICO AZEITONA 1L 6X1UN" trazia TERMICA e TERMICO; também ALADDIN e ALADIN no mesmo descritivo.
+- `semVariantes` (antes de montar o descritivo): tira do complemento a palavra que repete o início ou outra palavra do complemento em outro gênero/plural (TERMICO x TERMICA, RECHEADA x RECHEADO, CREMOSO x CREMOSA) e a que é a marca com grafia parecida (letra dobrada ou 1 letra de diferença: ALADIN x ALADDIN, NESTLLE x NESTLE, BAIANA x BAHIANA).
+- Não mexe em palavras com menos de 4 letras (DE, COM), números/medidas; gênero/plural não é comparado com a marca (FLORES fica com APIS FLORA).
+- Impacto medido nos 821 exemplos ensinados: 5 descritivos mudaram, todos tirando repetição; CUTELARIA_2: nenhum. testar_sugestao 53/53 (com a garrafa ALADDIN e o biscoito NESTLLE).
