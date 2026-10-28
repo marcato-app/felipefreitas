@@ -2043,6 +2043,9 @@ async function runCore(pfx = '') {
     // tamanho solto (P, M, G, GG…, sem número antes) em acessório/roupa PET: TAM G
     if (petAc || a.cat === 'VESTUARIO PET') T2 = T2.map(t => t.replace(/(?<![A-Z0-9.,])(PP|P|M|G|GG|XG|XGG|EG|EGG|XP)(?![A-Z0-9])/g, (m, z, off, str) => /\d\s*$/.test(str.slice(0, off)) ? m : 'TAM_' + z));
     const brandTxt = bn ? cleanD(marca) : '';
+    // marca com caractere especial (M&M'S, L'OREAL, MAKE+, COCA-COLA): no descritivo sai como está escrita na marca (sem acento, em maiúsculas)
+    const brandEsp = bn ? String(marca).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim() : '';
+    const MPH = 'QXMARCAXQ', usaEsp = !!brandTxt && brandEsp !== brandTxt && /[^A-Z0-9 ]/.test(brandEsp);
     // azeitona: VD com outra cor escrita é VIDRO (PRETA FATIADA VD); sozinho continua VERDE (AZ VD)
     if (a.cat === 'AZEITONA') T2 = T2.map(t => /(?<![A-Z])(PRETA|PRETAS|PTA|PT|VERDE|VERDES|VDE|ROXA|ROXAS|MISTA|MISTAS)(?![A-Z])/.test(t) ? t.replace(/(?<![A-Z])VD(?![A-Z])/g, 'VIDRO') : t);
     const comp = complement(T2, a.cat, bala ? ini + ' ' + bala.w + ' BALA BALAS BALINHA BALINHAS' : ini, bn || '', groupOf(a.cat), cc);
@@ -2066,7 +2069,8 @@ async function runCore(pfx = '') {
       if (/(?<![A-Z])(VIDRO|VDR|VIDROS)(?![A-Z])/.test(tt)) put('VD');
       if (/(?<![A-Z])(SACHE|SACHES|SACHET|SACH|SCH)(?![A-Z])/.test(tt)) put('SCH'); }
     compW = semVariantes(compW, [...(iniTxt || '').split(' '), ...(brandTxt || '').split(' ')], (brandTxt || '').split(' ')); // TERMICO com TERMICA, ALADIN com ALADDIN
-    const monta = () => { const d = cleanD(azeit ? [iniTxt, compW.join(' '), brandTxt, qtyText(q)].filter(Boolean).join(' ') : [iniTxt, brandTxt, compW.join(' '), qtyText(q)].filter(Boolean).join(' '));
+    const bt = usaEsp ? MPH : brandTxt;
+    const monta = () => { const d0 = cleanD(azeit ? [iniTxt, compW.join(' '), bt, qtyText(q)].filter(Boolean).join(' ') : [iniTxt, bt, compW.join(' '), qtyText(q)].filter(Boolean).join(' ')); const d = usaEsp ? d0.replace(MPH, brandEsp) : d0;
       if (cutIni || CUT_CATS.has(a.cat)) return d.replace(/(?<![0-9A-Z.,])(CM|MM)(?![A-Z0-9])/g, '').replace(/\s+/g, ' ').trim(); // medida que perdeu o número
       return azeit ? d.replace(/(?<![A-Z0-9])SXBC(?![A-Z0-9])/g, 'S/C').replace(/(?<![A-Z0-9])CXBC(?![A-Z0-9])/g, 'C/C') : d; };
     let desc = monta(), descCortado = false, descLongo = false;

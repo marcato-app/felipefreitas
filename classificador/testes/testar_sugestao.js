@@ -25,6 +25,8 @@ const ESP = [
   [19, 'LEITE CONDENSADO MOCA 12X395G', '', '', '', 12, 395, ''], // mesmo total, pack escrito nas descrições
   [20, 'BATATA PALHA YOKI 20X140G', '', '', '', ''], // caixa: 2800 do arquivo = 20 x 140G (gramas, não UN)
   [21, 'BATATA PALHA YOKI TRADICIONAL 140G', '', '', '', ''],
+  [22, 'ESPONJA SINTETICA SCOTCH-BRITE MULTIUSO 3UN', '', '', '', 'ESPONJA SINTETICA COMUM'], // caractere especial da marca fica
+  [23, "CHOCOLATE M&M'S AMENDOIM 148G", '', '', '', 'CHOCOLATE OUTROS'], // categoria do arquivo que não existe na biblioteca: vem a sugestão
 ];
 (async () => {
   const b = await chromium.launch(); const ctx = await b.newContext();

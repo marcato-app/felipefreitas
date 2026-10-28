@@ -477,3 +477,8 @@ Pontos pra checar, em ordem:
 - Saem junto com a QUANTIDADE SUGERIDA, ou, com o mesmo total, quando o pack (n unidades) está escrito em 2+ descrições (ou na única) ou o código tem 14 dígitos: arquivo 1 x 4740 com "12X395G" -> 12 e 395. Quantidade padrão (1UN sem informação) não gera sugestão.
 - testar_sugestao 56/56 (lixa C/6 -> CU 6; arroz sem dados -> 1 e 5000; leite condensado 1x4740 -> 12 e 395).
 - Correção (batata palha DUN 57891095030014, arquivo 20 x 140 = 2800, descrição 140G): saía 20X140UN. No modo fixo, número do arquivo sem medida que é múltiplo exato do peso/volume da descrição vira a caixa em G/ML (2800 = 20X140G); só sem relação nenhuma (709G x 1) vira UN. E não há sugestão de quantidade/unidades quando o arquivo traz caixa coerente com a descrição (UNIDADES > 1 e CONTENIDO UNITARIO = peso da descrição, ou código de 14 dígitos com total múltiplo do peso). testar_sugestao 62/62.
+
+## Marca com caractere especial no descritivo (vale em todos os modos)
+- Pedido: quando a marca tem caractere especial, ele fica no descritivo. Antes o `cleanD` trocava tudo que não é letra/número por espaço (M&M'S -> M M S, L'OREAL -> L OREAL, SCOTCH-BRITE -> SCOTCH BRITE, MAKE+ -> MAKE).
+- Agora a marca entra no descritivo como está escrita (na coluna MARCA do arquivo, no modo fixo, ou no nome da DIMA), em maiúsculas e sem acento: o `monta` usa um marcador no lugar da marca antes do `cleanD` e troca de volta depois. O resto do descritivo continua limpo.
+- testar_sugestao 68/68 (SCOTCH-BRITE, M&M'S); testar_regras 821/821; descritivos dos exemplos ensinados sem mudança.
