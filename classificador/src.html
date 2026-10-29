@@ -2159,6 +2159,8 @@ async function runAll(opts = {}) {
     if (cc && cc.cesta === 'FARMACIA' && q.tot !== null && q.n >= 6 && (q.base === 'ML' || q.base === 'G') && q.uv >= 30) { // sachê 16X5G fica
       const u = Tq.flatMap(t => parseQ(t)).find(x => x[2] === 1 && Math.abs(x[0] - q.uv) < 0.6 && x[1] === q.base);
       if (u || q.n >= 12 || skuKey(it.barcode).length === 14) q = { tot: q.uv, base: q.base, n: 1, uv: q.uv, flag: '' }; }
+    // bombinha/spray nasal: "120X17.5ML", "200X10ML" é número de doses x frasco; o conteúdo são as doses
+    if (cc && cc.cesta === 'FARMACIA' && q.tot !== null && q.n >= 50 && q.base === 'ML' && Tq.some(t => /(?<![A-Z])(ACION\w*|DOSES?|JATOS?|HFA|AEROSS?OL|INAL\w*|DISPOSIT\w*|SPRAY|NAS|NASAL)(?![A-Z])/.test(t))) q = { tot: q.n, base: 'DOSES', n: 1, uv: q.n, flag: '' };
     // mesmo número em gramas e em comprimidos ("C/14 G" + "14 CPR"): é a contagem
     if (cc && cc.cesta === 'FARMACIA' && q.tot !== null && (q.base === 'G' || q.base === 'ML')) { const u = countQty(Tq); if (u && Math.abs(u.tot - q.tot) < 0.6 && u.base !== 'G' && u.base !== 'ML') q = u; }
     // remédio não tem conteúdo em quilo (SIMPARIC 20KG é o peso do cão; MONONITRATO 4.502KG era código): vale a contagem
