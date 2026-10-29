@@ -886,3 +886,25 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   - Hoja: marca certa 1.432 → 1.455.
   - Vitaminas: marca 7.211 → 7.215 e fabricante 7.295 → 7.297.
   - DIMA: igual.
+
+### 3.6t Conteúdo: preço, lote e caixa fechada não são conteúdo
+- Ruído de cadastro da loja que sai do texto antes de ler a quantidade:
+  - preço: PMC 21.00;
+  - lote: L 70250 e LOTE …;
+  - FCI;
+  - código com zero à esquerda: 04502;
+  - faixa de peso do animal: 10,1 A 20KG;
+  - "C30 L": o L é de limão, não de litro;
+  - "D3L90".
+- O número do arquivo achado como quantidade numa descrição vale, por exemplo 30 CPR, C/ 90 ou 200 DOSES.
+  - Não vale quando é só o denominador da dose (375MG/5ML, 7MG X 1 ML).
+- Conteúdo do arquivo inflado (1000, que era a dose 1000MG ou erro de cadastro): se várias descrições concordam num número bem menor, vale o delas.
+  - Exemplos: MIOSAN 10, GARDENAL 20, SECNIDAZOL 4, ICCOR 100.
+- Caixa fechada em Farmácia (24X120ML, 48X240ML, unidade ≥ 30 ML/G): o conteúdo é a unidade. Sachê 16X5G continua 80G.
+- Bombinha e spray nasal (120X17.5ML, 200X10ML): o conteúdo é o número de doses.
+- Remédio dosado em MG com KG na descrição: o KG é o peso do animal, e vale a contagem.
+- No mesmo número em G e em comprimidos (C/14 G e 14 CPR), vale a contagem.
+- Detalhe 2:
+  - Antes eram centenas de itens com conteúdo de 2.000 ou mais. Agora são 19, quase todos bolsas de solução de 1 a 5 L, carvão 5KG e desinfetante 5L.
+  - 992 conteúdos foram corrigidos em relação ao arquivo.
+- Testes: vitaminas, conteúdo 11.055 → 11.057; DIMA e Hoja iguais.
