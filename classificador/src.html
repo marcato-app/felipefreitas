@@ -2155,7 +2155,7 @@ async function runAll(opts = {}) {
         arqAl.push(`Arquivo: conteúdo ${fmtn(qf.tot)} contra ${best[1]} descrições com ${qtyText(u)}; usado ${qtyText(u)}`); q = u; qf = null; } }
     if (qf && qf.tot && !(q.tot !== null && Math.abs(q.tot - qf.tot) < 0.6)) {
       // o número do arquivo que é só o denominador da dose ("375 MG/5ML", "7MG X 1 ML") não vale como conteúdo
-      const vq = fmtn(qf.tot).replace('.', '\\.'), denom = new RegExp('(MG|MCG|UI|G)\\s*(/|X)?\\s*' + vq + '\\s*(ML|G)(?![A-Z])');
+      const vq = fmtn(qf.tot).replace('.', '\\.'), denom = qf.tot <= 10 ? new RegExp('(MG|MCG|UI)\\s*(?:X\\s*)?' + vq + '\\s*ML(?![A-Z])') : /(?!)/; // dose por 1/5/10 ML
       const cand = Tq.some(t => denom.test(t)) ? null : Tq.flatMap(t => parseQ(t)).find(x => Math.abs(x[0] - qf.tot) < 0.6 && (!qf.base || x[1] === qf.base));
       if (cand) q = { tot: cand[0], base: cand[1], n: cand[2], uv: cand[3], flag: '' };
       else if ((!qf.base || qf.base === 'UN') && !Tq.some(t => denom.test(t))) { const v = fmtn(qf.tot), rx = new RegExp('(?<![0-9.])(?:C\\s*|X\\s*)?' + v.replace('.', '\\.') + '\\s*(CPR|CPRS|CP|COMP|COMPR|COMPRIMIDOS?|CAPS|CPS|CAP|CAPSULAS?|DRG|DRAGEAS?|UN|UND|UNID|DOSES?|DOS|SACHES?|SACH|ENV|AMP|AMPOLAS?|FLAC|PAST|PASTILHAS?|TABS?)(?![A-Z])|(?<![A-Z0-9])C\\s*' + v.replace('.', '\\.') + '(?![0-9.])');
