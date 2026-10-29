@@ -482,3 +482,11 @@ Pontos pra checar, em ordem:
 - Pedido: quando a marca tem caractere especial, ele fica no descritivo. Antes o `cleanD` trocava tudo que não é letra/número por espaço (M&M'S -> M M S, L'OREAL -> L OREAL, SCOTCH-BRITE -> SCOTCH BRITE, MAKE+ -> MAKE).
 - Agora a marca entra no descritivo como está escrita (na coluna MARCA do arquivo, no modo fixo, ou no nome da DIMA), em maiúsculas e sem acento: o `monta` usa um marcador no lugar da marca antes do `cleanD` e troca de volta depois. O resto do descritivo continua limpo.
 - testar_sugestao 68/68 (SCOTCH-BRITE, M&M'S); testar_regras 821/821; descritivos dos exemplos ensinados sem mudança.
+
+## COLORAU / COLORADO não são marca em tempero
+- Pedido: itens de colorau saíam com marca COLORAU (ALFAPARF, dado errado da DIMA em TEMPERO SECO) ou COLORADO (cerveja AMBEV). COLORAU é tipo de tempero (COLORADO/COLORIFICO = colorau em algumas regiões).
+- Novo `marcaNaoCat` (consts.json): { regex da categoria: [palavras] } — palavras que não são marca só nessas categorias. Aplicado no `findBrand` (via `vocab.cat`) e na votação do modo descritivo + sugestões. Hoje: ^(TEMPERO|CONDIMENTO|SAL TEMPERADO|COLORAU) -> COLORAU, COLORADO, COLORIFICO, COLOR. Fora dessas categorias nada muda (CERVEJA COLORADO APPIA continua COLORADO APPIA).
+- Descritivo + sugestões: marca do arquivo que é palavra bloqueada na categoria (COLORAU em tempero) vale como OUTRA MARCA: o descritivo usa a marca sugerida (votação) e a sugestão traz a marca certa (BONZAO) ou OUTRA MARCA / OUTRO FABRICANTE.
+- Descritivo de tempero segue TEMPERO + MARCA + tipo: TEMPERO BONZAO COLORAU 80G, TEMPERO PENHA COLORAU 80G.
+- Marcas pequenas de tempero que a DIMA não tem no segmento (BONZAO arroz/limpeza, INDIO, FERJAN, CTC, MADU, BIZZA) ficam OUTRA MARCA no Classificar; na função de sugestões aparecem quando citadas em 2+ descrições (fabricante vem da DIMA e pode ser de outro segmento).
+- Testes: regras_ensinadas +4 (825), testar_sugestao 74/74.

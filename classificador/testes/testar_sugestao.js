@@ -27,6 +27,8 @@ const ESP = [
   [21, 'BATATA PALHA YOKI TRADICIONAL 140G', '', '', '', ''],
   [22, 'ESPONJA SINTETICA SCOTCH-BRITE MULTIUSO 3UN', '', '', '', 'ESPONJA SINTETICA COMUM'], // caractere especial da marca fica
   [23, "CHOCOLATE M&M'S AMENDOIM 148G", '', '', '', 'CHOCOLATE OUTROS'], // categoria do arquivo que não existe na biblioteca: vem a sugestão
+  [24, 'TEMPERO BONZAO COLORAU 80G', 'BONZAO', null, '', ''], // COLORAU no arquivo não é marca em tempero: vale a marca sugerida
+  [25, null, '', '', '', ''], // COLORADO em tempero não vira marca (nem sugestão)
 ];
 (async () => {
   const b = await chromium.launch(); const ctx = await b.newContext();
@@ -39,7 +41,7 @@ const ESP = [
   const inp = await p.evaluate(async () => [data.hdr, ...data.items.map(i => i.row)]);
   let ok = 0, n = 0; const W = inp[0].length;
   for (let i = 0; i < inp.length; i++) { n++; const a = JSON.stringify((inp[i] || []).slice(0, W).map(v => v ?? '')), o = JSON.stringify(out[i].slice(0, W)); if (a === o) ok++; else console.log('COLUNA DO ARQUIVO MUDOU na linha', i + 1, a, o); }
-  for (const E of ESP) { n++; const [i, d, m, f, q] = E; const [un, cu, c] = E.length === 8 ? E.slice(5) : ['', '', E[5]]; const r = out[i].slice(W); const exp = [d ?? r[0], m, f, q, un, cu, c];
+  for (const E of ESP) { n++; const [i, d, m, f, q] = E; const [un, cu, c] = E.length === 8 ? E.slice(5) : ['', '', E[5]]; const r = out[i].slice(W); const exp = [d ?? r[0], m, f ?? r[2], q, un, cu, c];
     if (JSON.stringify(r) === JSON.stringify(exp)) ok++; else console.log('ERRO linha', i + 1, '| esperado', JSON.stringify(exp), '| saiu', JSON.stringify(r)); }
   // regra da marca: com marca no arquivo, o descritivo leva a marca do arquivo; com OUTRA MARCA, a marca sugerida (se houver)
   const iM = inp[0].findIndex(h => String(h).trim().toUpperCase() === 'MARCA'); const norm = v => String(v ?? '').toUpperCase().replace(/\s+/g, ' ').trim();

@@ -1324,6 +1324,9 @@ function aggregate0(T, sug, C) {
 // atributos que aparecem como "marca" na base DIMA
 const PERSONAGENS = new Set([...(K.personagens || [])].map(N));
 const MARCA_NAO_FRASE = (K.marcaNaoFrase || []).map(p => new RegExp('(?<![A-Z])(' + p + ')(?![A-Z])', 'g'));
+// palavras que não são marca só em algumas categorias (COLORAU / COLORADO em tempero é o tipo; COLORADO em cerveja é marca)
+const MARCA_NAO_CAT = Object.entries(K.marcaNaoCat || {}).map(([cat, ws]) => [new RegExp(cat), new RegExp('(?<![A-Z])(' + ws.join('|') + ')(?![A-Z])', 'g')]);
+const marcaNaoCat = (T, cat) => { if (!cat) return T; for (const [rc, rw] of MARCA_NAO_CAT) if (rc.test(cat)) T = T.map(t => t.replace(rw, ' ').replace(/  +/g, ' ').trim()); return T; };
 const MARCA_NAO = new Set(['MULTI USO', 'MULTIUSO', 'INOX', 'METAL', 'SUPER UTIL', 'UNIVERSAL', 'PORCELANA', 'PRATA', 'DOURADO', 'DOURADA', 'PRETO', 'BRANCO', 'SORTIDO', 'SORTIDOS', 'COLORIDO',
   // cores nunca são marca
   'MARINHO', 'AZUL', 'VERDE', 'VERMELHO', 'VERMELHA', 'AMARELO', 'AMARELA', 'ROSA', 'PINK', 'LILAS', 'ROXO', 'ROXA', 'CINZA', 'GRAFITE', 'BEGE', 'MARROM', 'LARANJA', 'VINHO', 'BORDO', 'NUDE', 'NEON', 'PRETA', 'BRANCA', 'TRANSPARENTE', 'FUME', 'CHUMBO', 'TURQUESA', 'VIOLETA', 'MAGENTA', 'CIANO',
@@ -1371,6 +1374,7 @@ function findBrand(T, seg, sug, black, DD, vocab) {
   if (MARCA_ALIAS_RX.length) T = T.map(comAlias);
   // nome de produto/tamanho que contém uma marca (CRAVO DA INDIA, MARIA MOLE, APTI FAMILIA 170G) não é a marca
   if (MARCA_NAO_FRASE.length) T = T.map(t => MARCA_NAO_FRASE.reduce((x, rx) => x.replace(rx, ' ').replace(/  +/g, ' ').trim(), t));
+  if (vocab && vocab.cat) T = marcaNaoCat(T, vocab.cat);
   // marca primeiro na categoria DIMA da planilha (EST MER 6 fixa); a aprendida do backlog só se ali não houver nenhuma
   // se ali só aparece uma abreviação cadastrada (COLOR -> COLORADO) e fora dela a marca está escrita por extenso, vale a por extenso
   const alias = g => g && DD.map.get(g) && N(DD.map.get(g).canon) !== g;
@@ -1642,7 +1646,7 @@ function segmentosEstMer6(AGG, items, byName, C) {
   const acc = new Map(), n = new Map();
   if (brandDicts().length) AGG.forEach((a, i) => {
     if (a.cat === OUT || farma(a.cat)) return;
-    const vocab = catVocab(C, a.cat); vocab.heads = new Set(a.T.map(t => (headPos(t, C.headIdx) || {}).w).filter(Boolean));
+    const vocab = catVocab(C, a.cat); vocab.heads = new Set(a.T.map(t => (headPos(t, C.headIdx) || {}).w).filter(Boolean)); vocab.cat = a.cat;
     for (const DD of brandDicts()) { const bn = findBrand(a.T, [], items[i].sugMarca, C.black, DD, vocab); if (!bn) continue;
       const b = DD.map.get(bn); let tot = 0; for (const v of b.em.values()) tot += v; if (!tot) break;
       if (!acc.has(a.cat)) acc.set(a.cat, new Map()); const m = acc.get(a.cat);
@@ -1899,7 +1903,7 @@ async function runCore(pfx = '') {
     const a = AGG[i]; const T = a.T;
     const cc = byName.get(a.cat); const seg = segOf(a.cat);
     let bn = null, BD = null;
-    const vocab = catVocab(C, a.cat); vocab.heads = new Set(T.map(t => (headPos(t, C.headIdx) || {}).w).filter(Boolean));
+    const vocab = catVocab(C, a.cat); vocab.heads = new Set(T.map(t => (headPos(t, C.headIdx) || {}).w).filter(Boolean)); vocab.cat = a.cat;
     const arqAl = [];
     // categoria do arquivo coerente com a descrição -> mantém tudo do arquivo (marca, fabricante, conteúdo); só avisa
     const arqOk = prioArq() && !!it.sugCat && a.cat === it.sugCat && !a.arqAviso && !(cc && cc.cesta === 'FARMACIA');
@@ -1907,22 +1911,24 @@ async function runCore(pfx = '') {
     // descritivo + sugestões (fixo): a marca do arquivo vale sempre, também na farmácia; só OUTRA MARCA usa a marca sugerida (votação)
     const soD = (!!(passe && passe.soDesc) && !(cc && cc.cesta === 'FARMACIA')) || !!(passe && passe.fixo);
     const manter = sempreArq() || arqOk || soD;
-    const sm = N(it.sugMarca), marcaArq = prioArq() && valido(it.sugMarca) && (!C.black.has(sm) || arqOk || soD);
+    const sm = N(it.sugMarca); let marcaArq = prioArq() && valido(it.sugMarca) && (!C.black.has(sm) || arqOk || soD);
     const outraArq = false; // OUTRA MARCA do arquivo não trava: se a descrição traz marca da categoria, vale ela
     let marca, fab;
     // descritivo + sugestões: cada descrição vota na marca que o app acha nela; vale a mais citada (2 ou mais descrições, ou a 1ª)
-    let voto = null;
+    let voto = null, arqFalsa = false;
     if (passe && passe.fixo) { const v = new Map();
       for (const DD of brandDicts()) { for (let j = 0; j < T.length; j++) { const b = findBrand([T[j]], seg, '', C.black, DD, vocab); if (!b) continue;
           const k = DD.map.get(b).canon; if (!v.has(k)) v.set(k, { n: 0, first: j, bn: b, DD }); } if (v.size) break; }
       // marca da DIMA escrita em 2+ descrições, mesmo fora dos segmentos calculados do arquivo (arquivo pequeno: CHAZAK, ALTO GIRO)
-      if (data.dima) { const vistos = new Set(); for (const t of T) { const ws = t.split(' ');
+      if (data.dima) { const vistos = new Set(); for (const t of marcaNaoCat(T, a.cat)) { const ws = t.split(' ');
         for (let i = 0; i < ws.length; i++) for (let n = 1; n <= 3 && i + n <= ws.length; n++) { const g = ws.slice(i, i + n).join(' '); if (vistos.has(g)) continue; vistos.add(g);
           if (g.length < 3 || !data.dima.map.has(g) || !validCand(g, C.black)) continue; const k = data.dima.map.get(g).canon; if (!v.has(k)) v.set(k, { n: 0, first: 99, bn: g, DD: data.dima, livre: true }); } } }
       for (const e of v.values()) { const ap = T.map((t, j) => marcaCortada(N(e.DD.map.get(e.bn).canon), t) || marcaCortada(e.bn, t) ? j : -1).filter(j => j >= 0); e.n = ap.length; if (ap.length) e.first = ap[0]; }
       const contida = e => [...v.values()].some(x => x !== e && x.bn !== e.bn && (' ' + x.bn + ' ').includes(' ' + e.bn + ' ')); // MAKE dentro de MAKE ONE
       const best = [...v.values()].filter(e => (!e.livre || e.n >= 2) && !contida(e)).sort((x, y) => y.n - x.n || x.first - y.first || y.bn.length - x.bn.length)[0];
-      const arqNaDesc = valido(it.sugMarca) && N(it.sugMarca) !== 'OUTRA MARCA' && T.some(t => marcaCortada(sm, t)); // marca do arquivo escrita na descrição: fica a do arquivo
+      arqFalsa = valido(it.sugMarca) && marcaNaoCat([sm], a.cat)[0] !== sm; // marca do arquivo que não é marca nessa categoria (COLORAU em tempero): vale como OUTRA MARCA
+      if (arqFalsa) marcaArq = false;
+      const arqNaDesc = !arqFalsa && valido(it.sugMarca) && N(it.sugMarca) !== 'OUTRA MARCA' && T.some(t => marcaCortada(sm, t)); // marca do arquivo escrita na descrição: fica a do arquivo
       if (best && !arqNaDesc && (best.n >= 2 || (best.first === 0 && marcaDoSeg(best.DD.map.get(best.bn), seg)))) voto = { bn: best.bn, DD: best.DD, marca: best.DD.map.get(best.bn).canon, fab: fabricante(best.bn, seg, best.DD) }; }
     if (marcaArq && manter && !marcaNaDesc(sm, T)) arqAl.push(`Arquivo (mantido): marca ${it.sugMarca.trim()} não aparece na descrição`);
     if (marcaArq && !manter && !marcaNaDesc(sm, T)) { // marca do arquivo não aparece: troca só se a descrição trouxer outra marca da categoria
@@ -2053,7 +2059,7 @@ async function runCore(pfx = '') {
     // só o complemento (entre a marca e o conteúdo) é abreviado e, se ainda passar, perde palavras do fim
     let compW = comp ? comp.split(' ') : [], iniTxt = ini;
     // descritivo + sugestões: com marca no arquivo, a marca sugerida (outra) não entra no descritivo (BELLIZ, não BELLIZ RICCA)
-    if ((passe && passe.fixo) && voto && valido(it.sugMarca) && !igualMarca(voto.marca, it.sugMarca)) { const tira = new Set(N(voto.marca).split(' ')); const jt = ' ' + compW.join(' ') + ' ', fr = ' ' + N(voto.marca) + ' ';
+    if ((passe && passe.fixo) && voto && valido(it.sugMarca) && !arqFalsa && !igualMarca(voto.marca, it.sugMarca)) { const tira = new Set(N(voto.marca).split(' ')); const jt = ' ' + compW.join(' ') + ' ', fr = ' ' + N(voto.marca) + ' ';
       compW = jt.includes(fr) ? jt.replace(fr, ' ').trim().split(' ').filter(Boolean) : compW.filter(w => !(tira.size === 1 && tira.has(w))); }
     if (cutIni || CUT_CATS.has(a.cat)) compW = compW.map(w => CUT_EXT[w] || w);
     if (cutIni || CUT_CATS.has(a.cat)) compW = compW.filter(w => !/^(CM|MM|REF|R|COD)$/.test(w)); // medida que perdeu o número, referência
@@ -2106,7 +2112,7 @@ async function runCore(pfx = '') {
     // por que a marca ficou diferente da do arquivo (resumo da planilha e da tela)
     const mMot = !N(it.sugMarca) ? 'arquivo sem marca' : N(marca) === sm ? 'igual ao arquivo' : !prioArq() ? 'prioridade do arquivo desligada'
       : !valido(it.sugMarca) ? 'arquivo com ' + sm : C.black.has(sm) ? 'marca do arquivo é palavra bloqueada' : 'trocada: marca do arquivo não aparece na descrição';
-    res.push({ it, cat: a.cat, marca, fab, qt: q.tot, qbase: q.base, qPadrao: q.flag === 'QTD_PADRAO', qn: q.tot === null ? null : (q.n || 1), quv: q.tot === null ? null : (q.n > 1 ? q.uv : q.tot), desc, alerts, pri, mMot, catErrada: !!a.arqTrocada, catSuspeita: a.catSuspeita || '', regraForte: a.regraForte || '', qDesc, persArq: !!persArq, ...((passe && passe.fixo) ? { segCat: seg, voto: voto ? { marca: voto.marca, fab: voto.fab } : null } : {}) });
+    res.push({ it, cat: a.cat, marca, fab, qt: q.tot, qbase: q.base, qPadrao: q.flag === 'QTD_PADRAO', qn: q.tot === null ? null : (q.n || 1), quv: q.tot === null ? null : (q.n > 1 ? q.uv : q.tot), desc, alerts, pri, mMot, catErrada: !!a.arqTrocada, catSuspeita: a.catSuspeita || '', regraForte: a.regraForte || '', qDesc, persArq: !!persArq, ...((passe && passe.fixo) ? { segCat: seg, arqFalsa, voto: voto ? { marca: voto.marca, fab: voto.fab } : null } : {}) });
     if (i % 250 === 0) { $('#prog').style.width = (50 + 50 * i / items.length).toFixed(1) + '%'; $('#runState').textContent = pfx + `Marca, conteúdo e descritivo: ${i.toLocaleString('pt-BR')} de ${items.length.toLocaleString('pt-BR')}…`; await new Promise(r => setTimeout(r, 0)); }
   }
   $('#prog').style.width = '100%';
@@ -2203,10 +2209,11 @@ function colunasSugestao(it, g, r) {
   // marca: a mais votada entre as descrições (com marca da DIMA no segmento da categoria do arquivo)
   let marca = '', fab = '';
   if (r.voto && !igual(r.voto.marca, it.sugMarca)) { marca = r.voto.marca; fab = r.voto.fab; }
+  if (!marca && r.arqFalsa) { marca = 'OUTRA MARCA'; fab = 'OUTRO FABRICANTE'; } // COLORAU no arquivo: não é marca
   if (!marca && igual(g.marca, it.sugMarca)) fab = g.fab; // mesma marca: só o fabricante pode estar errado (LUXCAR com OUTRO FABRICANTE)
   if (!marca && r.voto && igual(r.voto.marca, it.sugMarca) && !fab) fab = r.voto.fab;
   const cola = x => N(x).replace(/[^A-Z0-9]/g, ''); const mesmaEmp = (a, b) => !!cola(a) && !!cola(b) && (cola(a).includes(cola(b)) || cola(b).includes(cola(a)));
-  if (!real(fab, 'OUTRO FABRICANTE') || igual(fab, it.sugFab) || mesmaEmp(fab, it.sugFab)) fab = '';
+  if ((!real(fab, 'OUTRO FABRICANTE') && !(r.arqFalsa && fab === 'OUTRO FABRICANTE')) || igual(fab, it.sugFab) || mesmaEmp(fab, it.sugFab)) fab = '';
   // quantidade: só quando pelo menos duas descrições (ou a única) trazem a mesma quantidade
   const qArq = it.sugQtOut ?? (it.sugQt === null || it.sugQt === undefined || it.sugQt === '' ? null : parseFloat(String(it.sugQt).replace(',', '.')));
   const qApp = g.qt === null || g.qt === undefined || isNaN(g.qt) || g.qPadrao ? null : Math.round(g.qt * 1000) / 1000;
