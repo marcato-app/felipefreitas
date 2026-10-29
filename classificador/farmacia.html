@@ -2147,15 +2147,17 @@ async function runAll(opts = {}) {
     // o número do arquivo aparece como quantidade em alguma descrição (30 CPR, C/ 90, 200 DOSES): vale essa leitura, não a
     // da descrição com preço/lote/caixa fechada (GLIMEPIRIDA "PMC 21.00 L", HIDROXIDO "240 ML X 48")
     if (qf && qf.tot && !(q.tot !== null && Math.abs(q.tot - qf.tot) < 0.6)) {
-      const cand = Tq.flatMap(t => parseQ(t)).find(x => Math.abs(x[0] - qf.tot) < 0.6 && (!qf.base || x[1] === qf.base));
+      // o número do arquivo que é só o denominador da dose ("375 MG/5ML", "7MG X 1 ML") não vale como conteúdo
+      const vq = fmtn(qf.tot).replace('.', '\\.'), denom = new RegExp('(MG|MCG|UI|G)\\s*(/|X)?\\s*' + vq + '\\s*(ML|G)(?![A-Z])');
+      const cand = Tq.some(t => denom.test(t)) ? null : Tq.flatMap(t => parseQ(t)).find(x => Math.abs(x[0] - qf.tot) < 0.6 && (!qf.base || x[1] === qf.base));
       if (cand) q = { tot: cand[0], base: cand[1], n: cand[2], uv: cand[3], flag: '' };
-      else if (!qf.base || qf.base === 'UN') { const v = fmtn(qf.tot), rx = new RegExp('(?<![0-9.])(?:C\\s*|X\\s*)?' + v.replace('.', '\\.') + '\\s*(CPR|CPRS|CP|COMP|COMPR|COMPRIMIDOS?|CAPS|CPS|CAP|CAPSULAS?|DRG|DRAGEAS?|UN|UND|UNID|DOSES?|DOS|SACHES?|SACH|ENV|AMP|AMPOLAS?|FLAC|PAST|PASTILHAS?|TABS?)(?![A-Z])|(?<![A-Z0-9])C\\s*' + v.replace('.', '\\.') + '(?![0-9.])');
+      else if ((!qf.base || qf.base === 'UN') && !Tq.some(t => denom.test(t))) { const v = fmtn(qf.tot), rx = new RegExp('(?<![0-9.])(?:C\\s*|X\\s*)?' + v.replace('.', '\\.') + '\\s*(CPR|CPRS|CP|COMP|COMPR|COMPRIMIDOS?|CAPS|CPS|CAP|CAPSULAS?|DRG|DRAGEAS?|UN|UND|UNID|DOSES?|DOS|SACHES?|SACH|ENV|AMP|AMPOLAS?|FLAC|PAST|PASTILHAS?|TABS?)(?![A-Z])|(?<![A-Z0-9])C\\s*' + v.replace('.', '\\.') + '(?![0-9.])');
         const t = Tq.find(x => rx.test(x)); if (t) { const tok = (rx.exec(t) || [])[1] || '';
           if (/^DOS/.test(tok)) q = { tot: qf.tot, base: 'DOSES', n: 1, uv: qf.tot, flag: '' }; // aerossol: 200 doses
           else { const u = countQty([tok ? v + ' ' + tok : t]), u2 = countQty(Tq);
             q = u && Math.abs(u.tot - qf.tot) < 0.6 && u.base !== 'G' && u.base !== 'ML' ? u : u2 && Math.abs(u2.tot - qf.tot) < 0.6 && u2.base !== 'G' && u2.base !== 'ML' ? u2 : { tot: qf.tot, base: 'UN', n: 1, uv: qf.tot, flag: '' }; } } } }
     // Farmácia: caixa fechada do distribuidor (24X120ML, 48X240ML, 600X200ML) não é o conteúdo da unidade vendida
-    if (cc && cc.cesta === 'FARMACIA' && q.tot !== null && q.n >= 6 && (q.base === 'ML' || q.base === 'G' || /^(UN|L)$/.test(q.base || '')) && q.uv) {
+    if (cc && cc.cesta === 'FARMACIA' && q.tot !== null && q.n >= 6 && (q.base === 'ML' || q.base === 'G') && q.uv >= 30) { // sachê 16X5G fica
       const u = Tq.flatMap(t => parseQ(t)).find(x => x[2] === 1 && Math.abs(x[0] - q.uv) < 0.6 && x[1] === q.base);
       if (u || q.n >= 12 || skuKey(it.barcode).length === 14) q = { tot: q.uv, base: q.base, n: 1, uv: q.uv, flag: '' }; }
     // mesmo número em gramas e em comprimidos ("C/14 G" + "14 CPR"): é a contagem
