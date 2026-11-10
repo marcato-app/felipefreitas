@@ -490,3 +490,15 @@ Pontos pra checar, em ordem:
 - Descritivo de tempero segue TEMPERO + MARCA + tipo: TEMPERO BONZAO COLORAU 80G, TEMPERO PENHA COLORAU 80G.
 - Marcas pequenas de tempero que a DIMA não tem no segmento (BONZAO arroz/limpeza, INDIO, FERJAN, CTC, MADU, BIZZA) ficam OUTRA MARCA no Classificar; na função de sugestões aparecem quando citadas em 2+ descrições (fabricante vem da DIMA e pode ser de outro segmento).
 - Testes: regras_ensinadas +4 (825), testar_sugestao 74/74.
+
+## COMPLEMENTO NUTRICIONAL ampliado + quantidade em CPS (2026-11)
+- Pedido: produtos para complementar a nutrição do corpo entram em COMPLEMENTO NUTRICIONAL (ômega 3 em cápsulas, cúrcuma em cápsulas, óleos em cápsulas, maca peruana…), exceto vitaminas e polivitamínicos. Em cápsulas, o conteúdo é o número de cápsulas com unidade CPS (COMPLEMENTO NUTRICIONAL FORHEALTH ZAN PHARMA BIOTINA 60CPS).
+- `complementoCat(T, C)` (src.html, flag COMPLEMENTO_TIPO, roda antes de perfumaria/mel/garrafa no aggregate1):
+  - COMPLEMENTO NUTRICIONAL/ALIMENTAR escrito -> sempre (também com vitamina: exemplo da biotina);
+  - sempre: OMEGA 3/6/9, OLEO DE PEIXE/KRILL, MACA PERUANA, SPIRULINA, CHLORELLA, COENZIMA Q10;
+  - só com cápsula (CAPS, CAPSULAS, CPS, SOFTGEL…): CURCUMA, ACAFRAO, OLEO de qualquer coisa, CARTAMO, PRIMULA, LINHACA, CHIA, MORINGA, COLAGENO, LECITINA, CHA VERDE, GELEIA REAL, PROPOLIS…;
+  - fora: começa por VITAMINA/POLIVITAMINICO/MULTIVITAMINICO/COMPLEXO B/CENTRUM… ; pet/ração; café/chá em cápsula; alimento (ovo, leite, pão, margarina, biscoito…); cosmético; tempero (cúrcuma em pó, óleo de coco de cozinha seguem como estavam).
+- `compForte` em categoriaArquivo: o complemento vence a categoria do arquivo (menos PET).
+- Quantidade: `qtdCapsulas` (60CAPS, 60 CAPSULAS, C/60 CPS, 2X60 SOFTGEL -> 60CPS / 2X60CPS); a contagem sai do complemento. OMEGA 3 6 9 fica com os números no descritivo (placeholder OMTRESX… porque o complemento tira números).
+- consts.json: libPatch `complemento-nutricional-2026-11` (incluir/excluir do COMPLEMENTO; OMEGA 3 sai de VITAMINA OUTRO); segPadrao do COMPLEMENTO + VITAMINA E MINERAL, SUPLEMENTO NUTRICIONAL, COLAGENO (as marcas de suplemento — SANAVITA, UNILIFE, VITAFOR, FORHEALTH — estão nesses segmentos na DIMA); marcaNaoCat: SOFTGEL e OMEGA 3 não são marca em complemento. REMOVER_PATCH: ALIMENTAR, SUPLEMENTO, CAPS, CPS, SOFTGEL… no complemento.
+- Testes: regras_ensinadas +12 (837/837), testar_sugestao 74/74.
