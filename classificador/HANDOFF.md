@@ -502,3 +502,13 @@ Pontos pra checar, em ordem:
 - Quantidade: `qtdCapsulas` (60CAPS, 60 CAPSULAS, C/60 CPS, 2X60 SOFTGEL -> 60CPS / 2X60CPS); a contagem sai do complemento. OMEGA 3 6 9 fica com os números no descritivo (placeholder OMTRESX… porque o complemento tira números).
 - consts.json: libPatch `complemento-nutricional-2026-11` (incluir/excluir do COMPLEMENTO; OMEGA 3 sai de VITAMINA OUTRO); segPadrao do COMPLEMENTO + VITAMINA E MINERAL, SUPLEMENTO NUTRICIONAL, COLAGENO (as marcas de suplemento — SANAVITA, UNILIFE, VITAFOR, FORHEALTH — estão nesses segmentos na DIMA); marcaNaoCat: SOFTGEL e OMEGA 3 não são marca em complemento. REMOVER_PATCH: ALIMENTAR, SUPLEMENTO, CAPS, CPS, SOFTGEL… no complemento.
 - Testes: regras_ensinadas +12 (837/837), testar_sugestao 74/74.
+
+## Sugestões: palavra de produto / cor / material não é marca (2026-11)
+- Problema: "Padronizar descritivo + sugestões" sugeria TERMICA, SQUEEZE, GARRA, COLOR(ADO), PLASTIC, ISOTERM, MORINGA… como marca (a varredura solta da DIMA ignorava marcaNaoFrase e palavras de produto), e a marca TERMICA do arquivo gerava "GARRAFA TERMICA TERMICA".
+- `naoMarcaSug(g, cc, C, nivel)` + lista `SUG_NAO_W` (cores, materiais, atributos, TERMICA/SQUEEZE/GARRAFA/ISOTERM…):
+  - nivel 0 (marca do arquivo): palavra da lista ou do nome/abreviação da própria categoria -> arqFalsa (vale como OUTRA MARCA; descritivo usa a marca votada);
+  - nivel 1 (marca votada por descrição): também palavra de nome de qualquer categoria;
+  - nivel 2 (marca solta da DIMA em 2+ descrições): também genérica, sabor, atributo, abreviação de nome de categoria, 1-2 letras; e agora passa por marcaNaoFrase.
+- marcaNaoFrase: PE DE MOLEQUE, PE DE MULEQUE, PE DE MOCA, SONHO DE MOCA.
+- GARRAFA_TERMICA real: "TERMICA TERMICA" 455 -> 0 (1 resto: TERMICADE colado); TERMICA/SQUEEZE/GARRA/COLORADO somem das sugestões.
+- Testes: testar_sugestao 80/80 (linhas 26-27 novas), testar_regras 837/837.

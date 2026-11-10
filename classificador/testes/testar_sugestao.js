@@ -29,6 +29,8 @@ const ESP = [
   [23, "CHOCOLATE M&M'S AMENDOIM 148G", '', '', '', 'CHOCOLATE OUTROS'], // categoria do arquivo que não existe na biblioteca: vem a sugestão
   [24, 'TEMPERO BONZAO COLORAU 80G', 'BONZAO', null, '', ''], // COLORAU no arquivo não é marca em tempero: vale a marca sugerida
   [25, null, '', '', '', ''], // COLORADO em tempero não vira marca (nem sugestão)
+  [26, 'GARRAFA TERMICA DOLCE HOME 500ML 1UN', 'DOLCE HOME', null, '', ''], // TERMICA no arquivo não é marca: vale a marca da descrição, sem TERMICA repetido
+  [27, null, '', '', '', ''], // TERMICA, SQUEEZE, GARRA não viram marca sugerida
 ];
 (async () => {
   const b = await chromium.launch(); const ctx = await b.newContext();

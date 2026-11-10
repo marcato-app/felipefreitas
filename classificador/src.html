@@ -1784,6 +1784,20 @@ function abrevNaDesc(c, T) { const w = N(c.nome).split(' ')[0]; if (w.length < 5
   return T.some(t => t.split(' ').some(x => x.length >= 3 && x.length < w.length && w.startsWith(x))); }
 // alguma palavra do nome da categoria (fora OUTROS/DE…) aparece na descrição
 function nomeNaDesc(c, T) { const ws = N(c.nome).split(' ').filter(w => w.length >= 3 && !SEG_STOP.has(w)); return T.some(t => ws.some(w => new RegExp('(?<![A-Z0-9])' + escRx(w) + '(?![A-Z0-9])').test(t))); }
+// descritivo + sugestões: palavra de produto (nome de categoria: TERMICA, SQUEEZE, GARRAFA e abreviações GARRA, TERM),
+// cor, material ou atributo (PRATA, MARSALA, INOX, PLASTIC, BAMBU, VINTAGE…) não é marca sugerida, mesmo cadastrada na DIMA
+const SUG_NAO_W = new Set('PRETO PRETA PRETOS BRANCO BRANCA AZUL VERDE VERMELHO VERMELHA ROSA PINK AMARELO AMARELA LILAS ROXO ROXA CINZA PRATA PRATEADO PRATEADA DOURADO DOURADA MARSALA BEGE MARROM LARANJA RUBI ONIX DIAMANTE GOLDEN GOLD SILVER BLACK WHITE BLUE RED COLOR COLORS COLORIDO COLORIDA CORES COR NUDE GRAFITE CHUMBO INOX PLASTIC PLASTICO PLASTICA METAL METALIZADO METALIZADA VIDRO BAMBU ALUMINIO ACO MADEIRA SILICONE CERAMICA PORCELANA VINTAGE DESIGN MODERNA MODERNO ESTAMPA ESTAMPADA ESTAMPADO SPORT SPORTS FANTASIA NUTRICAO ROLHA TAMPA ALCA BICO LISA LISO FOSCA FOSCO VERDE OLIVA OLIVA TERMICA TERMICO TERMICAS TERMICOS SQUEEZE GARRAFA GARRAFAS ISOTERM ISOTERMICA ISOTERMICO ISOTERMICOS THERMAL THERMO TERMO TERMOS RETRO FASHION POP ACES ACESS ACESSORIO WARE MORINGA LATTE PREMIUM LINHA KIT JOGO CONJUNTO'.split(' '));
+let _sugProd = null;
+// nivel 0: marca do arquivo (só palavra da lista ou do nome da própria categoria); 1: marca votada (também palavra de nome de qualquer
+// categoria); 2: marca achada solta na DIMA (também palavra genérica, sabor, atributo, abreviação de nome de categoria, 1-2 letras)
+function naoMarcaSug(g, cc, C, nivel) {
+  if (!g) return true;
+  if (!_sugProd) { _sugProd = new Set(); for (const c of cfg.categorias || []) for (const w of N(c.nome + ' ' + (c.inicio || '')).split(' ')) if (w.length >= 3 && !SEG_STOP.has(w)) _sugProd.add(w); }
+  const proprios = cc ? N(cc.nome + ' ' + (cc.inicio || '')).split(' ').filter(x => x.length >= 4 && !SEG_STOP.has(x)) : [];
+  const propria = w => w.length >= 3 && proprios.some(x => x.startsWith(w)); // TERMICA, GARRA, GAR de GARRAFA TERMICA
+  const fraca = w => w.length <= 2 || GENERIC.has(w) || FLAVORS.has(w) || ATTR.has(w) || (w.length >= 4 && [..._sugProd].some(x => x.length > w.length && x.startsWith(w)));
+  return N(g).split(' ').every(w => SUG_NAO_W.has(w) || propria(w) || (nivel >= 1 && _sugProd.has(w)) || (nivel >= 2 && fraca(w)));
+}
 function categoriaArquivo(it, a, byName, C) {
   const s = it.sugCat; if (!prioArq() || !s || s === a.cat) return a;
   const c1 = byName.get(s); if (!c1) return a; // categoria que não existe na biblioteca
@@ -1953,16 +1967,17 @@ async function runCore(pfx = '') {
     // descritivo + sugestões: cada descrição vota na marca que o app acha nela; vale a mais citada (2 ou mais descrições, ou a 1ª)
     let voto = null, arqFalsa = false;
     if (passe && passe.fixo) { const v = new Map();
-      for (const DD of brandDicts()) { for (let j = 0; j < T.length; j++) { const b = findBrand([T[j]], seg, '', C.black, DD, vocab); if (!b) continue;
+      const naoM = (g, nivel) => naoMarcaSug(g, cc, C, nivel);
+      for (const DD of brandDicts()) { for (let j = 0; j < T.length; j++) { const b = findBrand([T[j]], seg, '', C.black, DD, vocab); if (!b || naoM(b, 1)) continue;
           const k = DD.map.get(b).canon; if (!v.has(k)) v.set(k, { n: 0, first: j, bn: b, DD }); } if (v.size) break; }
       // marca da DIMA escrita em 2+ descrições, mesmo fora dos segmentos calculados do arquivo (arquivo pequeno: CHAZAK, ALTO GIRO)
-      if (data.dima) { const vistos = new Set(); for (const t of marcaNaoCat(T, a.cat)) { const ws = t.split(' ');
+      if (data.dima) { const vistos = new Set(); for (const t of marcaNaoCat(T.map(t => MARCA_NAO_FRASE.reduce((x, rx) => x.replace(rx, ' ').replace(/  +/g, ' ').trim(), t)), a.cat)) { const ws = t.split(' ');
         for (let i = 0; i < ws.length; i++) for (let n = 1; n <= 3 && i + n <= ws.length; n++) { const g = ws.slice(i, i + n).join(' '); if (vistos.has(g)) continue; vistos.add(g);
-          if (g.length < 3 || !data.dima.map.has(g) || !validCand(g, C.black)) continue; const k = data.dima.map.get(g).canon; if (!v.has(k)) v.set(k, { n: 0, first: 99, bn: g, DD: data.dima, livre: true }); } } }
+          if (g.length < 3 || !data.dima.map.has(g) || !validCand(g, C.black) || naoM(g, 2)) continue; const k = data.dima.map.get(g).canon; if (!v.has(k)) v.set(k, { n: 0, first: 99, bn: g, DD: data.dima, livre: true }); } } }
       for (const e of v.values()) { const ap = T.map((t, j) => marcaCortada(N(e.DD.map.get(e.bn).canon), t) || marcaCortada(e.bn, t) ? j : -1).filter(j => j >= 0); e.n = ap.length; if (ap.length) e.first = ap[0]; }
       const contida = e => [...v.values()].some(x => x !== e && x.bn !== e.bn && (' ' + x.bn + ' ').includes(' ' + e.bn + ' ')); // MAKE dentro de MAKE ONE
       const best = [...v.values()].filter(e => (!e.livre || e.n >= 2) && !contida(e)).sort((x, y) => y.n - x.n || x.first - y.first || y.bn.length - x.bn.length)[0];
-      arqFalsa = valido(it.sugMarca) && marcaNaoCat([sm], a.cat)[0] !== sm; // marca do arquivo que não é marca nessa categoria (COLORAU em tempero): vale como OUTRA MARCA
+      arqFalsa = valido(it.sugMarca) && sm !== 'OUTRA MARCA' && (marcaNaoCat([sm], a.cat)[0] !== sm || naoM(sm, 0)); // marca do arquivo que não é marca nessa categoria (COLORAU em tempero): vale como OUTRA MARCA
       if (arqFalsa) marcaArq = false;
       const arqNaDesc = !arqFalsa && valido(it.sugMarca) && N(it.sugMarca) !== 'OUTRA MARCA' && T.some(t => marcaCortada(sm, t)); // marca do arquivo escrita na descrição: fica a do arquivo
       if (best && !arqNaDesc && (best.n >= 2 || (best.first === 0 && marcaDoSeg(best.DD.map.get(best.bn), seg)))) voto = { bn: best.bn, DD: best.DD, marca: best.DD.map.get(best.bn).canon, fab: fabricante(best.bn, seg, best.DD) }; }
