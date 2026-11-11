@@ -512,3 +512,11 @@ Pontos pra checar, em ordem:
 - marcaNaoFrase: PE DE MOLEQUE, PE DE MULEQUE, PE DE MOCA, SONHO DE MOCA.
 - GARRAFA_TERMICA real: "TERMICA TERMICA" 455 -> 0 (1 resto: TERMICADE colado); TERMICA/SQUEEZE/GARRA/COLORADO somem das sugestões.
 - Testes: testar_sugestao 80/80 (linhas 26-27 novas), testar_regras 837/837.
+
+## COMPLEMENTO NUTRICIONAL pela definição Scanntech (2026-11)
+- Definição (PDF Data Excellence mai/2026): complemento alimentar adulto e infantil (pó, líquido, comprimido, cápsula), cúrcuma em cápsula, ômega 3 em cápsula; fora: fórmula infantil, mingau/papinha, leite em pó (e, nos exemplos, leite com sabor proteico e achocolatado). Descritivo: COMPLEMENTO NUTRICIONAL | MARCA | SEGMENTAÇÕES | CONTEÚDO.
+- `RX_COMP_MARCA` em complementoCat: NUTREN, SUSTAGEN, ENSURE, GLUCERNA, FORTIVANCE, NUTRIDRINK, PEDIASURE, FORTINI, DIASIP, SUSTAIN, NOVASOURCE, FRESUBIN, CUBITAN, NUTRISON, ISOSOURCE, PEPTAMEN, TROPHIC, ENLIVE, PROSOURCE, NUTRI ENTERAL/DIABET/RENAL, SOYA DIET -> complemento (fora com FORMULA, MINGAU, PAPINHA, LEITE EM PO, barra, biscoito, cereal, pet).
+- Conteúdo: a definição pede CAP/CAPS e CPR/CPRS, mas a regra ensinada pelo usuário vale: cápsula, softgel, comprimido e tablete saem sempre em CPS (60CPS, 2X60CPS, 30CPS). `qtdCapsulas` passou a contar também COMPRIMIDOS/CPR/TABLETES.
+- S/SABOR / SEM SABOR preservado no descritivo (antes virava SABOR). CLORELLA (com LL) entra. Marca nova NEW NUTRITION (NUTRATEC) em marcasNovas.
+- libPatch `complemento-scanntech-2026-11`: incluir marcas acima + CURCUMA, CLORELLA; excluir LEITE COM SABOR, ACHOCOLATADO, COMPOSTO LACTEO (cúrcuma em pó continua TEMPERO).
+- Testes: regras_ensinadas +12 (849/849), testar_sugestao 80/80.
