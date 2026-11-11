@@ -2303,6 +2303,15 @@ function colunasSugestao(it, g, r) {
     const apoioPack = nApp > 1 && (dun || it.T.filter(t => { const q = itemQty([textoQtd(t)], null); return q.tot !== null && q.n === nApp; }).length >= Math.min(2, it.T.length));
     if (qt !== '' || apoioPack) { if (difUn) un = nApp; if (difCu) cu = uvApp; }
   }
+  // campo vazio no arquivo (coluna existe, ou modo sobreposto): sempre classificado com o conteúdo do app (sem informação: 1 unidade)
+  const ci = data.ci || {}, sob = cfg.sugModo === 'sobrepor', vaz = v => v === null || v === undefined || String(v).trim() === '';
+  const row = it.row || [];
+  if (g.qt !== null && g.qt !== undefined && !isNaN(g.qt)) {
+    const tot = Math.round(g.qt * 1000) / 1000, nF = g.qn || 1, uvF = Math.round((g.quv ?? g.qt) * 1000) / 1000;
+    if (qt === '' && (ci.qt >= 0 ? vaz(row[ci.qt]) : sob)) qt = tot;
+    if (un === '' && (ci.un >= 0 ? vaz(row[ci.un]) : sob)) un = nF;
+    if (cu === '' && (ci.cu >= 0 ? vaz(row[ci.cu]) : sob)) cu = uvF;
+  }
   return { marca, fab, qt, un, cu, cat };
 }
 // pinta células de um .xlsx gerado pelo SheetJS (que não grava estilo): acrescenta um preenchimento em styles.xml

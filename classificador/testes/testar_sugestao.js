@@ -31,6 +31,8 @@ const ESP = [
   [25, null, '', '', '', ''], // COLORADO em tempero não vira marca (nem sugestão)
   [26, 'GARRAFA TERMICA DOLCE HOME 500ML 1UN', 'DOLCE HOME', null, '', ''], // TERMICA no arquivo não é marca: vale a marca da descrição, sem TERMICA repetido
   [27, null, '', '', '', ''], // TERMICA, SQUEEZE, GARRA não viram marca sugerida
+  [28, 'COMPLEMENTO NUTRICIONAL VITAFOR TERMO PLUS 90CPS', '', '', 90, 1, 90, ''], // UNIDADES / CONTENIDO UNITARIO / CONTENIDO vazios no arquivo: sempre preenchidos
+  [29, 'GOMA DE MASCAR BUZZY TUTTI FRUTTI 360G', '', '', 360, 1, 360, '']
 ];
 (async () => {
   const b = await chromium.launch(); const ctx = await b.newContext();

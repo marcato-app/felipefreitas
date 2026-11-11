@@ -534,3 +534,8 @@ Pontos pra checar, em ordem:
 - `pintaXlsx(buf, refs, cor)`: o SheetJS community não grava estilo; o app abre o .xlsx gerado com XLSX.CFB, acrescenta um fill sólido amarelo em styles.xml e põe s="N" nas células ajustadas do sheet1.xml. Descritivo em coluna nova não é destacado.
 - data.ci guarda os índices das colunas detectadas no loadBacklog.
 - Teste novo: testes/testar_sobrepor.js (50/50). testar_sugestao 80/80, testar_regras 852/852.
+
+## Sugestões: UNIDADES / CONTENIDO UNITARIO / CONTENIDO vazios sempre preenchidos (2026-11)
+- colunasSugestao: além da regra de divergência, campo vazio no arquivo (a coluna existe; ou modo sobreposto mesmo sem a coluna) recebe o conteúdo do app (qt total, unidades do pack, conteúdo unitário; sem informação, 1 unidade).
+- No modo sobreposto entra na própria coluna em amarelo, com "(vazio) -> valor" em AJUSTES DO APP; no modo colunas separadas vai em QUANTIDADE / UNIDADES / CONTENIDO UNITARIO SUGERIDO.
+- Testes: sugestao_exemplo +2 linhas (28-29) sem conteúdo; testar_sugestao 86/86, testar_sobrepor 52/52, testar_regras 852/852.
