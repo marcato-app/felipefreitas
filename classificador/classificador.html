@@ -176,7 +176,7 @@ td.alert{color:var(--warn); font-size:12px}
   <section class="step" aria-labelledby="s4">
     <div class="step-h"><span class="n">4</span><h2 id="s4">Classificar</h2>
       <p>Categoria por votação entre as descrições de cada código (as primeiras pesam mais; a sugerida desempata). Conteúdo em g ou ml, packs somados. Descritivo = início + marca + complementos + quantidade.</p></div>
-    <div class="bar"><button class="pri" id="btnRun" disabled>Classificar</button><button id="btnSug" disabled title="Não mexe em nenhuma coluna do arquivo: só acrescenta o DESCRITIVO PADRONIZADO e as colunas MARCA SUGERIDA, FABRICANTE SUGERIDO, QUANTIDADE SUGERIDA, UNIDADES SUGERIDA, CONTENIDO UNITARIO SUGERIDO e CATEGORIA SUGERIDA">Padronizar descritivo + sugestões</button><button id="btnDownload" disabled>Baixar planilha .xlsx</button><span class="note" id="runState">Envie o backlog para começar.</span></div>
+    <div class="bar"><button class="pri" id="btnRun" disabled>Classificar</button><button id="btnSug" disabled title="Colunas separadas: não mexe em nenhuma coluna do arquivo, só acrescenta o DESCRITIVO PADRONIZADO e as colunas MARCA SUGERIDA, FABRICANTE SUGERIDO, QUANTIDADE SUGERIDA, UNIDADES SUGERIDA, CONTENIDO UNITARIO SUGERIDO e CATEGORIA SUGERIDA. Sobrepor: grava as sugestões nas próprias colunas do arquivo, destaca em amarelo o que mudou e lista o valor anterior em AJUSTES DO APP">Padronizar descritivo + sugestões</button><select id="sugModo" title="Como as sugestões de marca, fabricante, quantidade, unidades, contenido unitário e categoria saem na planilha do Padronizar descritivo + sugestões"><option value="colunas">Sugestões em colunas separadas</option><option value="sobrepor">Sugestões sobrepostas no arquivo (ajustes destacados)</option></select><button id="btnDownload" disabled>Baixar planilha .xlsx</button><span class="note" id="runState">Envie o backlog para começar.</span></div>
     <div class="progress" aria-hidden="true"><div id="prog"></div></div>
     <div id="results" class="hidden" style="display:flex;flex-direction:column;gap:14px">
       <div class="sum" id="kpis"></div>
@@ -381,6 +381,7 @@ async function loadBacklog(file) {
   // descrição principal (a do cadastro do produto), se o arquivo tiver: vira a referência do tipo do item
   ci.main = findCol(hdr, [h => ['DESCRIPCION', 'DESCRICAO', 'DESCRITIVO', 'DESCRIPTION', 'DESCRICAOPRODUTO', 'DESCRITIVOATUAL', 'DESCRICAOPRINCIPAL'].includes(h)]);
   if (ci.main === ci.ds) ci.main = -1;
+  data.ci = ci;
   if (ci.bc < 0 || ci.ds < 0) throw new Error('Não encontrei as colunas de código (barcode) e descrições (descriptions) no backlog.');
   const items = [];
   for (let r = 1; r < rows.length; r++) {
@@ -2305,7 +2306,57 @@ function colunasSugestao(it, g, r) {
   }
   return { marca, fab, qt, un, cu, cat };
 }
+// pinta células de um .xlsx gerado pelo SheetJS (que não grava estilo): acrescenta um preenchimento em styles.xml
+// e aponta as células (A1, F7…) para ele em sheet1.xml
+function pintaXlsx(buf, refs, cor) {
+  if (!refs.size || !XLSX.CFB) return buf;
+  const z = XLSX.CFB.read(new Uint8Array(buf), { type: 'array' });
+  const arq = nome => z.FileIndex[z.FullPaths.findIndex(p => p.endsWith('/' + nome))];
+  const td = new TextDecoder(), te = new TextEncoder();
+  const st = arq('xl/styles.xml'), sh = arq('xl/worksheets/sheet1.xml'); if (!st || !sh) return buf;
+  let sx = td.decode(st.content);
+  const nf = +(/<fills count="(\d+)"/.exec(sx) || [0, 2])[1], nx = +(/<cellXfs count="(\d+)"/.exec(sx) || [0, 1])[1];
+  sx = sx.replace(/<fills count="\d+">([\s\S]*?)<\/fills>/, (m, f) => `<fills count="${nf + 1}">${f}<fill><patternFill patternType="solid"><fgColor rgb="${cor}"/><bgColor indexed="64"/></patternFill></fill></fills>`)
+    .replace(/<cellXfs count="\d+">([\s\S]*?)<\/cellXfs>/, (m, f) => `<cellXfs count="${nx + 1}">${f}<xf numFmtId="0" fontId="0" fillId="${nf}" borderId="0" xfId="0" applyFill="1"/></cellXfs>`);
+  let hx = td.decode(sh.content);
+  hx = hx.replace(/<c r="([A-Z]+\d+)"([^>]*?)(\/?)>/g, (m, r, at, fe) => refs.has(r) ? `<c r="${r}"${at.replace(/\ss="\d+"/, '')} s="${nx}"${fe}>` : m);
+  st.content = te.encode(sx); st.size = st.content.length; sh.content = te.encode(hx); sh.size = sh.content.length;
+  return XLSX.CFB.write(z, { fileType: 'zip', type: 'array', compression: true });
+}
+// sugestões sobrepostas: o valor sugerido entra na própria coluna do arquivo (MARCA, FABRICANTE, CONTENIDO, UNIDADES,
+// CONTENIDO UNITARIO, CATEGORIA, DESCRITIVO) e a célula fica destacada; o que não existe no arquivo vira coluna nova no fim
+function buildSugSobreposto() {
+  const R = data.results, hdr = [...(data.hdr || [])].map(h => h ?? ''), ci = data.ci || {}; const wb = XLSX.utils.book_new();
+  const nh = hdr.map(h => normH(String(h)));
+  let iDesc = nh.findIndex(h => h.includes('DESCRITIVOPADRONIZADO')); if (iDesc < 0) iDesc = nh.findIndex(h => h === 'DESCRITIVO');
+  const col = { desc: iDesc, marca: ci.mar ?? -1, fab: ci.fab ?? -1, qt: ci.qt ?? -1, un: ci.un ?? -1, cu: ci.cu ?? -1, cat: (ci.cat ?? -1) >= 0 ? ci.cat : (ci.sub ?? -1) };
+  const nomes = { desc: 'DESCRITIVO PADRONIZADO', marca: 'MARCA', fab: 'FABRICANTE', qt: 'CONTENIDO', un: 'UNIDADES', cu: 'CONTENIDO UNITARIO', cat: 'CATEGORIA' };
+  const nova = new Set();
+  for (const k of ['desc', 'marca', 'fab', 'un', 'cu', 'qt', 'cat']) if (col[k] < 0) { col[k] = hdr.length; hdr.push(nomes[k]); nova.add(k); }
+  const iAj = hdr.length; hdr.push('AJUSTES DO APP');
+  const aoa = [hdr], refs = new Set(); let nAj = 0; const cnt = { desc: 0, marca: 0, fab: 0, qt: 0, un: 0, cu: 0, cat: 0 };
+  const txt = v => String(v ?? '').trim();
+  R.forEach((r, i) => {
+    const row = (r.it.row || []).slice(0, data.hdr.length); while (row.length < hdr.length) row.push(null);
+    const s = r.sugCols, aj = [];
+    const poe = (k, v, rot) => { if (v === '' || v === null || v === undefined) return; const old = row[col[k]];
+      if (txt(old).toUpperCase() === txt(v).toUpperCase()) return; row[col[k]] = v; if (k === 'desc' && nova.has('desc')) return; // descritivo em coluna nova: não é ajuste
+      refs.add(XLSX.utils.encode_cell({ r: i + 1, c: col[k] })); cnt[k]++;
+      if (rot) aj.push(`${rot}: ${txt(old) || '(vazio)'} -> ${txt(v)}`); };
+    poe('desc', r.desc, ''); poe('marca', s.marca, 'MARCA'); poe('fab', s.fab, 'FABRICANTE'); poe('qt', s.qt, 'CONTENIDO');
+    poe('un', s.un, 'UNIDADES'); poe('cu', s.cu, 'CONTENIDO UNITARIO'); poe('cat', s.cat, 'CATEGORIA');
+    row[iAj] = aj.join(' | '); if (aj.length) nAj++;
+    aoa.push(row);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = hdr.map((h, j) => ({ wch: j === col.desc ? 60 : j === iAj ? 70 : 18 }));
+  for (let i = 2; i <= aoa.length; i++) { const c = ws['A' + i]; if (c && c.t === 'n') c.z = '0'; }
+  ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: aoa.length - 1, c: hdr.length - 1 } }) };
+  XLSX.utils.book_append_sheet(wb, ws, 'Planilha1');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['AJUSTE (célula destacada em amarelo)', 'QTD ITENS'], ['DESCRITIVO PADRONIZADO', cnt.desc], ['MARCA', cnt.marca], ['FABRICANTE', cnt.fab], ['CONTENIDO', cnt.qt], ['UNIDADES', cnt.un], ['CONTENIDO UNITARIO', cnt.cu], ['CATEGORIA', cnt.cat], ['ITENS COM MARCA/FABRICANTE/QUANTIDADE/CATEGORIA AJUSTADOS', nAj], ['TOTAL DE ITENS', R.length], [], ['Valores anteriores na coluna AJUSTES DO APP'], ['Configuração: ' + cfg.nome], ['Gerado em ' + new Date().toLocaleString('pt-BR')]]), 'Resumo');
+  return pintaXlsx(XLSX.write(wb, { bookType: 'xlsx', type: 'array', compression: true }), refs, 'FFFFEB3B');
+}
 function buildSugWorkbook() {
+  if (cfg.sugModo === 'sobrepor') return buildSugSobreposto();
   const R = data.results, hdr = data.hdr || [], w = hdr.length; const wb = XLSX.utils.book_new();
   const aoa = [[...hdr.map(h => h ?? ''), 'DESCRITIVO PADRONIZADO', 'MARCA SUGERIDA', 'FABRICANTE SUGERIDO', 'QUANTIDADE SUGERIDA', 'UNIDADES SUGERIDA', 'CONTENIDO UNITARIO SUGERIDO', 'CATEGORIA SUGERIDA']];
   for (const r of R) { const row = (r.it.row || []).slice(0, w); while (row.length < w) row.push(null); const s = r.sugCols; aoa.push([...row, r.desc, s.marca, s.fab, s.qt, s.un, s.cu, s.cat]); }
@@ -2476,7 +2527,7 @@ function renderCats() {
   $('#cfgName').value = cfg.nome || ''; $('#cfgNamePill').textContent = cfg.nome || 'Sem nome';
   $('#blackText').value = cfg.falsasMarcas.join(', '); $('#outraText').value = sempreAtivos().join(', ');
   const dc = $('#defCat'); dc.replaceChildren(el('option', { value: '' }, OUT)); for (const c of actCats()) dc.append(el('option', { value: c.nome }, c.nome)); dc.value = cfg.categoriaPadrao && actCats().some(c => c.nome === cfg.categoriaPadrao) ? cfg.categoriaPadrao : '';
-  $('#useSug').checked = !!cfg.usarSugerida; $('#prioArq').checked = cfg.priorizarArquivo !== false; $('#sempreArq').checked = !!cfg.sempreArquivo; $('#soDesc').checked = !!cfg.soDescritivo; $('#rulesText').value = cfg.regrasTexto || '';
+  $('#useSug').checked = !!cfg.usarSugerida; $('#prioArq').checked = cfg.priorizarArquivo !== false; $('#sempreArq').checked = !!cfg.sempreArquivo; $('#soDesc').checked = !!cfg.soDescritivo; $('#sugModo').value = cfg.sugModo === 'sobrepor' ? 'sobrepor' : 'colunas'; $('#rulesText').value = cfg.regrasTexto || '';
 }
 
 /* ------------------------------------------------------------------ UI: results */
@@ -2572,6 +2623,7 @@ $('#outraText').addEventListener('change', e => { setSempreAtivos(splitList(e.ta
 $('#btnClearOutra').addEventListener('click', () => { setSempreAtivos([]); saveDraft(); renderCats(); });
 $('#useSug').addEventListener('change', e => { cfg.usarSugerida = e.target.checked; saveDraft(); });
 $('#soDesc').addEventListener('change', e => { cfg.soDescritivo = e.target.checked; saveDraft(); });
+$('#sugModo').addEventListener('change', e => { cfg.sugModo = e.target.value; saveDraft(); });
 $('#prioArq').addEventListener('change', e => { cfg.priorizarArquivo = e.target.checked; saveDraft(); });
 $('#sempreArq').addEventListener('change', e => { cfg.sempreArquivo = e.target.checked; if (e.target.checked) { cfg.priorizarArquivo = true; $('#prioArq').checked = true; } saveDraft(); });
 $('#rulesText').addEventListener('change', e => { cfg.regrasTexto = e.target.value; saveDraft(); });

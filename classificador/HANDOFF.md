@@ -527,3 +527,10 @@ Pontos pra checar, em ordem:
 - Descritivo: Q10, D3, K2, B12 (letra+número) protegidos no complemento (antes caía o número).
 - Ex.: COMPLEMENTO NUTRICIONAL COENZIMA Q10 MAGVITAM 30CPS -> marca MAGVITAM, descritivo COMPLEMENTO NUTRICIONAL MAGVITAM COENZIMA Q10 30CPS.
 - Testes: regras_ensinadas +3 (852/852), testar_sugestao 80/80.
+
+## Sugestões sobrepostas no arquivo (2026-11)
+- Seletor `#sugModo` na barra (salvo em cfg.sugModo): "Sugestões em colunas separadas" (como antes) ou "Sugestões sobrepostas no arquivo (ajustes destacados)".
+- `buildSugSobreposto()`: a sugestão (colunasSugestao) entra na própria coluna do arquivo (ci.mar, ci.fab, ci.qt, ci.un, ci.cu, ci.cat/ci.sub; descritivo na coluna DESCRITIVO PADRONIZADO/DESCRITIVO do arquivo, se houver); coluna que não existe vira coluna nova no fim. Coluna AJUSTES DO APP com "CAMPO: anterior -> novo". Aba Resumo com contagem por campo.
+- `pintaXlsx(buf, refs, cor)`: o SheetJS community não grava estilo; o app abre o .xlsx gerado com XLSX.CFB, acrescenta um fill sólido amarelo em styles.xml e põe s="N" nas células ajustadas do sheet1.xml. Descritivo em coluna nova não é destacado.
+- data.ci guarda os índices das colunas detectadas no loadBacklog.
+- Teste novo: testes/testar_sobrepor.js (50/50). testar_sugestao 80/80, testar_regras 852/852.
