@@ -1,5 +1,5 @@
 {
- "versao": "2026-10-29",
+ "versao": "2026-11-11",
  "descricao": "Agente de Farmácia do Classificador de Backlog: algoritmo, regras e listas. Os dicionários estão em farma_dicionarios.json.",
  "entrada": {
   "codigoBarras": "string",
@@ -19,8 +19,14 @@
    "EST MER 7 CODIGO",
    "CODIGO INTERNO",
    "STATUS",
-   "PRODUTOS DISTINTOS NO CODIGO"
+   "PRODUTOS DISTINTOS NO CODIGO",
+   "BASE ANVISA",
+   "ORIGEM ANVISA"
   ]
+ },
+ "consultaRapida": {
+  "entrada": "linhas coladas do Excel: código (barcode/código de barras/EAN/SKU) e descrição (descriptions/descritivo), com ou sem cabeçalho; opcionais MARCA, FABRICANTE, CATEGORIA, CONTENIDO",
+  "saida": "as colunas de saída + ANTES (o que veio colado) e O QUE MUDOU"
  },
  "constantes": {
   "OUTRO_FABRICANTE": "OUTRO FABRICANTE",
@@ -49,41 +55,81 @@
    "passo": 1,
    "id": "normalizar",
    "nome": "Normalizar descrições",
-   "faz": "Junta todas as descrições do código de barras (PDV/lojas + arquivo), passa para MAIÚSCULAS, tira acento e pontuação.",
+   "faz": "Junta as descrições do código de barras (arquivo + lojas/PDV + CMED). MAIÚSCULAS, sem acento e pontuação. A coluna do código aceita barcode, código de barras, EAN ou SKU; a da descrição aceita descriptions ou descritivo.",
    "saida": "textos normalizados (T)"
   },
   {
    "passo": 2,
-   "id": "categoria_arquivo",
-   "nome": "Categoria informada",
-   "faz": "Se o arquivo ou a IA trouxe categoria válida (CATEGORIA / Est Mer 7 Descripcion / sugestão), ela vale. Nunca OUTRA CATEGORIA quando há sugestão.",
-   "usa": [
-    "categorias"
-   ],
-   "saida": "categoria"
+   "id": "base_anvisa",
+   "nome": "Base Anvisa (código de barras)",
+   "faz": "Procura o código em: lista PMC da CMED atual → edições anteriores (2021 em diante) → dados abertos de preços da Anvisa (TA_PRECOS_MEDICAMENTOS). Achou: produto, apresentação, laboratório e classe oficiais entram como descrição principal e BASE ANVISA = SIM (não precisa validar). Não achou: NÃO.",
+   "saida": "baseAnvisa, cmed"
   },
   {
    "passo": 3,
-   "id": "cmed",
-   "nome": "Remédio registrado (CMED)",
-   "faz": "Código de barras na lista CMED, ou marca CMED sem sinal de suplemento (SUPL, A-Z) → categoria do remédio (A11/A12/A13...).",
+   "id": "categoria_arquivo",
+   "nome": "Categoria informada",
+   "faz": "A categoria do arquivo vale. Só sai se a descrição apontar outra cesta e não tiver sinal de farmácia. Sinal fraco também segura em Farmácia (regex REGEX.RX_FARMA_ARQ: spray, pastilha, própolis, reidratante, agulha descartável, dentadura, bengala, SUPL ALIM...). Palavra de sabor (ABACAXI, LIMAO, BALA, TEMPERO) nunca tira item da Farmácia.",
+   "usa": [
+    "categorias",
+    "listas.REGEX.RX_FARMA_ARQ",
+    "listas.REGEX.RX_SINAL_FARMA"
+   ],
    "saida": "categoria"
   },
   {
    "passo": 4,
-   "id": "principio_ativo",
-   "nome": "Categoria pelo princípio ativo",
-   "faz": "Procura os princípios ativos (todas as \"partes\" precisam aparecer). A regra mais específica ganha; empate = o que aparece primeiro. Produto veterinário (CAO, GATO, PET, VET) não vai para Farmácia humana.",
+   "id": "regras_categoria",
+   "nome": "Categoria pela descrição",
+   "faz": "Ordem: termo forte de balcão (listas.REGEX.OTC) → marca da base do cliente (marca em várias categorias = a de maior venda; antifúngico explícito ganha) → produto CMED mais específico → princípio ativo → DIMA.",
    "usa": [
-    "dicionarios.principiosAtivos"
+    "listas.REGEX.OTC",
+    "dicionarios.marcasHoja",
+    "dicionarios.principiosAtivos",
+    "dicionarios.marcasDima"
    ],
-   "saida": "categoria, principioAtivo"
+   "saida": "categoria"
   },
   {
    "passo": 5,
+   "id": "cmed_classe",
+   "nome": "Classe oficial da CMED",
+   "faz": "Código na Base Anvisa: a classe oficial (EphMRA) decide quando o app deu outro grupo ATC E também a subcategoria quando a classe traz o 5º dígito (A2B2 → A02B2, não A02B1). Código fora da base: procura a MESMA APRESENTAÇÃO na lista atual (2025+): mesmo produto, mesma dose e mesma forma (FORMAS_AP), de preferência do mesmo laboratório (prefixo de 7 dígitos do código). Classe única → vale para o item. Só corrige item que já é remédio (suplemento/correlato nunca vira remédio por aqui).",
+   "usa": [
+    "listas.REGEX.FORMAS_AP"
+   ],
+   "saida": "categoria"
+  },
+  {
+   "passo": 6,
+   "id": "antifungico_pele",
+   "nome": "Antifúngico de uso na pele",
+   "faz": "Categoria em ANTIF_OUTRA (G01B, J02A, A01B, D11A, D03A9) + forma de pele (RX_PELE) + nada de vaginal/oral/shampoo (RX_NAO_PELE) + princípio antifúngico (RX_ANTIF_PA, na descrição ou na substância CMED) ou marca com D01A1 na base (marcasAntifungicoPele) → D01A1. G01B exige DERMATOLOGICO ou forma não-creme (RX_PELE_FORTE); D11A/D03A9 exigem dose.",
+   "usa": [
+    "listas.REGEX.ANTIF_OUTRA",
+    "listas.REGEX.RX_PELE",
+    "listas.REGEX.RX_PELE_FORTE",
+    "listas.REGEX.RX_NAO_PELE",
+    "listas.REGEX.RX_ANTIF_PA",
+    "dicionarios.marcasAntifungicoPele"
+   ],
+   "saida": "categoria"
+  },
+  {
+   "passo": 7,
+   "id": "correcoes_categoria",
+   "nome": "Tabela de correções de categoria",
+   "faz": "Depois da CMED: cada linha de dicionarios.correcoesCategoria é [regex, código EphMRA, motivo]. A 1ª regex que bate na descrição troca a categoria (só em item que já é remédio). Ex.: OMEPRAZOL/PANTOPRAZOL → A02B2, NEOSALDINA/DORALGINA → A03D, MINOXIDIL solução → D11A, DIPROSPAN → H02A1, ENGOV AFTER → A07G.",
+   "usa": [
+    "dicionarios.correcoesCategoria"
+   ],
+   "saida": "categoria"
+  },
+  {
+   "passo": 8,
    "id": "vitamina",
    "nome": "Vitamina e mineral",
-   "faz": "Suplemento (SUPL, SUPLEMENTO, A-Z ou marca de vitamina) vai para VITAMINA OUTRO ou MULTIVITAMINICO. A-Z/polivitamínico ou 3+ nutrientes diferentes = MULTIVITAMINICO; 1 ou 2 = VITAMINA OUTRO. Pulado quando a categoria veio informada (passo 2).",
+   "faz": "Suplemento (SUPL, SUPLEMENTO, A-Z ou marca de vitamina) vai para VITAMINA OUTRO ou MULTIVITAMINICO (A-Z/polivitamínico ou 3+ nutrientes = MULTIVITAMINICO). Remédio registrado fica na categoria de remédio.",
    "usa": [
     "dicionarios.vitaminas",
     "listas.VIT_NAO"
@@ -91,96 +137,57 @@
    "saida": "categoria"
   },
   {
-   "passo": 6,
-   "id": "balcao",
-   "nome": "Balcão / fitoterápico / correlato",
-   "faz": "Termo forte → categoria (simeticona → A02A2, valeriana → N05B2, protetor solar → DERMOCOSMETICO SOLAR...). Ganha de palavra de sabor ou de outra cesta.",
-   "usa": [
-    "categorias"
-   ],
-   "saida": "categoria"
-  },
-  {
-   "passo": 7,
-   "id": "nao_farma",
-   "nome": "Não é Farmácia",
-   "faz": "Item que não é farma (escova de cabelo, café, bicicleta, luva...) sai para a categoria certa da outra cesta, com alerta.",
-   "saida": "categoria"
-  },
-  {
-   "passo": 8,
+   "passo": 9,
    "id": "fabricante",
    "nome": "Fabricante",
-   "faz": "Ordem: laboratório escrito na descrição (nome ou sigla de 3 letras no fim) → fabricante da marca na DIMA → base Hoja → base de vitaminas → fabricante do arquivo. Nome sempre canônico (fabricantes: chave → nome único). Grupo: GERMED/LEGRAND → EMS PHARMA, NEO QUIMICA → HYPERA PHARMA.",
+   "faz": "Laboratório da descrição (nome ou sigla \"(XXX)\" no fim) ou da CMED → DIMA → Hoja → vitaminas. O FABRICANTE DO ARQUIVO VENCE quando já existe na base (Hoja, DIMA, vitaminas, cadastrados) ou quando a sigla da descrição foi gerada dele (PROCTER \"(PRO)\"). Nome sempre canônico; nunca cria fabricante se já existe parecido.",
    "usa": [
     "dicionarios.fabricantes",
-    "dicionarios.siglas.codigos",
+    "dicionarios.siglas",
     "dicionarios.codigosLab",
-    "listas.LAB_LIXO",
-    "listas.LAB_NOME_NAO",
-    "listas.LAB_COD_NAO",
     "listas.FAB_LIXO",
     "listas.FAB_ALIAS"
    ],
    "saida": "fabricante"
   },
   {
-   "passo": 9,
+   "passo": 10,
    "id": "marca",
    "nome": "Marca",
-   "faz": "Cadeia: marca DIMA → marca Hoja (nome mais completo) → marca da base de vitaminas → nome comercial escrito na descrição → nome do produto (ex.: CHA VERDE, OLEO DE CARTAMO) → princípio ativo (genérico). Nunca palavra de listas.FARMA_NAO_MARCA, laboratório, sal, forma ou número; sem quantidade (54G sai).",
+   "faz": "Marca do arquivo (se válida) → DIMA → Hoja → vitaminas → nome do produto na CMED → nome comercial escrito → princípio ativo (genérico). Nunca palavra de FARMA_NAO_MARCA (inclui TUTTI, FRUTTI, CLO, DICLOR, AMOX, UNIAO), forma (XAROPE, POMADA), laboratório ou número.",
    "usa": [
     "dicionarios.marcasDima",
     "dicionarios.marcasHoja",
-    "dicionarios.vitaminas.marcas",
     "listas.FARMA_NAO_MARCA",
-    "listas.PALAVRA_DESCRITIVA",
-    "listas.PN_FORA",
-    "listas.SAIS_DCB",
-    "listas.CONNECT"
+    "listas.PALAVRA_DESCRITIVA"
    ],
-   "saida": "marca (sem sigla)"
-  },
-  {
-   "passo": 10,
-   "id": "sem_fabricante",
-   "nome": "Item sem fabricante",
-   "faz": "Sem fabricante: tenta DIMA → base de vitaminas → Hoja pela marca. Genérico/nome de produto → fabricante OUTRO FABRICANTE e sigla OTF. Nome comercial sem fabricante em nenhuma base → a marca vira o próprio fabricante (STATUS CRIAR FABRICANTE).",
-   "saida": "fabricante"
+   "saida": "marca"
   },
   {
    "passo": 11,
    "id": "sigla",
-   "nome": "Sigla (obrigatória)",
-   "faz": "Ordem: \"(XXX)\" escrito no fim da descrição → código/nome do laboratório escrito → sigla da marca na Hoja (siglas.marcas) → código da marca na DIMA → sigla padrão do fabricante (siglas.fab) → gerada do nome (sempre 3 caracteres). Sem fabricante → OTF.",
+   "nome": "Sigla (obrigatória em Farmácia, menos dermocosmético)",
+   "faz": "\"(XXX)\" escrito → código do laboratório → sigla da marca na Hoja → sigla do fabricante → gerada (3 letras). Sem fabricante → OTF. Siglas do mesmo grupo valem para o fabricante do grupo (GER/LEG/NVQ → EMS PHARMA; NEO → HYPERA PHARMA).",
    "usa": [
-    "dicionarios.siglas",
-    "constantes.SIGLA_SEM_FAB"
+    "dicionarios.siglas"
    ],
    "saida": "sigla"
   },
   {
    "passo": 12,
-   "id": "marca_final",
-   "nome": "Marca final",
-   "faz": "marca = <marca> + \" \" + <sigla> (ex.: NIMESULIDA GER, VITAMINA D3 BIO, VITAMINA C OTF). Dermocosmético: marca sem sigla. Item de Farmácia com fabricante conhecido nunca fica OUTRA MARCA.",
-   "saida": "marca"
-  },
-  {
-   "passo": 13,
    "id": "conteudo",
    "nome": "Conteúdo",
-   "faz": "Sempre com unidade. Formas (COMP, CPR, CAPS, DRG...) contam como UN; líquidos/cremes em ML/G. Padrão Anvisa \"X 30\" no fim ganha de número colado. Sem nada: 1UN.",
+   "faz": "Antes de ler: tira preço (PMC 21.00), lote (L 70250, LOTE...), FCI, código com zero à esquerda (04502), faixa de peso do animal (10,1 A 20KG), \"C30 L\" (L de limão), \"D3L90\". Depois: número do arquivo achado como quantidade numa descrição vale (30 CPR, C/90, 200 DOSES), menos denominador da dose (375MG/5ML, 7MG X 1 ML); conteúdo do arquivo 5x maior que o que 2+ descrições concordam (1000 = dose) perde; caixa fechada em Farmácia (N≥6, unidade ≥30 ML/G: 24X120ML) = a unidade, sachê 16X5G fica; bombinha/spray (120X17.5ML) = doses; remédio em MG com KG na descrição = contagem; mesmo número em G e em comprimidos = contagem. Sempre com unidade; sem nada: 1UN.",
    "usa": [
     "listas.UN_CONTA"
    ],
    "saida": "conteudo"
   },
   {
-   "passo": 14,
+   "passo": 13,
    "id": "descritivo",
    "nome": "Descritivo padronizado",
-   "faz": "Início fixo da categoria (SUPL ALIM, SUPL ALIM MULT...) ou marca/princípio ativo + complemento + dosagem + quantidade na forma (10CPRS, 28CPS, 30ML) + \"(SIGLA)\" no fim. Máx. 60 caracteres (corta complemento, nunca marca/dose/quantidade/sigla). Laboratório não entra. VITAMINA D3, B12, OMEGA 3, K2, Q10, A Z preservados.",
+   "faz": "Início da categoria (SUPL ALIM [MULT]) ou marca + complemento + dose + quantidade na forma (10CPRS, 28CPS, 30ML, 200DOSES) + \"(SIGLA)\". Máx. 60 caracteres (corta complemento, nunca marca/dose/quantidade/sigla).",
    "usa": [
     "categorias[].inicio",
     "categorias[].remover"
@@ -188,34 +195,48 @@
    "saida": "descritivo"
   },
   {
+   "passo": 14,
+   "id": "genericos",
+   "nome": "Sigla do genérico = sigla do fabricante",
+   "faz": "Marca genérica (princípio ativo + sigla): se a sigla não é do fabricante da linha (nem do grupo), troca pela dele, no descritivo também (AMBROXOL MED com TEUTO → AMBROXOL TEU).",
+   "saida": "marca, descritivo"
+  },
+  {
    "passo": 15,
-   "id": "unificar",
-   "nome": "Unificar marca × fabricante",
-   "faz": "Passada final em todos os itens: uma marca tem um fabricante só (o majoritário); genéricos ficam separados pela sigla.",
-   "saida": "marca, fabricante"
+   "id": "outra_marca",
+   "nome": "Fabricante conhecido nunca fica com OUTRA MARCA",
+   "faz": "Em todas as cestas: marca OUTRA MARCA com fabricante conhecido (fora CODIGO INTERNO) → marca = nome curto do fabricante (+ sigla em Farmácia). OUTRA MARCA só existe com OUTRO FABRICANTE.",
+   "saida": "marca"
   },
   {
    "passo": 16,
+   "id": "unificar",
+   "nome": "Uma marca = um fabricante",
+   "faz": "Passada no arquivo inteiro. Dono da marca, nesta ordem: fabricante dono da sigla da marca (aceita sigla do grupo) → fabricante da marca na base do cliente → fabricante com o nome da marca que existe na base (MERCUR → MERCUR SA) → fabricante do arquivo que existe na base → DIMA → mais comum. Linhas de outro fabricante: genérico ganha a sigla do próprio laboratório; produto CMED com outro nome ganha a marca da CMED; fabricante do arquivo existente com marca achada por palavra solta volta à marca do arquivo (+ sigla); senão o fabricante vira o dono.",
+   "saida": "marca, fabricante"
+  },
+  {
+   "passo": 17,
    "id": "codigo_interno",
    "nome": "Produtos distintos no código",
-   "faz": "Se as descrições do mesmo código são de produtos diferentes (de outra cesta, sem semelhança de nome: menos de 2 palavras em comum e 1ª palavra diferente) → CATEGORIA CODIGO INTERNO, OUTRA MARCA, OUTRO FABRICANTE e coluna PRODUTOS DISTINTOS NO CODIGO = \"SIM: ...\" (ou \"VERIFICAR: ...\").",
+   "faz": "Descrições do mesmo código de produtos de OUTRA CESTA (sem nome em comum) → CODIGO INTERNO, OUTRA MARCA, OUTRO FABRICANTE + coluna PRODUTOS DISTINTOS NO CODIGO (\"SIM: ...\" ou \"VERIFICAR: ...\").",
    "usa": [
     "constantes.CODIGO_INTERNO"
    ],
    "saida": "categoria, marca, fabricante, produtosDistintos"
   },
   {
-   "passo": 17,
+   "passo": 18,
    "id": "status",
    "nome": "STATUS de cadastro",
-   "faz": "CRIAR MARCA se a marca não existe nas bases; CRIAR FABRICANTE se o fabricante não existe; CRIAR MARCA E FABRICANTE; SEM FABRICANTE quando ficou OUTRO FABRICANTE (CRIAR MARCA; SEM FABRICANTE se a marca OTF é nova).",
+   "faz": "CRIAR MARCA / CRIAR FABRICANTE / CRIAR MARCA E FABRICANTE / SEM FABRICANTE / CRIAR MARCA; SEM FABRICANTE. Fabricante novo vai para a aba FABRICANTES NOVOS com os nomes parecidos que já existem.",
    "saida": "status"
   },
   {
-   "passo": 18,
+   "passo": 19,
    "id": "est_mer",
    "nome": "Código EST MER 7",
-   "faz": "Código da categoria pela tabela estMer7 (por nome oficial, nome do app ou código ATC).",
+   "faz": "Código da categoria pela tabela estMer7.",
    "usa": [
     "dicionarios.estMer7"
    ],
@@ -226,114 +247,87 @@
   {
    "id": "FAB-01",
    "tema": "fabricante",
-   "regra": "Um nome só por fabricante (nada de CIMED A / CIMED B). Usar sempre o nome canônico do dicionário."
+   "regra": "Um nome só por fabricante; usar sempre o nome canônico."
   },
   {
    "id": "FAB-02",
    "tema": "fabricante",
-   "regra": "Prioridade do nome: DIMA → Hoja (tem erros; buscar o parecido, ex. ACHE LABORATORIOS → ACHE) → base de vitaminas."
+   "regra": "Nome que já existe na base sempre ganha de nome novo. Prioridade da escrita: DIMA → Hoja → vitaminas. Fabricante novo tem no máximo 2-3 palavras."
   },
   {
    "id": "FAB-03",
    "tema": "fabricante",
-   "regra": "Antes de criar fabricante, conferir no Hoja se já existe com outra escrita (HIDRA LISE = HIDRALISE) ou se o nome é marca de outro fabricante (GOOD VIT → GOMES SUPLEMENTOS)."
+   "regra": "Fabricante do arquivo que já existe na base vence o laboratório da descrição/CMED e a unificação (MERCUR não vira MERCK; BAND-AID não vira OPHTHALMOS)."
   },
   {
    "id": "FAB-04",
    "tema": "fabricante",
-   "regra": "Palavra descritiva (listas.PALAVRA_DESCRITIVA), ingrediente ou nome de produto nunca é fabricante.",
-   "exemplos": [
-    "HOMEM",
-    "VEGANO",
-    "COMPLEXO",
-    "TRIBULUS",
-    "LEVEDO DE CERVEJA"
-   ]
-  },
-  {
-   "id": "FAB-05",
-   "tema": "fabricante",
-   "regra": "Sem fabricante identificado → OUTRO FABRICANTE. SIN PROVEEDOR ASOCIADO nunca é fabricante."
-  },
-  {
-   "id": "FAB-06",
-   "tema": "fabricante",
-   "regra": "Laboratório do grupo sai pelo grupo: GERMED/LEGRAND → EMS PHARMA; NEO QUIMICA → HYPERA PHARMA."
+   "regra": "Palavra descritiva/genérica nunca é fabricante (ANTIBIOTICOS, VITAMINA, FARMA). SIN PROVEEDOR ASOCIADO nunca é fabricante."
   },
   {
    "id": "MAR-01",
    "tema": "marca",
-   "regra": "Uma marca = um fabricante. Exceção: genérico, separado pela sigla (NIMESULIDA EMS ≠ NIMESULIDA MED)."
+   "regra": "Uma marca = um fabricante no arquivo inteiro (passo 16). Genérico se separa pela sigla."
   },
   {
    "id": "MAR-02",
    "tema": "marca",
-   "regra": "Sigla do fabricante OBRIGATÓRIA no fim da marca de Farmácia, menos dermocosmético.",
-   "exemplos": [
-    "VITAMINA D3 BIO",
-    "SOMALIFE ARO",
-    "DORFLEX OPE"
-   ]
+   "regra": "Sigla OBRIGATÓRIA no fim da marca de Farmácia (menos dermocosmético). Sigla do genérico = sigla do fabricante da linha ou do seu grupo."
   },
   {
    "id": "MAR-03",
    "tema": "marca",
-   "regra": "Nome do fabricante não entra na marca (ALTHAIA ALT errado → VITAMINA D3 ALT)."
+   "regra": "Fabricante conhecido nunca fica com OUTRA MARCA. OUTRA MARCA só com OUTRO FABRICANTE."
   },
   {
    "id": "MAR-04",
    "tema": "marca",
-   "regra": "Item de Farmácia com fabricante conhecido nunca fica OUTRA MARCA: usar nome comercial ou nome do produto."
+   "regra": "Forma (XAROPE, POMADA, CREME...) não entra na marca. Genérico sem fabricante → \"<PRODUTO> OTF\"."
   },
   {
    "id": "MAR-05",
    "tema": "marca",
-   "regra": "Genérico/produto sem fabricante → \"<PRODUTO> OTF\", fabricante OUTRO FABRICANTE.",
-   "exemplos": [
-    "VITAMINA C OTF",
-    "CURCUMA OTF",
-    "TRIBULUS TERRESTRIS OTF"
-   ]
-  },
-  {
-   "id": "MAR-06",
-   "tema": "marca",
-   "regra": "Marca sem quantidade (54G sai) e nunca palavra de listas.FARMA_NAO_MARCA. POR DEFECTO nunca é marca."
-  },
-  {
-   "id": "MAR-07",
-   "tema": "marca",
-   "regra": "Genérico: marca = princípio ativo + sigla do laboratório (LOSARTANA GER)."
+   "regra": "Suplemento com nome de remédio (ex.: \"MOUNJARO\" natural em cápsula) não é a marca do remédio nem o fabricante dele."
   },
   {
    "id": "CAT-01",
    "tema": "categoria",
-   "regra": "Toda linha tem EST MER 7 com código ATC no nome oficial (ex.: N02B NAO NARCOTICOS ANTIPIRETICOS)."
+   "regra": "A classe oficial da CMED decide o grupo e a subcategoria (5º dígito) do remédio; sem o código na CMED, vale a mesma apresentação (produto + dose + forma)."
   },
   {
    "id": "CAT-02",
    "tema": "categoria",
-   "regra": "Ordem: categoria informada/IA → CMED → princípio ativo → vitamina/suplemento → balcão → DIMA."
+   "regra": "Correções manuais em dicionarios.correcoesCategoria valem depois da CMED (só para item de remédio)."
   },
   {
    "id": "CAT-03",
    "tema": "categoria",
-   "regra": "Suplemento: A-Z ou 3+ nutrientes = MULTIVITAMINICO; 1-2 nutrientes = VITAMINA OUTRO. CALCIO MDK = cálcio + magnésio + D + K."
+   "regra": "Antifúngico em forma de pele → D01A1 (passo 6). Soro fisiológico nasal → R01A9; nafazolina → R01A7."
   },
   {
    "id": "CAT-04",
    "tema": "categoria",
-   "regra": "Item que não é farma vai para a categoria da sua cesta, com alerta."
+   "regra": "Item que o arquivo diz Farmácia não sai para outra cesta por palavra de sabor ou de uso comum quando tem sinal de farmácia (RX_FARMA_ARQ)."
+  },
+  {
+   "id": "CON-01",
+   "tema": "conteudo",
+   "regra": "Preço, lote, FCI, código e peso do animal não são conteúdo. Caixa fechada = unidade; bombinha = doses; conteúdo inflado do arquivo perde para as descrições."
+  },
+  {
+   "id": "ANV-01",
+   "tema": "base_anvisa",
+   "regra": "BASE ANVISA = SIM quando o código está na CMED (qualquer edição) ou nos dados abertos de preços: produto, apresentação e laboratório oficiais, não precisa validar. NÃO = validar. Anvisa não publica código de barras de cosmético, alimento, suplemento ou correlato."
   },
   {
    "id": "COD-01",
    "tema": "codigo_interno",
-   "regra": "Produtos distintos no mesmo código de barras → CODIGO INTERNO, OUTRA MARCA, OUTRO FABRICANTE + coluna PRODUTOS DISTINTOS NO CODIGO."
+   "regra": "Produtos distintos no mesmo código → CODIGO INTERNO, OUTRA MARCA, OUTRO FABRICANTE + PRODUTOS DISTINTOS NO CODIGO."
   },
   {
    "id": "DES-01",
    "tema": "descritivo",
-   "regra": "Início fixo da categoria (SUPL ALIM [MULT]) ou marca + complemento + dose + quantidade/forma + \"(SIGLA)\". Máx. 60 caracteres. CPRS = comprimido/drágea, CPS = cápsula."
+   "regra": "Marca + complemento + dose + quantidade/forma + \"(SIGLA)\". Máx. 60 caracteres. CPRS = comprimido/drágea, CPS = cápsula."
   },
   {
    "id": "STA-01",
@@ -343,7 +337,7 @@
   {
    "id": "COR-01",
    "tema": "correcao",
-   "regra": "Ao corrigir arquivo já classificado: mexer só nas linhas com problema; explicar cada ajuste numa coluna AJUSTE."
+   "regra": "Ao corrigir arquivo já classificado: mexer só nas linhas com problema e mostrar o antes → depois (coluna O QUE MUDOU)."
   }
  ],
  "listas": {
@@ -903,6 +897,109 @@
   "UN_CONTA": "UN|UND|UNID|UNIDADE|UNIDADES|UNI|UNDS|UNS|COMP|COMPS|COMPR|COMPRIMIDO|COMPRIMIDOS|CP|CPR|CPRS|CPS|CAP|CAPS|CAPSULA|CAPSULAS|DRG|DRAGEA|DRAGEAS|FOLHASCONT|FLACONETE|FLACONETES|FLAC|AMPOLA|AMPOLAS|SACHE|SACHES|SACHET|SACHETS|ENV|ENVELOPE|ENVELOPES|SERINGA|SERINGAS|GOMA|GOMAS|ADES|ADESIVO|ADESIVOS|OVULO|OVULOS|SUPOSITORIO|SUPOSITORIOS|PASTILHA|PASTILHAS|TABLETE|TABLETES|BISNAGA|BISNAGAS|FRASCO|FRASCOS",
   "FAB_ALIAS": {
    "GLAXOSMITHKLINE": "GSK"
+  },
+  "REGEX": {
+   "RX_FARMA_ARQ": "(?<![A-Z])(SPRAY|PASTILHAS?|PAST|DROPS|PROPOLIS|MENTOL|EUCALIPTO|GENGIBRE|MALVA|REIDRAT\\w*|HIDRAT\\w* ORAL|COLAGENO|SUPL|SUP ALIM|SUPLEMENTO|DESCARTAVEL|DENTADURA|PROTESE|BENGALA|MULETA|PEDIATRIC\\w*|PEDIA)(?![A-Z])",
+   "RX_PELE": "(?<![A-Z])(CREME|CR|POMADA|POM|AEROSOL|AEROSSOL|AER|SPRAY|PO|LOCAO|DERMATOLOGIC\\w*|DERM)(?![A-Z])",
+   "RX_PELE_FORTE": "(?<![A-Z])(AEROSOL|AEROSSOL|AER|SPRAY|PO|LOCAO|DERMATOLOGIC\\w*|DERM)(?![A-Z])",
+   "RX_NAO_PELE": "(?<![A-Z])(VAGINAL|VAG|GINEC\\w*|GINO\\w*|OVULOS?|APLIC\\w*|ORAL|BUCAL|COMP|COMPRIMIDOS?|CAPS|CAPSULAS?|CPS|CPR|DRG|SUSP|SUSPENSAO|SHAMPOO|XAMPU|XPE|XAROPE|GOTAS)(?![A-Z])",
+   "RX_ANTIF_PA": "(CONAZOL|TRIMAZOL|NISTATINA|TERBINAFINA|CICLOPIROX|AMOROLFINA|TOLNAFTATO)",
+   "ANTIF_OUTRA": "^(ANTIMICOTICOS GINECOLOGICOS|AGENTES ANTIMICOTICOS SISTEMICOS EXCLUINDO GRISEOF|ANTIFUNGICOS ORAIS TOPICOS|OUTRAS PREPARACOES DERMATOLOGICAS INCL XAMPUS MED|TODOS OUTROS AGENTES CURATIVOS FERIDAS)$",
+   "ANTIF_DERM": "ANTIFUNGICOS DERMATOLOGICOS TOPICOS",
+   "FORMAS_AP": {
+    "SOLIDO": "(?<![A-Z])(COM|COMP|CPR|CPRS|CAP|CAPS|CPS|DRG|DRAG|DRAGEAS?|PAST|PASTILHAS?|TABS?|CM)(?![A-Z])",
+    "INJ": "(?<![A-Z])(INJ|INJETAVEL|IM|IV)(?![A-Z])",
+    "SHAMPOO": "(?<![A-Z])(SHAMP|SHAMPOO|XAMPU)(?![A-Z])",
+    "PELE": "(?<![A-Z])(CREME|CREM|CR|POM|POMADA|GEL|LOC|LOCAO|DERM|DERMATOLOGICO|TOP)(?![A-Z])",
+    "OLHO": "(?<![A-Z])(OFT|OFTALMICO|OFTALMICA|COLIRIO)(?![A-Z])",
+    "NARIZ": "(?<![A-Z])(NAS|NASAL)(?![A-Z])",
+    "LIQ": "(?<![A-Z])(XPE|XAROPE|SUSP|SUSPENSAO|GOTAS|GTS|FLAC|FLACONETES?|SOL OR|SOLUCAO ORAL)(?![A-Z])",
+    "VAG": "(?<![A-Z])(VAG|VAGINAL|OVULOS?)(?![A-Z])",
+    "INAL": "(?<![A-Z])(INAL|AEROSSOL|SPRAY ORAL)(?![A-Z])"
+   },
+   "OTC": [
+    [
+     "(?<![A-Z])(ANTIMIC\\w*|ANTIFUN\\w*|ANTIF|ANTIMICOSE|MICOSES?|FRIEIRA|PE DE ATLETA|VIOLETA (DE )?GENCIANA|VIOL GENC|(SOLUCAO|SOL|LIQ|LIQUIDO) ANTI?)(?![A-Z])(?!.*(?<![A-Z])(ORAL|COMP|COMPRIMIDOS?|CAPS|CAPSULAS?|VAGINAL|SHAMPOO|XAMPU)(?![A-Z]))",
+     "ANTIFUNGICOS DERMATOLOGICOS TOPICOS"
+    ],
+    [
+     "(?<![A-Z])(SIMETICONA|LUFTAL|LUFTGAS|LUFSIM|SIMFLUZ|GASLEV|ANTIGASES?|DIMETICONA)(?![A-Z])",
+     "ANTIFISETICOS PUROS"
+    ],
+    [
+     "(?<![A-Z])(LACTULOSE|LACTULONA|LACTU[A-Z]+|LACTBEN)(?![A-Z])",
+     "LAXANTES OSMOTICOS"
+    ],
+    [
+     "(?<![A-Z])(PSYLLIUM|PSILIO|FIBRAS? .*CONST\\w*|CONSTLIVRE)(?![A-Z])",
+     "INCREMENTADORES DO BOLO INTESTINAL"
+    ],
+    [
+     "(?<![A-Z])(LAX|LAXANTE|LAXATIVO|NATULAX|LAXTRINE|TAMARION|TAMARINDO .*LAX\\w*)(?![A-Z])",
+     "OUTRAS DROGAS PARA A CONSTIPACAO"
+    ],
+    [
+     "(?<![A-Z])(SILIMARINA?|SILIMARIN|HEPATON|BIOHEPATON|ALCACHOFRA .*(CAPS|COMP|CAPSULA))(?![A-Z])",
+     "PRODUTOS PARA DOENCAS DO FIGADO HEPATOPROTETORES"
+    ],
+    [
+     "(?<![A-Z])(PROBIOTICOS?|LACTOBACIL\\w*|BIFIDO\\w*|SACCHAROMYCES|BILHOES|BILHAO|SANAFLORA|FLORADIA|DESILAC)(?![A-Z])",
+     "MICROORGANISMOS ANTIDIARREICOS"
+    ],
+    [
+     "(?<![A-Z])(VALERIANA|VALSED|VALERINATI|PASSIFLORA|PASSIFLORINE|CALMOPLANTAS|MULUNGU|MELISSA .*(CAPS|COMP))(?![A-Z])",
+     "SEDANTES HIPNOTICOS"
+    ],
+    [
+     "(?<![A-Z])(GINGIVAL|PERIO[A-Z]*|CLOREXIDINA .*BUCAL|BUCAL .*CLOREXIDINA)(?![A-Z])",
+     "ESTOMATOLOGICOS"
+    ],
+    [
+     "(?<![A-Z])((SOLUCAO|ENXAGUANTE|LIQUIDO|ANTISSEPTICO) .*BUCAL|BUCAL .*(SOLUCAO|ENXAGUANTE)|BUCALTRAT)(?![A-Z])",
+     "ANTISSEPTICO BUCAL"
+    ],
+    [
+     "(?<![A-Z])(VARILESS|VARIZES|VENO[A-Z]*|VARICALM)(?![A-Z]).*(?<![A-Z])(COMP|COMPRIMIDOS?|CAPS|CAPSULAS?|DRG)(?![A-Z])|(?<![A-Z])(COMP|COMPRIMIDOS?|CAPS|CAPSULAS?|DRG)(?![A-Z]).*(?<![A-Z])(VARILESS|VARIZES|VENO[A-Z]*|VARICALM)(?![A-Z])",
+     "TERAPIA VARICOSA SISTEMICA"
+    ],
+    [
+     "(?<![A-Z])(PERNAS? .*(CANSAD\\w*|CREME|LOCAO|GEL)|(CREME|LOCAO|GEL) .*PERNAS?|VARIZES|VARICALM|VARILESS|VENO[A-Z]+|CIDRALIVIO|VENALEGS)(?![A-Z])",
+     "TERAPIA VARICOSA TOPICA"
+    ],
+    [
+     "(?<![A-Z])(CALICIDA|VERRUG\\w*|VERRUGAN|KALONAT|CALOS? .*(SOLUCAO|LIQUIDO|POMADA))(?![A-Z])",
+     "OUTRAS PREPARACOES DERMATOLOGICAS INCL XAMPUS MED"
+    ],
+    [
+     "(?<![A-Z])(ARNICA|MASSAGEADOR|GEL (DE )?MASSAGEM|DORES? MUSCULAR\\w*|FISIOTRAUMA|ARNIVIOL|FLEXOGEL|GEL .*ICE|ICE .*GEL)(?![A-Z])",
+     "ANTIREUMATICOS TOPICOS COM ANALGESICOS"
+    ],
+    [
+     "(?<![A-Z])OFTALM\\w*(?![A-Z]).*(?<![A-Z])(LUBRIF\\w*|LAGRIMA\\w*|MOISTURE|DRY|HIDRAT\\w*|OLHO SECO)(?![A-Z])|(?<![A-Z])(LACRIFRESH|LACRIFILM|SYSTANE|HYABAK|LACRIL)(?![A-Z])",
+     "LAGRIMAS ARTIFICIAIS E LUBRIFICANTES OCULARES"
+    ],
+    [
+     "(?<![A-Z])(XAROPE|XPE)(?![A-Z]).*(?<![A-Z])(TOSSE|TOSS\\w*|GUACO|AGRIAO|IMUNO|PEITORAL|EXPECTOR\\w*|HEDERA|MUKEMEL)(?![A-Z])|(?<![A-Z])(MUKEMEL|VITATOSS)(?![A-Z])",
+     "EXPECTORANTES"
+    ],
+    [
+     "(?<![A-Z])(GASTRIVAL|DIGEFLEX|DIGESTIVO|DIGESTIVA|DIGESTAO)(?![A-Z])",
+     "DIGESTIVOS INCLUIDO ENZIMAS"
+    ],
+    [
+     "(?<![A-Z])(LEITE (DE )?MAGNESIA|MAGNESIA .*(LEITE|SUSPENSAO|SUSP)|MAGNESIA BISURADA)(?![A-Z])",
+     "ANTIACIDOS PUROS"
+    ],
+    [
+     "(?<![A-Z])(ADESIVO .*(DENTADURA|DENTAL|PROTESE)|FIXODENT|COREGA|DENTALFIX)(?![A-Z])",
+     "ACESSORIO HIGIENE DENTAL"
+    ],
+    [
+     "(?<![A-Z])((PROTETOR|PROTETORA|PROT|BLOQUEADOR|BLOQUEADORA|LOCAO) .*(SOLAR|FPS|SUN)|(SOLAR|SUN) .*(BLOQUEAD\\w*|PROTET\\w*)|BLOQUEADORA?|FPS ?\\d+|ANASOL)(?![A-Z])",
+     "DERMOCOSMETICO SOLAR"
+    ]
+   ],
+   "RX_SINAL_FARMA": "(?<![A-Z])(\\d+(\\.\\d+)?\\s*(MG|MCG|UI|MEQ)|COMP|COMPR|COMPRIMIDOS?|CPR|CAPS|CAPSULAS?|DRG|DRAGEAS?|GTS|GOTAS|XPE|XAROPE|POMADA|COLIRIO|AMPOLAS?|INJETAVEL|SUSP|SUSPENSAO|SOL ORAL|EFERV|EFERVESCENTE|SPRAY NASAL|OVULOS?|SUPOSITORIOS?)(?![A-Z])"
   }
  },
  "listasDescricao": {
@@ -918,7 +1015,8 @@
   "SAIS_DCB": "sais do princípio ativo (não são marca)",
   "TIPO_SAUDE": "correlatos de saúde",
   "CONNECT": "conectivos",
-  "UN_CONTA": "regex das formas que contam como UN"
+  "UN_CONTA": "regex das formas que contam como UN",
+  "REGEX": "regras em regex (texto da expressão, sintaxe JavaScript, aplicar na descrição normalizada): OTC = [regex, categoria]; FORMAS_AP = forma → regex"
  },
  "categorias": [
   {
