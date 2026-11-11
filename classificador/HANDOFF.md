@@ -520,3 +520,10 @@ Pontos pra checar, em ordem:
 - S/SABOR / SEM SABOR preservado no descritivo (antes virava SABOR). CLORELLA (com LL) entra. Marca nova NEW NUTRITION (NUTRATEC) em marcasNovas.
 - libPatch `complemento-scanntech-2026-11`: incluir marcas acima + CURCUMA, CLORELLA; excluir LEITE COM SABOR, ACHOCOLATADO, COMPOSTO LACTEO (cúrcuma em pó continua TEMPERO).
 - Testes: regras_ensinadas +12 (849/849), testar_sugestao 80/80.
+
+## Complemento: princípio ativo não é marca (2026-11)
+- Problema: com o segmento VITAMINA E MINERAL ligado ao COMPLEMENTO (segPadrao), nomes de princípio ativo cadastrados como marca na DIMA (COENZIMA Q10, VITAMINA D3) viravam marca. Regra de farmácia (marca = princípio ativo) não vale para complemento.
+- consts marcaNaoCat "^COMPLEMENTO NUTRICIONAL": ~70 padrões de princípio ativo / ingrediente (VITAMINA X, COENZIMA Q10, CALCIO, MAGNESIO, ZINCO, COLAGENO, CURCUMA, MACA PERUANA, PROPOLIS, OLEO DE X, ACIDO HIALURONICO…). Só nessa categoria; farmácia intocada. Também marca do arquivo com esse nome vira arqFalsa no modo sugestões.
+- Descritivo: Q10, D3, K2, B12 (letra+número) protegidos no complemento (antes caía o número).
+- Ex.: COMPLEMENTO NUTRICIONAL COENZIMA Q10 MAGVITAM 30CPS -> marca MAGVITAM, descritivo COMPLEMENTO NUTRICIONAL MAGVITAM COENZIMA Q10 30CPS.
+- Testes: regras_ensinadas +3 (852/852), testar_sugestao 80/80.
