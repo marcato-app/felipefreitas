@@ -908,3 +908,20 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   - Antes eram centenas de itens com conteúdo de 2.000 ou mais. Agora são 19, quase todos bolsas de solução de 1 a 5 L, carvão 5KG e desinfetante 5L.
   - 992 conteúdos foram corrigidos em relação ao arquivo.
 - Testes: vitaminas, conteúdo 11.055 → 11.057; DIMA e Hoja iguais.
+
+### 3.6u Estrutura nova de categorias (Hoja 60, nov/2026)
+- Fonte: `dados/farma_estrutura/hoja_1_60.tsv` (EST MER 3..7 + código). `python3 estrutura_farma.py` (depois de `estmer.py`):
+  nome oficial e código EST MER 7 de cada categoria passam a ser os da estrutura nova, escritos como o cliente escreve
+  (S01E2 TOPICOS, N05B5 SEDANTES HIPNOTICOS, A07G REIDRATANTES ORAIS, espaço duplo em R01A9/R03F1/C06B1...).
+- 21 categorias novas: A11A2/A11B2 PEDIATRICOS, A11A3 GERIATRICOS, A11D9, A11E2, A11E3, A11X3 VITAMINA E PURA, A13A2,
+  D01A2, COLAGENO, PROPOLIS, SPRAY ANTIGRIPAL, GRIPE E RESFRIADO, ANTIINFLAMATORIO, DIGESTIVO, H04E, N05B2 ASSOCIACOES,
+  S01M, S01X1.
+- Categorias que saíram -> `consts.json farmaCatNova` (grupo que virou subgrupo: H02A -> H02A2 ORAIS, J05B -> J05B9,
+  K03B3 -> K03B1, K04A2 -> K04A1, R03X -> R03X2, A13A -> A13A2, C05A -> C05A2, C07B -> C07B1, D07B -> D07B4, B02D -> B02D1,
+  B02E -> B02E1, H01C -> H01C2, J06H -> J06H6, J07B -> J07B1, L02A -> L02A3, S01G -> S01G1, A03G -> A03A, B01X -> B01C4,
+  EXTRATO DE PROPOLIS -> PROPOLIS). A troca é feita no fim da classificação (alerta "Estrutura nova: ...").
+- VITAMINA OUTRO / MULTIVITAMINICO não existem mais: `vitNova` (src.html) decide pela ordem classe Anvisa (CMED) ->
+  tipo de produto (VIT_TIPO) -> vitaminas/minerais escritos -> linha do produto -> outro nutriente (A13A2) -> marca de
+  polivitamínico da base -> A11X9 com alerta "conferir". Regras completas no passo 8 do farma_regras.json (AppGen).
+- Base de vitaminas do cliente (12.423 itens): 904 (7%) ficam em A11X9 para conferir; marca/fabricante/conteúdo iguais.
+- Base final: `dados/saidas/Detalhe_2_FINAL_estrutura_nova.xlsx` (aba ESTRUTURA NOVA: antes -> depois e como decidiu).

@@ -29,5 +29,10 @@ const rxs = (v) => Object.prototype.toString.call(v) === '[object RegExp]' ? v.s
 const ctx2 = { Set, Map, Array, Object, RegExp }; vm.createContext(ctx2);
 vm.runInContext(RX.map(stmt).join('\n').replace(/^const /gm, 'var '), ctx2);
 out.REGEX = Object.fromEntries(RX.map(n => [n, rxs(ctx2[n])]));
+// estrutura nova: regras de vitamina/mineral (vitNova) — [regex, código EphMRA ou categoria] na ordem em que são testadas
+const VIT = ['VIT_TIPO', 'VIT_W', 'VIT_CB', 'VIT_MIN', 'VIT_POLI', 'VIT_GEST', 'VIT_KIDS', 'VIT_SEN', 'VIT_LINHA', 'VIT_OUTROS'];
+const ctx3 = { Set, Map, Array, Object, RegExp }; vm.createContext(ctx3);
+vm.runInContext(['escRx', 'VR', ...VIT].map(stmt).join('\n').replace(/^const /gm, 'var '), ctx3);
+out.VITAMINA = Object.fromEntries(VIT.map(n => [n, rxs(ctx3[n])]));
 fs.writeFileSync(process.argv[2], JSON.stringify(out, null, 1));
 console.log(Object.entries(out).map(([k, v]) => k + ':' + (Array.isArray(v) ? v.length : typeof v)).join(' '));

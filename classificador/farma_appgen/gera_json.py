@@ -32,8 +32,8 @@ pipeline = [
      'faz': 'Depois da CMED: cada linha de dicionarios.correcoesCategoria é [regex, código EphMRA, motivo]. A 1ª regex que bate na descrição troca a categoria (só em item que já é remédio). Ex.: OMEPRAZOL/PANTOPRAZOL → A02B2, NEOSALDINA/DORALGINA → A03D, MINOXIDIL solução → D11A, DIPROSPAN → H02A1, ENGOV AFTER → A07G.',
      'usa': ['dicionarios.correcoesCategoria'], 'saida': 'categoria'},
     {'passo': 8, 'id': 'vitamina', 'nome': 'Vitamina e mineral',
-     'faz': 'Suplemento (SUPL, SUPLEMENTO, A-Z ou marca de vitamina) vai para VITAMINA OUTRO ou MULTIVITAMINICO (A-Z/polivitamínico ou 3+ nutrientes = MULTIVITAMINICO). Remédio registrado fica na categoria de remédio.',
-     'usa': ['dicionarios.vitaminas', 'listas.VIT_NAO'], 'saida': 'categoria'},
+     'faz': 'ESTRUTURA NOVA (Hoja 60): VITAMINA OUTRO e MULTIVITAMINICO não existem mais. Suplemento de vitamina/mineral vai para a subcategoria pela ordem: 1) classe da Anvisa (CMED do código ou da mesma apresentação); 2) tipo de produto (listas.VITAMINA.VIT_TIPO, na ordem: própolis → PROPOLIS, colágeno → COLAGENO, colágeno tipo 2/condroitina → M05X, ômega 3/DHA → C10B, probiótico → A07F, melatonina → N05B1, calmante → N05B5, gestante → A11A1, emagrecedor → A08A, tônico/energia → A13A2, whey/creatina/aminoácido → categorias de suplemento...); 3) vitaminas e minerais escritos: complexo B → A11E1/E2 (com C)/E3 (com outros); A-Z/polivitamínico, 4+ vitaminas ou 3 vitaminas + mineral → A11A (com minerais) ou A11B (puro), sub 1 gestante, 2 infantil, 3 sênior, 4 outros; cálcio → A12A; ferro → B03A1/B03A2; vitamina C → A11G1 (pura)/A11G2 (associada); magnésio → A12C1; B1 → A11D3/A11D4 (com B6/B12)/A11D9; B12 → A11F; B6 → A11X2; E → A11X3; A → A11C1; A+D → A11C3; D (com ou sem K2) → A11C2; K → B02B1; ácido fólico → B03X; outros minerais → A12C2; outras vitaminas → A11X9; 4) linha do produto sem composição (MULHER, HAIR, IMUNE, KIDS, SENIOR) → A11A4/A11A2/A11A3; outro nutriente (cúrcuma, spirulina, levedo) → A13A2; marca de polivitamínico na base → A11A4; nada disso → A11X9 com alerta para conferir.',
+     'usa': ['dicionarios.vitaminas', 'dicionarios.estruturaNova', 'listas.VITAMINA', 'listas.VIT_NAO'], 'saida': 'categoria'},
     {'passo': 9, 'id': 'fabricante', 'nome': 'Fabricante',
      'faz': 'Laboratório da descrição (nome ou sigla "(XXX)" no fim) ou da CMED → DIMA → Hoja → vitaminas. O FABRICANTE DO ARQUIVO VENCE quando já existe na base (Hoja, DIMA, vitaminas, cadastrados) ou quando a sigla da descrição foi gerada dele (PROCTER "(PRO)"). Nome sempre canônico; nunca cria fabricante se já existe parecido.',
      'usa': ['dicionarios.fabricantes', 'dicionarios.siglas', 'dicionarios.codigosLab', 'listas.FAB_LIXO', 'listas.FAB_ALIAS'], 'saida': 'fabricante'},
@@ -78,6 +78,7 @@ regras = [
     {'id': 'MAR-04', 'tema': 'marca', 'regra': 'Forma (XAROPE, POMADA, CREME...) não entra na marca. Genérico sem fabricante → "<PRODUTO> OTF".'},
     {'id': 'MAR-05', 'tema': 'marca', 'regra': 'Suplemento com nome de remédio (ex.: "MOUNJARO" natural em cápsula) não é a marca do remédio nem o fabricante dele.'},
     {'id': 'CAT-01', 'tema': 'categoria', 'regra': 'A classe oficial da CMED decide o grupo e a subcategoria (5º dígito) do remédio; sem o código na CMED, vale a mesma apresentação (produto + dose + forma).'},
+    {'id': 'CAT-05', 'tema': 'categoria', 'regra': 'Estrutura nova de Farmácia (Hoja 60): só valem as categorias de "categorias" (nomeOficial e estMer7 da estrutura nova). Categoria que saiu vai para dicionarios.estruturaNova (grupo que virou subgrupo: H02A → H02A2, J05B → J05B9, A13A → A13A2, K03B3 → K03B1...); VITAMINA OUTRO/MULTIVITAMINICO pela composição (passo 8).'},
     {'id': 'CAT-02', 'tema': 'categoria', 'regra': 'Correções manuais em dicionarios.correcoesCategoria valem depois da CMED (só para item de remédio).'},
     {'id': 'CAT-03', 'tema': 'categoria', 'regra': 'Antifúngico em forma de pele → D01A1 (passo 6). Soro fisiológico nasal → R01A9; nafazolina → R01A7.'},
     {'id': 'CAT-04', 'tema': 'categoria', 'regra': 'Item que o arquivo diz Farmácia não sai para outra cesta por palavra de sabor ou de uso comum quando tem sinal de farmácia (RX_FARMA_ARQ).'},
@@ -90,7 +91,7 @@ regras = [
 ]
 
 cats = [{k: e.get(k) for k in ('nome', 'inicio', 'incluir', 'tambem', 'excluir', 'forte', 'remover', 'regra', 'unidadeSugerida')}
-        for e in C['libSeed']['categorias'] if e.get('cesta') == 'FARMACIA']
+        for e in C['libSeed']['categorias'] if e.get('cesta') == 'FARMACIA' and e['nome'] not in C.get('farmaCatNova', {})]
 of = C.get('nomesOficiais', {})
 for e in cats:
     e['nomeOficial'] = of.get(e['nome'], e['nome'])
@@ -145,6 +146,7 @@ dic = {
         'estMer7': 'nome da categoria → código EST MER 7',
         'correcoesCategoria': 'lista [regex na descrição normalizada, código EphMRA da categoria certa, motivo] (passo 7)',
         'marcasAntifungicoPele': 'marcas que têm D01A1 na base do cliente (passo 6)',
+        'estruturaNova': 'categoria que saiu da estrutura → categoria nova (nome oficial); VITAMINA OUTRO/MULTIVITAMINICO são só o padrão: o passo 8 decide pela composição',
     },
     'fabricantes': C['farmaFabs'],
     'siglas': C['farmaSiglas'],
@@ -156,6 +158,7 @@ dic = {
     'estMer7': C['estMer7'],
     'correcoesCategoria': [l.rstrip('\n').split('\t')[:3] for l in open(os.path.join(D, '..', 'dados', 'farma_correcoes_categoria.tsv'), encoding='utf-8') if l.strip() and not l.startswith('#')],
     'marcasAntifungicoPele': C.get('farmaMarcasD01', []),
+    'estruturaNova': {k: C['nomesOficiais'].get(v, v) for k, v in C.get('farmaCatNova', {}).items()},
 }
 
 for nome, obj in (('farma_regras.json', regras_json), ('farma_dicionarios.json', dic)):

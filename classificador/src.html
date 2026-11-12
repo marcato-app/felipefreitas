@@ -860,7 +860,7 @@ const VIT_KIDS = VR('KIDS', 'KID', 'INFANTIL', 'CRIANCA', 'CRIANCAS', 'JUNIOR', 
 const VIT_SEN = VR('SENIOR', '50 MAIS', '60 MAIS', '50+', '60+', 'MAIS DE 50', 'TERCEIRA IDADE', 'MELHOR IDADE', 'SILVER', 'GERIATRICO', 'GERIVIX');
 function vitNova(T, cat, it) {
   const ok = c => { const n = c && catPorCod(c); return n && cfg.categorias.some(x => x.nome === n) ? n : null; };
-  if (it && it.cmedCat && /^A1[123]|^B03|^B02B/.test(nomeOf(it.cmedCat))) return { cat: it.cmedCat, como: 'classe da Anvisa (CMED)' };
+  if (it && it.cmedCat && /^[A-Z]\d\d[A-Z]/.test(nomeOf(it.cmedCat))) return { cat: it.cmedCat, como: 'classe da Anvisa (CMED)' }; // remédio registrado
   const t = ' ' + T.join(' | ') + ' ';
   const r0 = (c, como) => ok(c) ? { cat: ok(c), como } : null;
   for (const [rx, c] of VIT_TIPO) { const m = rx.exec(t); if (m && ok(c)) return { cat: ok(c), como: 'tipo de produto: ' + m[1] }; }

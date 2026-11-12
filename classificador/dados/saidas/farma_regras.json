@@ -1,5 +1,5 @@
 {
- "versao": "2026-11-11",
+ "versao": "2026-11-12",
  "descricao": "Agente de Farmácia do Classificador de Backlog: algoritmo, regras e listas. Os dicionários estão em farma_dicionarios.json.",
  "entrada": {
   "codigoBarras": "string",
@@ -129,9 +129,11 @@
    "passo": 8,
    "id": "vitamina",
    "nome": "Vitamina e mineral",
-   "faz": "Suplemento (SUPL, SUPLEMENTO, A-Z ou marca de vitamina) vai para VITAMINA OUTRO ou MULTIVITAMINICO (A-Z/polivitamínico ou 3+ nutrientes = MULTIVITAMINICO). Remédio registrado fica na categoria de remédio.",
+   "faz": "ESTRUTURA NOVA (Hoja 60): VITAMINA OUTRO e MULTIVITAMINICO não existem mais. Suplemento de vitamina/mineral vai para a subcategoria pela ordem: 1) classe da Anvisa (CMED do código ou da mesma apresentação); 2) tipo de produto (listas.VITAMINA.VIT_TIPO, na ordem: própolis → PROPOLIS, colágeno → COLAGENO, colágeno tipo 2/condroitina → M05X, ômega 3/DHA → C10B, probiótico → A07F, melatonina → N05B1, calmante → N05B5, gestante → A11A1, emagrecedor → A08A, tônico/energia → A13A2, whey/creatina/aminoácido → categorias de suplemento...); 3) vitaminas e minerais escritos: complexo B → A11E1/E2 (com C)/E3 (com outros); A-Z/polivitamínico, 4+ vitaminas ou 3 vitaminas + mineral → A11A (com minerais) ou A11B (puro), sub 1 gestante, 2 infantil, 3 sênior, 4 outros; cálcio → A12A; ferro → B03A1/B03A2; vitamina C → A11G1 (pura)/A11G2 (associada); magnésio → A12C1; B1 → A11D3/A11D4 (com B6/B12)/A11D9; B12 → A11F; B6 → A11X2; E → A11X3; A → A11C1; A+D → A11C3; D (com ou sem K2) → A11C2; K → B02B1; ácido fólico → B03X; outros minerais → A12C2; outras vitaminas → A11X9; 4) linha do produto sem composição (MULHER, HAIR, IMUNE, KIDS, SENIOR) → A11A4/A11A2/A11A3; outro nutriente (cúrcuma, spirulina, levedo) → A13A2; marca de polivitamínico na base → A11A4; nada disso → A11X9 com alerta para conferir.",
    "usa": [
     "dicionarios.vitaminas",
+    "dicionarios.estruturaNova",
+    "listas.VITAMINA",
     "listas.VIT_NAO"
    ],
    "saida": "categoria"
@@ -293,6 +295,11 @@
    "id": "CAT-01",
    "tema": "categoria",
    "regra": "A classe oficial da CMED decide o grupo e a subcategoria (5º dígito) do remédio; sem o código na CMED, vale a mesma apresentação (produto + dose + forma)."
+  },
+  {
+   "id": "CAT-05",
+   "tema": "categoria",
+   "regra": "Estrutura nova de Farmácia (Hoja 60): só valem as categorias de \"categorias\" (nomeOficial e estMer7 da estrutura nova). Categoria que saiu vai para dicionarios.estruturaNova (grupo que virou subgrupo: H02A → H02A2, J05B → J05B9, A13A → A13A2, K03B3 → K03B1...); VITAMINA OUTRO/MULTIVITAMINICO pela composição (passo 8)."
   },
   {
    "id": "CAT-02",
@@ -1000,6 +1007,187 @@
     ]
    ],
    "RX_SINAL_FARMA": "(?<![A-Z])(\\d+(\\.\\d+)?\\s*(MG|MCG|UI|MEQ)|COMP|COMPR|COMPRIMIDOS?|CPR|CAPS|CAPSULAS?|DRG|DRAGEAS?|GTS|GOTAS|XPE|XAROPE|POMADA|COLIRIO|AMPOLAS?|INJETAVEL|SUSP|SUSPENSAO|SOL ORAL|EFERV|EFERVESCENTE|SPRAY NASAL|OVULOS?|SUPOSITORIOS?)(?![A-Z])"
+  },
+  "VITAMINA": {
+   "VIT_TIPO": [
+    [
+     "(?<![A-Z0-9])(NICORETTE|NICOTINA|NIQUITIN)(?![A-Z0-9])",
+     "N07B"
+    ],
+    [
+     "(?<![A-Z0-9])(ACETILCISTEINA|NAC)(?![A-Z0-9])",
+     "R05C"
+    ],
+    [
+     "(?<![A-Z0-9])(OLEO DE FIGADO DE BACALHAU|FIGADO DE BACALHAU|EMULSAO SCOTT)(?![A-Z0-9])",
+     "A11C3"
+    ],
+    [
+     "(?<![A-Z0-9])(PROPOLIS|PROPOLES|PROPOLYZ|EXT PROP|PROPLIS)(?![A-Z0-9])",
+     "PROPOLIS"
+    ],
+    [
+     "(?<![A-Z0-9])(COLAGENO TIPO II|COLAGENO TIPO 2|ARTICULACOES|COLAGENO II|GLUCOSAMINA|CONDROITINA|CONDROFLEX|CONDROLEX|ARTICULAR|ARTICMAX|MOBILITY|CONDRO|UC II|ARTRO|UCII|MSM)(?![A-Z0-9])",
+     "M05X"
+    ],
+    [
+     "(?<![A-Z0-9])(COLAGENO HIDROLISADO|COLAGENO|COLLAGEN|COLLAGEM|VERISOL|PEPTAN)(?![A-Z0-9])",
+     "COLAGENO"
+    ],
+    [
+     "(?<![A-Z0-9])(HIPERPROTEICO|BEEF PROT|PROTEINA|ALBUMINA|PROTEIN|CASEINA|WHEY|PROT)(?![A-Z0-9])",
+     "WHEY PROTEIN"
+    ],
+    [
+     "(?<![A-Z0-9])(CREATINA|CREATINE|CREAPURE)(?![A-Z0-9])",
+     "CREATINA"
+    ],
+    [
+     "(?<![A-Z0-9])(BETA ALANINA|AMINOACIDOS|AMINOACIDO|GLUTAMINA|CARNITINA|CITRULINA|BETA PUMP|ARGININA|LEUCINA|TAURINA|BCAA)(?![A-Z0-9])",
+     "AMINOACIDOS"
+    ],
+    [
+     "(?<![A-Z0-9])(MALTODEXTRINA|CARBOIDRATO|PALATINOSE|GEL CARBO|DEXTROSE|WAXY)(?![A-Z0-9])",
+     "CARBOIDRATO"
+    ],
+    [
+     "(?<![A-Z0-9])(PRE WORKOUT|PRE TREINO|POS TREINO|PRETREINO|CAFFEINE|CAFEINA)(?![A-Z0-9])",
+     "PRE TREINO/POS TREINO"
+    ],
+    [
+     "(?<![A-Z0-9])(HIPERCALORICO|SUPRA MASS|MASS)(?![A-Z0-9])",
+     "HIPERCALORICO"
+    ],
+    [
+     "(?<![A-Z0-9])(BIFIDOBACTERIUM|LACTOBACILLUS|SACCHAROMYCES|PROBIOTICOS|PROBIOTICO|PROBIOTICA|FLORATIL|SIMFORT|BIFIDO|KEFIR|UFC)(?![A-Z0-9])",
+     "A07F"
+    ],
+    [
+     "(?<![A-Z0-9])(FIBER MAIS|BENEFIBER|PSYLLIUM|PLANTAGO|INULINA|FIBRAS|PSILIO|FIBRA|MUCIL)(?![A-Z0-9])",
+     "A06A3"
+    ],
+    [
+     "(?<![A-Z0-9])(CASCARA SAGRADA|NATURETTI|LAXATIVO|TAMARINE|LAXANTE|CASCARA|SENE)(?![A-Z0-9])",
+     "A06A2"
+    ],
+    [
+     "(?<![A-Z0-9])(DIGESTIVO|DIGESTIVA|BROMELINA|ENZIMAS|LACTASE|PAPAINA|ENZIMA)(?![A-Z0-9])",
+     "A09A"
+    ],
+    [
+     "(?<![A-Z0-9])(CARDO MARIANO|MILK THISTLE|SILIMARINA|ALCACHOFRA|HEPATO|ESTHEP|BOLDO)(?![A-Z0-9])",
+     "A05B"
+    ],
+    [
+     "(?<![A-Z0-9])(SORO DE REIDRATACAO|HIDRATACAO ORAL|REIDRATANTE|REIDRATACAO|ELETROLITOS|ELETROLITO|ISOTONICO|REPOSITOR)(?![A-Z0-9])",
+     "A07G"
+    ],
+    [
+     "(?<![A-Z0-9])(MELATONINA)(?![A-Z0-9])",
+     "N05B1"
+    ],
+    [
+     "(?<![A-Z0-9])(ASHWAGANDHA|PASSIFLORA|TRIPTOFANO|VALERIANA|CAMOMILA|CALMANTE|MULUNGU|MELISSA|SLEEP|5 HTP|KAVA|SONO|GABA|5HTP)(?![A-Z0-9])",
+     "N05B5"
+    ],
+    [
+     "(?<![A-Z0-9])(FOSFATIDILSERINA|CONCENTRESE|MULTICOLIN|COGNITIVO|LECITINA|MEMORIA|GINKGO|COLINA|BACOPA|GINKO|COGNI|MIND|FOCO)(?![A-Z0-9])",
+     "N06D"
+    ],
+    [
+     "(?<![A-Z0-9])(GELEIA REAL|ENERGETICO|ENERGETICA|MARAPUAMA|GINSENG|GUARANA|CATUABA|ENERGIA|ENERGY|TONICO|ELIXIR|INHAME)(?![A-Z0-9])",
+     "A13A2"
+    ],
+    [
+     "(?<![A-Z0-9])(CIPROEPTADINA|COBAVITAL|APETITE|BUCLINA)(?![A-Z0-9])",
+     "A15A"
+    ],
+    [
+     "(?<![A-Z0-9])(CRANBERRY|UVA URSI|D MANOSE|MANOSE)(?![A-Z0-9])",
+     "G04A9"
+    ],
+    [
+     "(?<![A-Z0-9])(SEMENTE DE ABOBORA|SAW PALMETTO|PROSTATA|PYGEUM)(?![A-Z0-9])",
+     "G04C9"
+    ],
+    [
+     "(?<![A-Z0-9])(MACA PERUANA|TESTOVIRON|FENO GREGO|TRIBULLUS|MACA PERU|LONG JACK|TRIBULUS|TONGKAT|LIBIDO|TRIBX|TESTO)(?![A-Z0-9])",
+     "G04X"
+    ],
+    [
+     "(?<![A-Z0-9])(AMORA MIURA|ISOFLAVONA|CIMICIFUGA|MENOPAUSA|PRIM BORR|BORRAGEM|INOSITOL|PRIMULA|ONAGRA)(?![A-Z0-9])",
+     "G02X9"
+    ],
+    [
+     "(?<![A-Z0-9])(CASTANHA DA INDIA|CASTANHA DE INDIA|PINUS PINASTER|HESPERIDINA|PICNOGENOL|PYCNOGENOL|CENTELLA|DIOSMINA|CENTELA|VARIZES)(?![A-Z0-9])",
+     "C05C"
+    ],
+    [
+     "(?<![A-Z0-9])(UBIQUINOL|COENZIMA|COQ 10|COQ10|Q10)(?![A-Z0-9])",
+     "C01X"
+    ],
+    [
+     "(?<![A-Z0-9])(GESTANTES|PRE NATAL|MATERNITY|MATHERLLY|GESTANTE|GESTACAO|PRENATAL|LACTANTE|GESTAVIT|MATERDHA|FOLIFEME|MATERNA|OOGESTA|MAMAE|GEST|LACT)(?![A-Z0-9])",
+     "A11A1"
+    ],
+    [
+     "(?<![A-Z0-9])(OLEO DE LINHACA|OLEO DE CARTAMO|OLEO DE PEIXE|OLEO LINHACA|OLEO DE ALHO|OMEGA 3 6 9|FITOESTEROL|OLEO PEIXE|FISH OIL|OMEGA 3|CARTAMO|OMEGA3|COMEGA|OMEGA|KRILL|DHA|EPA|CLA)(?![A-Z0-9])",
+     "C10B"
+    ],
+    [
+     "(?<![A-Z0-9])(ZEAXANTINA|LUTEINA|OCULAR|VISAO)(?![A-Z0-9])",
+     "S01M"
+    ],
+    [
+     "(?<![A-Z0-9])(XAROPE DE GUACO|EXPECTORANTE|MEL E LIMAO|MEL LIMAO|AGRIAO|GUACO)(?![A-Z0-9])",
+     "R05C"
+    ],
+    [
+     "(?<![A-Z0-9])(PICOLINATO DE CROMO|PATA DE VACA|BERBERINA|GLICEMIA|GYMNEMA)(?![A-Z0-9])",
+     "A10X"
+    ],
+    [
+     "(?<![A-Z0-9])(SECA BARRIGA|LARANJA MORO|TERMOGENICO|EMAGRECEDOR|QUITOSANA|CHA VERDE|GREEN TEA|SACIEDADE|EMAGRECE|CHITOSAN|GARCINIA|MOUNJARO|BARRIGA|HIBISCO|SBELTA|SECAPS|BITTER|DETOX|LIPO)(?![A-Z0-9])",
+     "A08A"
+    ],
+    [
+     "(?<![A-Z0-9])(COMPLEMENTO NUTRICIONAL|COMPLEMENTO ALIMENTAR|COMPLEMENTO ALIMEN|NUTRIDRINK|NUTRIPLENO|VITAL CARE|PEDIASURE|NUTRIVITA|SUSTAGEN|GLUCERNA|FRESUBIN|FORTINI|TROPHIC|ENTERAL|ENSURE|NUTREN|SHAKE)(?![A-Z0-9])",
+     "COMPLEMENTO NUTRICIONAL"
+    ]
+   ],
+   "VIT_W": {
+    "A": "(?<![A-Z0-9])(BETA CAROTENO|BETACAROTENO|VITAMINA A|RETINOL|VIT A)(?![A-Z0-9])",
+    "B1": "(?<![A-Z0-9])(TIAMINA|B1)(?![A-Z0-9])",
+    "B2": "(?<![A-Z0-9])(RIBOFLAVINA|B2)(?![A-Z0-9])",
+    "B3": "(?<![A-Z0-9])(NICOTINAMIDA|NIACINA|B3)(?![A-Z0-9])",
+    "B5": "(?<![A-Z0-9])(PANTOTENICO|B5)(?![A-Z0-9])",
+    "B6": "(?<![A-Z0-9])(PIRIDOXINA|B6)(?![A-Z0-9])",
+    "B7": "(?<![A-Z0-9])(BIOTINA|B7)(?![A-Z0-9])",
+    "B9": "(?<![A-Z0-9])(ACIDO FOLICO|METILFOLATO|FOLIFER|FOLATO|FOLICO|B9)(?![A-Z0-9])",
+    "B12": "(?<![A-Z0-9])(HIDROXOCOBALAMINA|CIANOCOBALAMINA|METILCOBALAMINA|COBALAMINA|B12)(?![A-Z0-9])",
+    "C": "(?<![A-Z0-9])(ACIDO ASCORBICO|VITAMINA C|ASCORBATO|TARGIFOR|CENEVIT|REDOXON|VITA C|C 1000|CEBION|VIT C|C1000|CEWIN)(?![A-Z0-9])",
+    "D": "(?<![A-Z0-9])(COLECALCIFEROL|VITAMINA D|DEPURA|ADDERA|VIT D|D3|D2)(?![A-Z0-9])",
+    "E": "(?<![A-Z0-9])(GERME DE TRIGO|VITAMINA E|TOCOFEROL|VIT E)(?![A-Z0-9])",
+    "K": "(?<![A-Z0-9])(MENAQUINONA|VITAMINA K|VIT K|MK 7|MK7|K2|K1)(?![A-Z0-9])"
+   },
+   "VIT_CB": "(?<![A-Z0-9])(COMPLEXO VITAMINICO B|COMPLEXO B|CITONEURIN|B COMPLEX|CRONOBE)(?![A-Z0-9])",
+   "VIT_MIN": {
+    "CA": "(?<![A-Z0-9])(CALCIOVITAL|MIRACALCIO|CALCITRAN|CALTRATE|DOLOMITA|CALCIUM|CALCIO|OS CAL|OSCAL)(?![A-Z0-9])",
+    "MG": "(?<![A-Z0-9])(TRIMAGNESIO|MAGNESIUM|MAGNEZIUS|MAGNESIO|DIMALATO|TREONATO|CAIMBRA|ZMA)(?![A-Z0-9])",
+    "ZN": "(?<![A-Z0-9])(UNIZINCO|ZINCO|ZINC|CDZ|ZMA)(?![A-Z0-9])",
+    "FE": "(?<![A-Z0-9])(NEUTROFER|NORIPURUM|COMBIRON|FERROSO|FERRICO|FOLIFER|FERRO|IRON|DFER)(?![A-Z0-9])",
+    "SE": "(?<![A-Z0-9])(SELENIUM|SELENIO)(?![A-Z0-9])",
+    "CR": "(?<![A-Z0-9])(CROMO)(?![A-Z0-9])",
+    "K": "(?<![A-Z0-9])(POTASSIUM|POTASSIO|IONCLOR|SLOW K)(?![A-Z0-9])",
+    "I": "(?<![A-Z0-9])(IODO)(?![A-Z0-9])",
+    "CU": "(?<![A-Z0-9])(COBRE)(?![A-Z0-9])"
+   },
+   "VIT_POLI": "(?<![A-Z0-9])(VITAMINAS E MINERAIS|VITAMINA E MINERAL|MULTIVITAMINICOS|POLIVITAMINICOS|MULTIVITAMINICO|POLIVITAMINICO|PHARMATON|DE A A Z|MULTIVIT|SUPRADYN|SUPLEVIT|POLIVIT|CENTRUM|LAVITAN|GERIVIX|MULTDAY|VITASAY|A Z|A-Z|AZ)(?![A-Z0-9])",
+   "VIT_GEST": "(?<![A-Z0-9])(GESTANTES|PRE NATAL|GESTANTE|GESTACAO|PRENATAL|LACTANTE|MATERNA|MAMAE|MATER)(?![A-Z0-9])",
+   "VIT_KIDS": "(?<![A-Z0-9])(PEDIATRICO|INFANTIL|CRIANCAS|GOMINHAS|CRIANCA|JUNIOR|KIDS|BABY|BEBE|KID)(?![A-Z0-9])",
+   "VIT_SEN": "(?<![A-Z0-9])(TERCEIRA IDADE|MELHOR IDADE|MAIS DE 50|GERIATRICO|50 MAIS|60 MAIS|GERIVIX|SENIOR|SILVER|50\\+|60\\+)(?![A-Z0-9])",
+   "VIT_LINHA": "(?<![A-Z0-9])(HAIR SKIN NAILS|MULTINUTRIENTES|TRIPLA ACAO|VITALIDADE|IMUNIDADE|GOMINHAS|INFANTIL|CABELOS|MULHER|CABELO|BEAUTY|BELEZA|IMMUNE|SENIOR|HOMEM|WOMAN|WOMEN|FEMME|UNHAS|IMUNE|IMUNO|GUMMY|GOMAS|DAILY|HAIR|UNHA|KIDS|MEN)(?![A-Z0-9])",
+   "VIT_OUTROS": "(?<![A-Z0-9])(NUTRAHIALURONIC|RESVERATROL|HIALURONICO|ASTAXANTINA|ESPIRULINA|POLIFENOIS|CURCUMINA|SPIRULINA|CHLORELLA|CAMU CAMU|BETERRABA|CLOROFILA|GANODERMA|SUPERFOOD|CURCUMED|LEVEDURA|LICOPENO|COGUMELO|CURCUMA|ACAFRAO|CLORELA|MORINGA|ACEROLA|LEVEDO|GERMEN|GREENS)(?![A-Z0-9])"
   }
  },
  "listasDescricao": {
@@ -1296,82 +1484,6 @@
    "unidadeSugerida": null,
    "nomeOficial": "SORO FISIOLOGICO",
    "estMer7": ".3.12.1.1.2.10"
-  },
-  {
-   "nome": "VITAMINA OUTRO",
-   "inicio": "SUPL ALIM",
-   "incluir": [
-    "VITAMINA C",
-    "VITAMINA D",
-    "VITAMINA D3",
-    "VITAMINA K2",
-    "VITAMINA B12",
-    "COMPLEXO B",
-    "BIOTINA",
-    "MAGNESIO",
-    "ZINCO",
-    "SELENIO",
-    "CALCIO",
-    "FERRO",
-    "ACIDO FOLICO",
-    "OMEGA 3"
-   ],
-   "tambem": [],
-   "excluir": [
-    "MULTIVITAMINICO",
-    "POLIVITAMINICO",
-    "CENTRUM",
-    "SUPRADYN",
-    "LAVITAN",
-    "LIXA",
-    "LIXAS",
-    "SOLDA",
-    "BRACADEIRA",
-    "ABRACADEIRA",
-    "RALO",
-    "CHAPA",
-    "VERGALHAO",
-    "PREGO",
-    "ARAME",
-    "SERRA",
-    "FERRAMENTA",
-    "MARTELO",
-    "PORTAO",
-    "GRADE",
-    "IMA",
-    "IMAS",
-    "MAGNETS",
-    "CLIPES",
-    "CLIPS",
-    "PERFURADOR",
-    "FURADOR"
-   ],
-   "forte": [],
-   "remover": [],
-   "regra": "Vitaminas e minerais isolados ou em combinacoes simples (ate 2 nutrientes); exclui multivitaminicos com 3+ nutrientes.",
-   "unidadeSugerida": null,
-   "nomeOficial": "VITAMINA OUTRO",
-   "estMer7": ".3.12.1.2.30.3"
-  },
-  {
-   "nome": "MULTIVITAMINICO",
-   "inicio": "SUPL ALIM MULT",
-   "incluir": [
-    "MULTIVITAMINICO",
-    "POLIVITAMINICO",
-    "CENTRUM",
-    "SUPRADYN",
-    "LAVITAN",
-    "SUPLEMENTO A Z"
-   ],
-   "tambem": [],
-   "excluir": [],
-   "forte": [],
-   "remover": [],
-   "regra": "Suplementos com combinacao ampla (3 ou mais) de vitaminas/minerais; marcas como Centrum, Supradyn, Lavitan.",
-   "unidadeSugerida": null,
-   "nomeOficial": "MULTIVITAMINICO",
-   "estMer7": ".3.12.1.2.30.4"
   },
   {
    "nome": "DERMOCOSMETICO CAPILAR",
@@ -1828,28 +1940,6 @@
    "unidadeSugerida": null,
    "nomeOficial": "A03F GASTROPROCINETICOS",
    "estMer7": ".3.12.2.3.4.1"
-  },
-  {
-   "nome": "MODELADORES SENSOMOTORES GASTRO INTESTINAIS",
-   "inicio": "",
-   "incluir": [
-    "BROMETO DE PINAVERIO",
-    "PINAVERIO",
-    "CIMETROPIO",
-    "DICETEL"
-   ],
-   "tambem": [],
-   "excluir": [
-    "TRIMEBUTINA",
-    "DOMPERIDONA",
-    "METOCLOPRAMIDA"
-   ],
-   "forte": [],
-   "remover": [],
-   "regra": "Moduladores da sensibilidade e motilidade visceral: brometo de pinaverio, cimetropio.",
-   "unidadeSugerida": null,
-   "nomeOficial": "A03G MODELADORES SENSOMOTORES GASTRO INTESTINAIS",
-   "estMer7": ".3.12.2.3.5.1"
   },
   {
    "nome": "ANTAGONISTAS DA SEROTONINA",
@@ -2309,7 +2399,7 @@
    "remover": [],
    "regra": "Sais de reidratacao oral para desidratacao clinica; exclui isotonicos esportivos/energeticos.",
    "unidadeSugerida": null,
-   "nomeOficial": "A07G REPOSITORES ELECTROLITICOS ORAIS",
+   "nomeOficial": "A07G REIDRATANTES ORAIS",
    "estMer7": ".3.12.2.7.5.1"
   },
   {
@@ -2541,7 +2631,7 @@
    "remover": [],
    "regra": "Insulinas residuais nao classificadas por tempo de acao (catch-all do grupo insulinas).",
    "unidadeSugerida": null,
-   "nomeOficial": "A10C9 OUTRAS INSULINAS HUMANAS E ANALOGOS",
+   "nomeOficial": "A10C9 OUTRAS INSULINAS HUMANAS E ANÃLOGOS",
    "estMer7": ".3.12.2.10.1.5"
   },
   {
@@ -3016,7 +3106,7 @@
    "remover": [],
    "regra": "Associacao de vitamina A com vitamina D no mesmo produto.",
    "unidadeSugerida": null,
-   "nomeOficial": "A11C3 ASSOCIACOES DE VITAMINAS A D",
+   "nomeOficial": "A11C3 - ASSOCIACOES DE VITAMINAS A D",
    "estMer7": ".3.12.2.11.3.3"
   },
   {
@@ -3551,22 +3641,6 @@
    "estMer7": ".3.12.3.1.6.1"
   },
   {
-   "nome": "OUTROS AGENTES ANTITROMBOTICOS",
-   "inicio": "",
-   "incluir": [
-    "DEFIBROTIDA",
-    "ANCROD"
-   ],
-   "tambem": [],
-   "excluir": [],
-   "forte": [],
-   "remover": [],
-   "regra": "Agentes antitromboticos residuais sem classificacao especifica (defibrotida, ancrod).",
-   "unidadeSugerida": null,
-   "nomeOficial": "B01X OUTROS AGENTES ANTITROMBOTICOS",
-   "estMer7": ".3.12.3.1.7.1"
-  },
-  {
    "nome": "ANTIFIBRINOLITICOS SINTETICOS",
    "inicio": "",
    "incluir": [
@@ -3642,7 +3716,7 @@
    "remover": [],
    "regra": "Agonistas do receptor de trombopoietina para elevar plaquetas (eltrombopague, romiplostim).",
    "unidadeSugerida": null,
-   "nomeOficial": "B02E PRODUTOS ELEVADORES DE PLAQUETAS",
+   "nomeOficial": "B02E1 AGONISTAS DE TROMBOPOIETINA",
    "estMer7": ".3.12.3.2.4.1"
   },
   {
@@ -4183,7 +4257,7 @@
    "remover": [],
    "regra": "Antagonistas dos receptores da endotelina para hipertensao arterial pulmonar (ambrisentana, bosentana, macitentana); exclui inibidores da PDE5 e analogos de prostaciclina.",
    "unidadeSugerida": null,
-   "nomeOficial": "C06B1 PRODUTOS PARA A HAP ANTAGONISTAS DOS RECEPTORES D",
+   "nomeOficial": "C06B1 PRODUTOS PARA A HAP  ANTAGONISTAS DOS RECEPTORES D",
    "estMer7": ".3.12.4.6.1.1"
   },
   {
@@ -5397,7 +5471,7 @@
    "remover": [],
    "regra": "Associacao fixa de alfabloqueador com inibidor de 5-alfa-redutase em uma unica apresentacao.",
    "unidadeSugerida": null,
-   "nomeOficial": "G04C4 COMBINACAO DE ALFA ANDRENERGICO C 5ARI ANTAGONISTA",
+   "nomeOficial": "G04C4 COMBINACAO DE ALFA-ANDRENERGICO C 5ARI ANTAGONISTA",
    "estMer7": ".3.12.6.4.2.3"
   },
   {
@@ -6157,7 +6231,7 @@
    "remover": [],
    "regra": "Antivirais residuais sem indicacao especifica para herpes, influenza ou COVID.",
    "unidadeSugerida": null,
-   "nomeOficial": "J05B OUTROS ANTIVIRAIS",
+   "nomeOficial": "J05B9 OUTROS ANTIVIRAIS",
    "estMer7": ".3.12.8.4.1.4"
   },
   {
@@ -6676,7 +6750,7 @@
    "remover": [],
    "regra": "Soluções de aminoácidos/proteicas de baixa concentração para nutrição parenteral periférica.",
    "unidadeSugerida": null,
-   "nomeOficial": "K03B3 SOLUCOES PROTEICAS MENOR 5 PORCENTO",
+   "nomeOficial": "K03B1 SOLUCOES PROTEICAS MENOR 5 PORCENTO",
    "estMer7": ".3.12.9.3.1.1"
   },
   {
@@ -6703,7 +6777,7 @@
    "remover": [],
    "regra": "Soluções eletrolíticas de grande volume em frasco/bolsa para infusão parenteral; exclui ampolas de pequeno volume.",
    "unidadeSugerida": null,
-   "nomeOficial": "K04A2 SOLUCOES ELETROLITICAS MAIOR 20 ML",
+   "nomeOficial": "K04A1 SOLUCOES ELETROLITICAS MAIOR 20 ML",
    "estMer7": ".3.12.9.4.1.1"
   },
   {
@@ -8098,7 +8172,7 @@
    "remover": [],
    "regra": "Sedativos hipnoticos de formulacoes combinadas ou subclasses especificas, distintos dos nao barbituricos puros",
    "unidadeSugerida": null,
-   "nomeOficial": "N05B2 SEDANTES HIPNOTICOS",
+   "nomeOficial": "N05B5 SEDANTES HIPNOTICOS",
    "estMer7": ".3.12.12.5.2.3"
   },
   {
@@ -8695,7 +8769,7 @@
    "remover": [],
    "regra": "Soluções tópicas nasais residuais (soro fisiológico, lavagem nasal) sem corticoide ou descongestionante.",
    "unidadeSugerida": null,
-   "nomeOficial": "R01A9 OUTRAS PREPARACOES TOPICAS NASAIS",
+   "nomeOficial": "R01A9 OUTRAS PREPARACOES TOPICAS  NASAIS",
    "estMer7": ".3.12.14.1.1.6"
   },
   {
@@ -8902,7 +8976,7 @@
    "remover": [],
    "regra": "Associações inalatórias fixas de agonista beta-2 de longa ação com corticoide (LABA/CI).",
    "unidadeSugerida": null,
-   "nomeOficial": "R03F1 AGONISTAS BETA 2 E CORTICOIDES INAL COMBIN",
+   "nomeOficial": "R03F1 AGONISTAS BETA 2  E CORTICOIDES INAL COMBIN",
    "estMer7": ".3.12.14.3.5.1"
   },
   {
@@ -9021,7 +9095,7 @@
    "remover": [],
    "regra": "Associação LAMA/LABA de longa ação: glicopirrônio+indacaterol ou umeclidínio+vilanterol.",
    "unidadeSugerida": null,
-   "nomeOficial": "R03L2 ANTICOLI ACA LONGA C AGON B2 AC LONGA INA",
+   "nomeOficial": "R03L2 ANTICOLI ACA LONGA C AGON  B2 AC LONGA INA",
    "estMer7": ".3.12.14.3.9.2"
   },
   {
@@ -9038,8 +9112,8 @@
    "remover": [],
    "regra": "Associação LAMA/LABA de ação prolongada tiotrópio+olodaterol.",
    "unidadeSugerida": null,
-   "nomeOficial": "R03L2 ANTICOLI ACA LONGA C AGON B2 AC LONGA INA",
-   "estMer7": ".3.12.14.3.9.2"
+   "nomeOficial": "R03L3 ANTICOLINERGICOS ACAO PROLONG COMB C AGON B2 A",
+   "estMer7": ".3.12.14.3.9.3"
   },
   {
    "nome": "ANTIASMATICOS INIBIDORES DAS INTERLEUCINAS",
@@ -9080,7 +9154,7 @@
    "remover": [],
    "regra": "Categoria residual para produtos de DPOC/asma não classificados nas subcategorias respiratórias específicas.",
    "unidadeSugerida": null,
-   "nomeOficial": "R03X TODOS OS OUTROS BRONCODILATADORES",
+   "nomeOficial": "R03X2 PRODUTOS PARA TRATAMENTO DA DOENCA PILMONAR CRONIC",
    "estMer7": ".3.12.14.3.11.1"
   },
   {
@@ -9418,7 +9492,7 @@
    "remover": [],
    "regra": "Colirios antiglaucomatosos de uso topico (analogos de prostaglandina, betabloqueador, alfa-agonista, inibidor topico da anidrase carbonica); exclui agentes sistemicos orais.",
    "unidadeSugerida": null,
-   "nomeOficial": "S01E2 TOPICOS OFTALMOLOGICOS ANTIGLAUCOMA",
+   "nomeOficial": "S01E2 TOPICOS",
    "estMer7": ".3.12.15.1.5.2"
   },
   {
@@ -9569,8 +9643,8 @@
    "remover": [],
    "regra": "Colirios antissepticos oculares, principalmente nitrato de prata para profilaxia neonatal; exclui uso dermatologico do nitrato de prata.",
    "unidadeSugerida": null,
-   "nomeOficial": "S01A ANTINFECCIOSOS",
-   "estMer7": ".3.12.15.1.1.1"
+   "nomeOficial": "S01G6 ANTISEPTICOS OCULARES",
+   "estMer7": ".3.12.15.1.7.5"
   },
   {
    "nome": "ANESTESICOS LOCAIS",
@@ -9742,7 +9816,7 @@
    "remover": [],
    "regra": "Categoria residual de preparacoes oftalmicas topicas em geral (colirios, pomadas e geis) sem classe terapeutica mais especifica; exclui uso sistemico e cosmeticos.",
    "unidadeSugerida": null,
-   "nomeOficial": "S01X2 TOPICOS OFTALMOLOGICOS OUTROS",
+   "nomeOficial": "S01X2 TOPICOS",
    "estMer7": ".3.12.15.1.16.2"
   },
   {
@@ -9959,7 +10033,7 @@
    "remover": [],
    "regra": "Produtos de regeneracao/substituicao da pele para feridas e ulceras (colagenase, matrizes de colageno, fatores de crescimento); exclui curativos passivos genericos.",
    "unidadeSugerida": null,
-   "nomeOficial": "EQUIVALENTES PARA PELE DERM EPIDERME",
+   "nomeOficial": "D03A1 EQUIVALENTES PARA PELE DERM EPIDERME",
    "estMer7": ".3.12.17.3.1.1"
   },
   {
@@ -10274,7 +10348,7 @@
    "remover": [],
    "regra": "Corticoide associado a outros ativos (ureia, acido salicilico, anestesico) sem antibiotico nem antifungico; residual das associacoes de corticoide.",
    "unidadeSugerida": null,
-   "nomeOficial": "D07B4 OUTRAS ASSOCIACOES DERMATOLOGICAS",
+   "nomeOficial": "D07B4 OUTRAS ASSOCIACOES",
    "estMer7": ".3.12.17.7.2.4"
   },
   {
@@ -10380,173 +10454,251 @@
    "estMer7": ".3.12.17.10.1.1"
   },
   {
-   "nome": "TONICOS E RECONSTITUINTES",
+   "nome": "A11A2 PEDIATRICOS",
    "inicio": "",
    "incluir": [],
    "tambem": [],
    "excluir": [],
    "forte": [],
    "remover": [],
-   "regra": "Criada da DIMA (EST MER 6 A13A)",
+   "regra": "Estrutura nova do cliente (.3.12.2.11.1.2).",
    "unidadeSugerida": null,
-   "nomeOficial": "A13A TONICOS E RECONSTITUINTES",
+   "nomeOficial": "A11A2 PEDIATRICOS",
+   "estMer7": ".3.12.2.11.1.2"
+  },
+  {
+   "nome": "A11A3 GERIATRICOS",
+   "inicio": "",
+   "incluir": [],
+   "tambem": [],
+   "excluir": [],
+   "forte": [],
+   "remover": [],
+   "regra": "Estrutura nova do cliente (.3.12.2.11.1.3).",
+   "unidadeSugerida": null,
+   "nomeOficial": "A11A3 GERIATRICOS",
+   "estMer7": ".3.12.2.11.1.3"
+  },
+  {
+   "nome": "A11B2 PEDIATRICOS",
+   "inicio": "",
+   "incluir": [],
+   "tambem": [],
+   "excluir": [],
+   "forte": [],
+   "remover": [],
+   "regra": "Estrutura nova do cliente (.3.12.2.11.2.2).",
+   "unidadeSugerida": null,
+   "nomeOficial": "A11B2 PEDIATRICOS",
+   "estMer7": ".3.12.2.11.2.2"
+  },
+  {
+   "nome": "A11D9 OUT ASSOC DE VIT B1",
+   "inicio": "",
+   "incluir": [],
+   "tambem": [],
+   "excluir": [],
+   "forte": [],
+   "remover": [],
+   "regra": "Estrutura nova do cliente (.3.12.2.11.4.3).",
+   "unidadeSugerida": null,
+   "nomeOficial": "A11D9 OUT ASSOC DE VIT B1",
+   "estMer7": ".3.12.2.11.4.3"
+  },
+  {
+   "nome": "A11E2 COMPLEXO B COM VITAMINA C",
+   "inicio": "",
+   "incluir": [],
+   "tambem": [],
+   "excluir": [],
+   "forte": [],
+   "remover": [],
+   "regra": "Estrutura nova do cliente (.3.12.2.11.5.2).",
+   "unidadeSugerida": null,
+   "nomeOficial": "A11E2 COMPLEXO B COM VITAMINA C",
+   "estMer7": ".3.12.2.11.5.2"
+  },
+  {
+   "nome": "A11E3 COMPLEXO B COM OUTROS FARMACOS",
+   "inicio": "",
+   "incluir": [],
+   "tambem": [],
+   "excluir": [],
+   "forte": [],
+   "remover": [],
+   "regra": "Estrutura nova do cliente (.3.12.2.11.5.3).",
+   "unidadeSugerida": null,
+   "nomeOficial": "A11E3 COMPLEXO B COM OUTROS FARMACOS",
+   "estMer7": ".3.12.2.11.5.3"
+  },
+  {
+   "nome": "A11X3 VITAMINA E PURA",
+   "inicio": "",
+   "incluir": [],
+   "tambem": [],
+   "excluir": [],
+   "forte": [],
+   "remover": [],
+   "regra": "Estrutura nova do cliente (.3.12.2.11.8.2).",
+   "unidadeSugerida": null,
+   "nomeOficial": "A11X3 VITAMINA E PURA",
+   "estMer7": ".3.12.2.11.8.2"
+  },
+  {
+   "nome": "A13A2 TODOS OS OUTROS TONICOS",
+   "inicio": "",
+   "incluir": [],
+   "tambem": [],
+   "excluir": [],
+   "forte": [],
+   "remover": [],
+   "regra": "Estrutura nova do cliente (.3.12.2.13.1.1).",
+   "unidadeSugerida": null,
+   "nomeOficial": "A13A2 TODOS OS OUTROS TONICOS",
    "estMer7": ".3.12.2.13.1.1"
   },
   {
-   "nome": "COAGULACAO DO SANGUE",
+   "nome": "D01A2 ANTIFUNGICOS DERMATOLOGICOS SISTEMICOS",
    "inicio": "",
    "incluir": [],
    "tambem": [],
    "excluir": [],
    "forte": [],
    "remover": [],
-   "regra": "Criada da DIMA (EST MER 6 B02D)",
+   "regra": "Estrutura nova do cliente (.3.12.17.1.1.2).",
    "unidadeSugerida": null,
-   "nomeOficial": "B02D COAGULACAO DO SANGUE",
-   "estMer7": null
+   "nomeOficial": "D01A2 ANTIFUNGICOS DERMATOLOGICOS SISTEMICOS",
+   "estMer7": ".3.12.17.1.1.2"
   },
   {
-   "nome": "PRODUTOS ELEVADORES DE PLAQUETAS",
+   "nome": "COLAGENO",
    "inicio": "",
    "incluir": [],
    "tambem": [],
    "excluir": [],
    "forte": [],
    "remover": [],
-   "regra": "Criada da DIMA (EST MER 6 B02E)",
+   "regra": "Estrutura nova do cliente (.3.12.1.1.3).",
    "unidadeSugerida": null,
-   "nomeOficial": "B02E PRODUTOS ELEVADORES DE PLAQUETAS",
-   "estMer7": null
+   "nomeOficial": "COLAGENO",
+   "estMer7": ".3.12.1.1.3"
   },
   {
-   "nome": "ANTIHEMORROIDARIOS TOPICOS",
+   "nome": "SPRAY ANTIGRIPAL",
    "inicio": "",
    "incluir": [],
    "tambem": [],
    "excluir": [],
    "forte": [],
    "remover": [],
-   "regra": "Criada da DIMA (EST MER 6 C05A)",
+   "regra": "Estrutura nova do cliente (.3.12.1.2.2.3).",
    "unidadeSugerida": null,
-   "nomeOficial": "C05A ANTIHEMORROIDARIOS TOPICOS",
-   "estMer7": null
+   "nomeOficial": "SPRAY ANTIGRIPAL",
+   "estMer7": ".3.12.1.2.2.3"
   },
   {
-   "nome": "ASSOCIACOES DE BETA BLOQUEADORES",
+   "nome": "PROPOLIS",
    "inicio": "",
    "incluir": [],
    "tambem": [],
    "excluir": [],
    "forte": [],
    "remover": [],
-   "regra": "Criada da DIMA (EST MER 6 C07B)",
+   "regra": "Estrutura nova do cliente (.3.12.1.2.2.4).",
    "unidadeSugerida": null,
-   "nomeOficial": "C07B ASSOCIACOES DE BETA BLOQUEADORES",
-   "estMer7": null
+   "nomeOficial": "PROPOLIS",
+   "estMer7": ".3.12.1.2.2.4"
   },
   {
-   "nome": "ASSOCIACOES DE CORTICOIDES",
+   "nome": "GRIPE E RESFRIADO",
    "inicio": "",
    "incluir": [],
    "tambem": [],
    "excluir": [],
    "forte": [],
    "remover": [],
-   "regra": "Criada da DIMA (EST MER 6 D07B)",
+   "regra": "Estrutura nova do cliente (.3.12.1.2.2.5).",
    "unidadeSugerida": null,
-   "nomeOficial": "D07B ASSOCIACOES DE CORTICOIDES",
-   "estMer7": null
+   "nomeOficial": "GRIPE E RESFRIADO",
+   "estMer7": ".3.12.1.2.2.5"
   },
   {
-   "nome": "HORMONIOS HIPOTALAMICAS",
+   "nome": "ANTIINFLAMATORIO",
    "inicio": "",
    "incluir": [],
    "tambem": [],
    "excluir": [],
    "forte": [],
    "remover": [],
-   "regra": "Criada da DIMA (EST MER 6 H01C)",
+   "regra": "Estrutura nova do cliente (.3.12.1.2.11).",
    "unidadeSugerida": null,
-   "nomeOficial": "H01C HORMONIOS HIPOTALAMICAS",
-   "estMer7": null
+   "nomeOficial": "ANTIINFLAMATORIO",
+   "estMer7": ".3.12.1.2.11"
   },
   {
-   "nome": "CORTICOSTEROIDES PUROS",
+   "nome": "DIGESTIVO",
    "inicio": "",
    "incluir": [],
    "tambem": [],
    "excluir": [],
    "forte": [],
    "remover": [],
-   "regra": "Criada da DIMA (EST MER 6 H02A)",
+   "regra": "Estrutura nova do cliente (.3.12.1.2.28.2).",
    "unidadeSugerida": null,
-   "nomeOficial": "H02A CORTICOSTEROIDES PUROS",
-   "estMer7": null
+   "nomeOficial": "DIGESTIVO",
+   "estMer7": ".3.12.1.2.28.2"
   },
   {
-   "nome": "IMUNO GLOBULINAS ESPECIFICAS ANTIVIROTICAS",
+   "nome": "H04E HORMONIOS PARA TIROIDES E ANALOGOS",
    "inicio": "",
    "incluir": [],
    "tambem": [],
    "excluir": [],
    "forte": [],
    "remover": [],
-   "regra": "Criada da DIMA (EST MER 6 J06H)",
+   "regra": "Estrutura nova do cliente (.3.12.7.4.5.1).",
    "unidadeSugerida": null,
-   "nomeOficial": "J06H IMUNO GLOBULINAS ESPECIFICAS ANTIVIROTICAS",
-   "estMer7": null
+   "nomeOficial": "H04E HORMONIOS PARA TIROIDES E ANALOGOS",
+   "estMer7": ".3.12.7.4.5.1"
   },
   {
-   "nome": "COMBINACOES DE VACINAS",
+   "nome": "N05B2 ASSOCIACOES NAO BARBITURICOS",
    "inicio": "",
    "incluir": [],
    "tambem": [],
    "excluir": [],
    "forte": [],
    "remover": [],
-   "regra": "Criada da DIMA (EST MER 6 J07B)",
+   "regra": "Estrutura nova do cliente (.3.12.12.5.2.2).",
    "unidadeSugerida": null,
-   "nomeOficial": "J07B COMBINACOES DE VACINAS",
-   "estMer7": null
+   "nomeOficial": "N05B2 ASSOCIACOES NAO BARBITURICOS",
+   "estMer7": ".3.12.12.5.2.2"
   },
   {
-   "nome": "HORMONIOS CITOSTATICOS",
+   "nome": "S01M TONICOS E VITAMINAS OFTALMOLOGICAS",
    "inicio": "",
    "incluir": [],
    "tambem": [],
    "excluir": [],
    "forte": [],
    "remover": [],
-   "regra": "Criada da DIMA (EST MER 6 L02A)",
+   "regra": "Estrutura nova do cliente (.3.12.15.1.11.1).",
    "unidadeSugerida": null,
-   "nomeOficial": "L02A HORMONIOS CITOSTATICOS",
-   "estMer7": null
+   "nomeOficial": "S01M TONICOS E VITAMINAS OFTALMOLOGICAS",
+   "estMer7": ".3.12.15.1.11.1"
   },
   {
-   "nome": "TODOS OS OUTROS BRONCODILATADORES",
+   "nome": "S01X1 SISTEMICOS",
    "inicio": "",
    "incluir": [],
    "tambem": [],
    "excluir": [],
    "forte": [],
    "remover": [],
-   "regra": "Criada da DIMA (EST MER 6 R03X)",
+   "regra": "Estrutura nova do cliente (.3.12.15.1.16.1).",
    "unidadeSugerida": null,
-   "nomeOficial": "R03X TODOS OS OUTROS BRONCODILATADORES",
-   "estMer7": null
-  },
-  {
-   "nome": "PREPARADOS PARA O TRATAMENTO DE CONJUNTIVITES NAO",
-   "inicio": "",
-   "incluir": [],
-   "tambem": [],
-   "excluir": [],
-   "forte": [],
-   "remover": [],
-   "regra": "Criada da DIMA (EST MER 6 S01G)",
-   "unidadeSugerida": null,
-   "nomeOficial": "S01G PREPARADOS PARA O TRATAMENTO DE CONJUNTIVITES NAO",
-   "estMer7": null
+   "nomeOficial": "S01X1 SISTEMICOS",
+   "estMer7": ".3.12.15.1.16.1"
   }
  ]
 }
