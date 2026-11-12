@@ -539,3 +539,25 @@ Pontos pra checar, em ordem:
 - colunasSugestao: além da regra de divergência, campo vazio no arquivo (a coluna existe; ou modo sobreposto mesmo sem a coluna) recebe o conteúdo do app (qt total, unidades do pack, conteúdo unitário; sem informação, 1 unidade).
 - No modo sobreposto entra na própria coluna em amarelo, com "(vazio) -> valor" em AJUSTES DO APP; no modo colunas separadas vai em QUANTIDADE / UNIDADES / CONTENIDO UNITARIO SUGERIDO.
 - Testes: sugestao_exemplo +2 linhas (28-29) sem conteúdo; testar_sugestao 86/86, testar_sobrepor 52/52, testar_regras 852/852.
+
+## 2026-11-12 — BACKLOG: correções do app a partir da comparação com a classificação manual
+- **Acento corrompido** (UTF-8 lido como Windows-1252: "CÃPSULAS", "Ã“LEO", "MAGNÃ‰SIO"): `desMojibake()` dentro de `N()` recupera o acento antes de normalizar. Antes a letra sumia (PSULAS, LEO), e quantidade e tipo não eram achados. No BACKLOG eram 1224 linhas.
+- **Cápsula/comprimido em CPS para suplementos e vitaminas também**: `catCapsula()` (COMPLEMENTO, SUP_CATS, VITAMINA/MINERAL/MULTIVITAMINICO/SUPLEMENTO). Quantidade via `qtdCapsulas` (60CPS); as palavras de forma (CAPSULA, COMPRIMIDO, CPDS, DURA, SOFTGEL…) saem do descritivo. Novas unidades: SOFTGLS, VEG CAPS, PASTILHAS, COMPR.
+- **AZ não vira AZEITONA** em suplemento/vitamina (A-Z multivitamínico).
+- GTIN/EAN não entram no descritivo.
+- **Troca da categoria do arquivo (`arqFica`)**: o arquivo não perde a categoria quando:
+  - suplemento vira alimento por sabor ou ingrediente;
+  - EXTRUSADO tem salgadinho escrito;
+  - fruta/queijo/ervilha vêm de produto processado;
+  - categoria FRESCO não tem FRESCO escrito;
+  - própolis líquido iria para complemento;
+  - CACAU EM PO iria para chocolate em pó;
+  - "AM DOCE" é amendoim;
+  - PIPOCA não tem pipoca escrita;
+  - mistura em pó iria para o produto pronto;
+  - categoria de sabor/ingrediente (CAT_SABOR) não tem o nome no começo de todas as descrições.
+- Alimento → objeto só quando todas as descrições começam pelo objeto, e o começo não é marca do DIMA (FORNO VELHO).
+- TIPO_FORTE ignora castanha/pistache como ingrediente ou marca (RX_TIPO_FORTE_NAO2).
+- Arquivo sem evidência nenhuma: novo voto sem o arquivo, e troca se o tipo votado é a 1ª palavra da maioria e de outra família.
+- Resultado no BACKLOG: o app concorda com a classificação manual em 8252/8532 (o arquivo original concordava em 7637); das 163 trocas erradas do app, sobraram ~50.
+- **Pendente**: o app só separa descrições por vírgula. Arquivos com "DESC 1 | DESC 2" viram uma descrição só. Separar por " | " é o certo, mas no BACKLOG piorou 139 itens e melhorou 70, porque as regras de maioria precisam ser recalibradas. Ficou desligado.

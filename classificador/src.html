@@ -199,8 +199,17 @@ const $ = s => document.querySelector(s);
 const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'class') e.className = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else if (v !== undefined && v !== null) e.setAttribute(k, v); } for (const c of kids) e.append(c instanceof Node ? c : document.createTextNode(c ?? '')); return e; };
 
 /* ------------------------------------------------------------------ text utils */
+// texto UTF-8 lido como Windows-1252 ("CÃPSULAS", "Ã“LEO", "CAFEÃNA"): volta ao acento certo antes de normalizar,
+// senão a letra some (PSULAS, LEO) e a quantidade/tipo não são achados
+const CP1252_INV = { 0x20AC: 0x80, 0x201A: 0x82, 0x0192: 0x83, 0x201E: 0x84, 0x2026: 0x85, 0x2020: 0x86, 0x2021: 0x87, 0x02C6: 0x88, 0x2030: 0x89, 0x0160: 0x8A, 0x2039: 0x8B, 0x0152: 0x8C, 0x017D: 0x8E, 0x2018: 0x91, 0x2019: 0x92, 0x201C: 0x93, 0x201D: 0x94, 0x2022: 0x95, 0x2013: 0x96, 0x2014: 0x97, 0x02DC: 0x98, 0x2122: 0x99, 0x0161: 0x9A, 0x203A: 0x9B, 0x0153: 0x9C, 0x017E: 0x9E, 0x0178: 0x9F };
+function desMojibake(s) {
+  if (!/[ÂÃ]/.test(s)) return s;
+  return s.replace(/([ÂÃ])([\u0080-¿ŒœŠšŸŽžƒˆ˜–—‘-„†-•…‰‹›€™])/g, (m, a, b) => {
+    const c = b.charCodeAt(0); const b2 = c <= 0xBF ? c : CP1252_INV[c]; if (b2 === undefined) return m;
+    return String.fromCharCode(((a.charCodeAt(0) & 0x1F) << 6) | (b2 & 0x3F)); });
+}
 function N(s) {
-  s = String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+  s = desMojibake(String(s ?? '')).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
   s = s.replace(/[^A-Z0-9%,. ]+/g, ' ');
   s = s.replace(/(\d),(?=\d)/g, '$1.').replace(/,/g, ' ');
   s = s.replace(/\.(?!\d)/g, ' ').replace(/(?<!\d)\./g, ' ');
@@ -251,7 +260,7 @@ Na categoria SUPLEMENTO OUTROS entram somente itens voltados a academia que não
 Não são marcas: CHOC, SABOR, AMEND, PUPUNHA, ESPECIAL, TERERE, GOMA, COGUMELO, EXTRA, 100 WHEY, NATURAL, PURE, ARABICA, CASEIRO, REAL, PANKO, OURO, ECOGUMELO, ARTESANAL.`;
 let data = { items: null, dict: null, results: null, sugCounts: new Map(), wordSug: new Map() };
 const GENERIC = new Set(K.const.GENERIC), GPHR = new Set(K.const.GENERIC_PHRASES);
-const FLAVORS = new Set(K.const.FLAVORS), ATTR = new Set(K.const.ATTR), NOISE = new Set(K.const.NOISE);
+const FLAVORS = new Set(K.const.FLAVORS), ATTR = new Set(K.const.ATTR), NOISE = new Set([...K.const.NOISE, "GTIN", "EAN"]); // código de barras escrito na descrição não entra no descritivo
 const TOK = K.const.TOK, GROUP_TOK = K.const.GROUP_TOK;
 // Farmácia: abreviações de forma farmacêutica (COMP é comprimido, não "composto")
 GROUP_TOK.FARMA = Object.assign({ COMP: 'COMPRIMIDO', COMPR: 'COMPRIMIDO', CP: 'COMPRIMIDO', CPR: 'COMPRIMIDO', CPS: 'COMPRIMIDO', CAP: 'CAPSULA', CAPS: 'CAPSULA',
@@ -684,6 +693,8 @@ const RX_PIPOCA = /(?<![A-Z])(PIPOCA|PIPOCAS|PIPOC|PIP|POPCORN|POP CORN)(?![A-Z]
 const RX_PIPOCA_NAO = /(?<![A-Z])(PIPOQUEIRA|PIPOQUEIRO|PANELA|MAQUINA|BALDE|SACO|SACOS|SAQUINHO|SAQUINHOS|CARTUCHO|CARTUCHOS|CAIXA|CAIXINHA|PAPEL|EMBALAGEM|EMBALAGENS|EMB|FORNO|TIGELA|POTE PLASTICO|CARRINHO|BRINQUEDO|CHAVEIRO|CAMISETA|PELUCIA|FANTASIA|ESTAMPA|ADESIVO|FORMA)(?![A-Z])/;
 function pipocaCat(t, r, C, cestaOf) {
   if (RX_PIPOCA_NAO.test(t)) return null;
+  // MILHO DE PIPOCA / MILHO PIPOCA / MILHO P/ PIPOCA (grão para estourar), sem micro-ondas nem pipoca pronta
+  if (/(?<![A-Z])MILHO\s+(?:(?:DE|P|PARA|PRA|P\/)\s+)?PIPOCA(?![A-Z])/.test(t) && !RX_MICRO.test(t) && !/(?<![A-Z])(PRONTA|DOCE|CARAMEL\w*|SALGADA|GOURMET PRONTA)(?![A-Z])/.test(t) && (C.libNames || C.names).has('MILHO PARA PIPOCA')) return 'MILHO PARA PIPOCA';
   const pip = RX_PIPOCA.test(t), micro = RX_MICRO.test(t);
   const milhoMicro = micro && /(?<![A-Z])MILHO(?![A-Z])/.test(t) && !/(?<![A-Z])(VERDE|ESPIGA|LATA|CONSERVA|CANJICA|CREME|CURAU|PAMONHA)(?![A-Z])/.test(t);
   if ((pip && micro) || milhoMicro) return (C.libNames || C.names).has('PIPOCA MICRO-ONDAS') ? 'PIPOCA MICRO-ONDAS' : null;
@@ -1131,8 +1142,8 @@ function complementoCat(T, C) {
 }
 // quantidade: cápsulas, softgel, comprimidos e tabletes contam unidades e saem em CPS (60CPS, 2X60CPS, 30CPS)
 const OMG_NUM = { 3: 'OMTRESX', 6: 'OMSEISX', 9: 'OMNOVEX' };
-const RX_UN_CAPS = 'CAPS|CAPSULA|CAPSULAS|CPS|CP|CAP|SOFTGEL|SOFTGELS|SOFT GEL|CAPS GEL|CAPSULAS GEL\\w*|CAPLETS?';
-const RX_UN_CPR = 'CPR|CPRS|COMPRIMIDO|COMPRIMIDOS|COMP|COMPS|TABLETE|TABLETES|TABS|TAB';
+const RX_UN_CAPS = 'CAPS|CAPSULA|CAPSULAS|CPS|CP|CAP|SOFTGEL|SOFTGELS|SOFTGLS|SOFTS?|SOFT GEL|CAPS GEL|CAPSULAS GEL\\w*|CAPLETS?|VEG CAPS|VEGCAPS|VEG|VCAPS|PASTILHAS|PASTILHA|PAST|CAPSU LAS';
+const RX_UN_CPR = 'CPR|CPRS|COMPRIMIDO|COMPRIMIDOS|COMPR|COMP|COMPS|TABLETE|TABLETES|TABS|TAB';
 function qtdCapsulas(T) {
   const base = () => 'CPS'; // regra ensinada: cápsula ou comprimido sempre em CPS no descritivo
   const UN = RX_UN_CAPS + '|' + RX_UN_CPR;
@@ -1144,6 +1155,59 @@ function qtdCapsulas(T) {
     const m2 = new RegExp('(?<![A-Z])(' + UN + ')\\s*(?:C\\/?|COM)?\\s*(\\d{1,4})(?![0-9.,]|\\s*(?:MG|MCG|G|ML|UI|KG|L|X))').exec(t);
     if (m2 && +m2[2] > 0) return { tot: +m2[2], base: base(m2[1], +m2[2]), n: 1, uv: +m2[2], flag: '' };
   }
+  return null;
+}
+// tipo do produto escrito no começo da descrição vence a categoria do arquivo: castanhas, nozes, frutas secas, torresmo, goma de tapioca
+const WR = rx => new RegExp('(?<![A-Z0-9])(?:' + rx + ')(?![A-Z0-9])');
+const TIPO_FORTE = [
+  ['MIX NUTS', WR('MIX (?:DE )?(?:CASTANHAS?|NUTS|NOZES|OLEAGINOSAS|AMENDOAS|FRUTAS SECAS)|MIX NUTS|MIXED NUTS|MIX OLEAGINOSAS')],
+  ['CASTANHA DE CAJU', WR('(?:CASTANHAS?|CAST) (?:DE )?CAJU')],
+  ['CASTANHA DO PARA', WR('(?:CASTANHAS?|CAST) (?:DO |DE )?(?:PARA|BRASIL)')],
+  ['NOZES', WR('NOZES|NOZ PECAN|NOZ PECA|NOZ CHILENA')], ['AMENDOA', WR('AMENDOAS?')], ['PISTACHE', WR('PISTACHES?')],
+  ['CASTANHA OUTROS', WR('CASTANHAS?|MACADAMIA|BARU')],
+  ['TORRESMO', WR('TORRESMO|TORRESMOS|TORRESMINHO|TORRESMINHOS')],
+  ['FARINHA TAPIOCA', WR('GOMA (?:DE |PARA |P )?(?:TAPIOCA|MANDIOCA)|GOMA HIDRATADA|GOMA MOLHADA|MASSA (?:PRONTA )?(?:P |PARA |DE )?TAPIOCA')],
+];
+const RX_TIPO_FORTE_NAO = WR('BARRA|BARRINHA|CHOC|CHOCOLATE|BOMBOM|TRUFA|PASTA|CREME|BISC|BISCOITO|COOKIE|COOKIES|SORVETE|LEITE|BEBIDA|OLEO|FARINHA|PACOCA|DOCE|BOLO|PAO|GRANOLA|CEREAL|SABOR|AROMA|ESSENCIA|SHAMPOO|SABONETE|CREME|PET|RACAO|CAO|GATO');
+// castanha / amêndoa / pistache como ingrediente ou sabor de outro produto (BANANADA C/CAST CAJU, DRAGEADO, TORRONE, PASTA DE CASTANHA,
+// BASE DE SORVETE PISTACHE, MILHO COM CASTANHAS) ou na marca (CASTANHA DO BEM) não é o tipo do produto
+const RX_TIPO_FORTE_NAO2 = WR('DRAGEAD[AO]S?|TORRONE|BANANADA|BANANINHA|SNACKS?|SNAKS|CHIPS|MILHO|CHA|BASE|PO|MACA PERUANA|CASTANHA DO BEM|CHOC|CHOCOLATE|CHOCOLAT|PASTA|BARRA|SORVETE|SORV|GELADOS?|KADAYIF');
+function tipoForteCat(T, C) {
+  const lib = C.libNames || C.names; if (!T || !T.length) return null;
+  const heads = T.slice(0, 4).map(t => t.replace(/^(\*|ZZ)+/, '').trim().split(' ').slice(0, 4).join(' ')).filter(Boolean); if (!heads.length) return null;
+  for (const [cat, rx] of TIPO_FORTE) {
+    if (!lib.has(cat)) continue;
+    const n = heads.filter((h, j) => rx.test(h) && !RX_TIPO_FORTE_NAO.test(h.split(' ').slice(0, 1).join(' ')) && !RX_TIPO_FORTE_NAO2.test(T[j] || '')).length;
+    if (n && n >= Math.ceil(heads.length / 2)) return cat;
+  }
+  return null;
+}
+// suplementos (arquivo ou voto em complemento / esportivos): tipo esportivo escrito decide (complemento exclui suplemento esportivo);
+// vitamina / mineral / polivitamínico sem COMPLEMENTO escrito sai do complemento; suplemento para animais vai para PET
+const SUP_CATS = new Set(['COMPLEMENTO NUTRICIONAL', 'PRE TREINO/POS TREINO', 'AMINOACIDOS', 'CREATINA', 'WHEY PROTEIN', 'CARBOIDRATO', 'HIPERCALORICO']);
+const SUP_TIPO_X = 0;
+const SUP_TIPO = [
+  ['CREATINA', WR('CREATINA|CREATINE|CREAPURE')],
+  ['WHEY PROTEIN', WR('WHEY|WHEY PROTEIN|ISOLATE|ISOLADO PROTEICO|PROTEINA ISOLADA|PROTEINA CONCENTRADA|BEEF PROTEIN|PROTEINA VEGETAL|PROTEINA VEGANA|VEGAN PROTEIN|ALBUMINA|CASEINA|CASEIN')],
+  ['HIPERCALORICO', WR('HIPERCALORICO|HIPER CALORICO|MASS GAINER|GAINER|NITRO MASS|TOP MASS|MEGA MASS|SUPER MASS|RED MASS|BODY MASS|MASS')],
+  ['AMINOACIDOS', WR('BCAA|BCAAS|GLUTAMINA|GLUTAMINE|GLUTAMAX|L ?GLUTAMINA|L ?ARGININA|ARGININA|ARGININE|TAURINA|TAURINE|BETA ALANINA|BETA ALANINE|CITRULINA|CITRULLINE|AMINOACIDOS?|AMINO|EAAS?|HMB|ORNITINA|L ?CARNITINA|CARNITINA|LEUCINA|GLICINA|GLYCINE|TEANINA|L ?TEANINA|TRIPTOFANO|L ?TRIPTOFANO|5 ?HTP|GABA|NAC|ACETILCISTEINA|N ACETIL|METIONINA|L ?LISINA|LISINA|ZMA')],
+  ['CARBOIDRATO', WR('MALTODEXTRINA|MALTO|DEXTROSE|PALATINOSE|WAXY|WAXY MAIZE|CARBOIDRATO|CARBO|CARB|ENERGY GEL|ENERGEL|GEL ENERGETICO|GEL CARBOIDRATO|CARBO GEL|GEL DE CARBOIDRATO')],
+  ['PRE TREINO/POS TREINO', WR('PRE TREINO|PRETREINO|PRE TREIN|PRE WORKOUT|PREWORKOUT|POS TREINO|PUMP|OXIDO NITRICO|CAFEINA|CAFFEINE|CAFEIN|TERMOGENICOS?|THERMO|THERMOX|TERMO|ENERGY SHOT|CAFFEIN|NOOTROPICO|NOOTROPIC|BOPE|HORUS|C4 BETA')],
+];
+const RX_SUP_PET = WR('CAES|CACHORROS?|GATOS|FELINOS?|CANINOS?|PET|PETS|DOGS?|CATS?|EQUINOS?|CAVALOS|PASSAROS|AVES|PARA CAES|PARA GATOS');
+const RX_SUP_PALAVRA = WR('SUPLEMENTO|SUPLEM|SUPL|VITAMINA|VITAMINICO|POLIVITAMINICO|CONDROPROTETOR|OMEGA|PROBIOTICO|ARTRO|CONDRO');
+const RX_VIT_HEAD = WR('VITAMINAS?|VIT|POLIVITAMINICOS?|POLIVIT|MULTIVITAMINICOS?|MULTIVIT|COMPLEXO B|A ?Z|B12|B6|D3|K2|ACIDO FOLICO|BIOTINA|MAGNESIO|ZINCO|SELENIO|CALCIO|FERRO|POTASSIO|IODO|CROMO|PICOLINATO|COBRE|MINERAIS|MULTIMINERAL|CENTRUM|LAVITAN|SUPRADYN|CARBONATO DE CALCIO|CITRATO DE');
+const RX_VIT_MULTI = WR('POLIVITAMINICOS?|POLIVIT|MULTIVITAMINICOS?|MULTIVIT|A ?Z|A A Z|CENTRUM|LAVITAN|SUPRADYN|VITAMINAS E MINERAIS|VITAMINAS|COMPLEXO VITAMINICO');
+const RX_COMP_FICA = WR('COLAG|LINHO|OSTEO UP|PINUS|PINASTER|SEMENTES?|VIT FRUTA|VITAMINA DE FRUTAS|OMEGA ?3|OMEGA|OLEO DE PEIXE|KRILL|COLAGENO|COLLAGEN|CURCUMA|CURCUMINA|ACAFRAO|MACA PERUANA|SPIRULINA|CLORELLA|CHLORELLA|COENZIMA|Q10|COQ10|PROPOLIS|GELEIA REAL|CRANBERRY|BERBERINA|RESVERATROL|LUTEINA|LICOPENO|PRIMULA|CARTAMO|LINHACA|OLEO|MORINGA|GINKGO|GINSENG|TRIBULUS|TRIBULLUS|FENO GREGO|ASHWAGANDHA|MELATONINA|PSYLLIUM|FIBRAS?|PROBIOTICOS?|ACIDO HIALURONICO|HIALURONICO|QUERATINA|CHA VERDE|HIBISCO|ESPINHEIRA|CARQUEJA|ALCACHOFRA|CAVALINHA|GARCINIA|QUITOSANA|SLIM|DETOX|NUTREN|SUSTAGEN|ENSURE|GLUCERNA|FORTIVANCE|NUTRIDRINK|PEDIASURE|FORTINI|DIASIP|SUSTAIN|COMPLEMENTO ALIMENTAR|COMPLEMENTO NUTRICIONAL');
+function suplementoCat(T, C, sug, voto) {
+  const lib = C.libNames || C.names; if (!T || !T.length) return null;
+  if (sug ? !SUP_CATS.has(sug) : !SUP_CATS.has(voto)) return null; // arquivo com outra categoria (bebida láctea com whey, barra proteica): não mexe
+  const ts = T.slice(0, 6), j = ts.join(' | ');
+  if (RX_SUP_PET.test(j) && RX_SUP_PALAVRA.test(j) && lib.has('SUPLEMENTO CAES E GATOS')) return 'SUPLEMENTO CAES E GATOS';
+  const cab = t => t.split(' ').slice(0, 5).join(' ');
+  for (const [cat, rx] of SUP_TIPO) { if (!lib.has(cat)) continue; const n = ts.filter(t => rx.test(t)).length; if (n && n >= Math.max(1, Math.ceil(ts.length / 2)) && ts.some(t => rx.test(cab(t)))) return cat; }
+  if ((sug === 'COMPLEMENTO NUTRICIONAL' || voto === 'COMPLEMENTO NUTRICIONAL') && RX_VIT_HEAD.test(ts[0].split(' ').slice(0, 4).join(' ')) && !RX_COMP_FICA.test(j) && !/COMPLEMENTO (NUTRICIONAL|ALIMENTAR)/.test(j)) {
+    const c = RX_VIT_MULTI.test(j) ? 'MULTIVITAMINICO' : 'VITAMINA OUTRO'; if (lib.has(c)) return c; }
   return null;
 }
 function misturaCat(T, C, cat) {
@@ -1241,6 +1305,8 @@ function aggregate1(T0, sug, C, main) {
   // pipoca: o sabor (CALABRESA, PICANHA, QUEIJO, CHOCOLATE, LEITE CONDENSADO, BACON, SAL…) nunca é a categoria.
   // PIPOCA / POPCORN / POP CORN (ou MILHO) + MICRO (MICROONDAS, MICRO-ONDAS, MICROOND…) -> PIPOCA MICRO-ONDAS;
   // PIPOCA / POPCORN sem MICRO que caiu em outro alimento -> categoria de pipoca votada ou PIPOCA PRONTA
+  { const sp = suplementoCat(T, C, sug, r.cat); if (sp) return Object.assign(r, { cat: sp, flag: 'SUPLEMENTO_TIPO', per: r.per.map(() => sp) }); }
+  { const tf = tipoForteCat(T, C); if (tf) return Object.assign(r, { cat: tf, flag: 'TIPO_FORTE', per: r.per.map(() => tf) }); }
   { const cn = complementoCat(T, C); if (cn) return Object.assign(r, { cat: cn, flag: 'COMPLEMENTO_TIPO', per: r.per.map(() => cn) }); }
   if (cestaOf(r.cat) !== 'FARMACIA' || (/^DERMOCOSMETICO/.test(r.cat) && !T.some(t => RX_DERMO.test(t)))) { const pc0 = perfumariaCat(T, C); if (pc0) { const pc = infantilDe(pc0, T, C) || pc0; if (pc !== r.cat) return Object.assign(r, { cat: pc, flag: 'PERFUMARIA_TIPO', per: r.per.map(() => pc) }); return r; } }
   { const ic = cestaOf(r.cat) !== 'FARMACIA' && infantilDe(r.cat, T, C); if (ic) return Object.assign(r, { cat: ic, flag: 'INFANTIL', per: r.per.map(x => x === r.cat ? ic : x) }); }
@@ -1256,7 +1322,8 @@ function aggregate1(T0, sug, C, main) {
   { const pc = peixeCat(T, C); if (pc) { const c = /^(SARDINHA|ATUM)/.test(r.cat) ? r.cat : pc; return Object.assign(r, { cat: c, flag: 'PEIXE_VENCE', per: r.per.map(() => c) }); } }
   // olha todas as descrições do item ("SINHA CHOCOLATE 100G" + "PIPOCA MICRO SINHA CHOCOLATE"): micro-ondas em qualquer uma vence
   { const pcs = T.map(t => pipocaCat(t, r, C, cestaOf)).filter(Boolean); const pc = pcs.includes('PIPOCA MICRO-ONDAS') ? 'PIPOCA MICRO-ONDAS' : pcs[0];
-    if (pc) return Object.assign(r, { cat: pc, flag: 'PIPOCA_VENCE', per: r.per.map((c, j) => pipocaCat(T[j], r, C, cestaOf) ? pc : c) }); }
+    // pipoca em uma descrição só (SALG GULOZITOS … | PIPOCA GULAO) não decide: precisa da maioria das descrições
+    if (pc && (pc === 'PIPOCA MICRO-ONDAS' || pcs.length >= Math.ceil(T.length / 2))) return Object.assign(r, { cat: pc, flag: 'PIPOCA_VENCE', per: r.per.map((c, j) => pipocaCat(T[j], r, C, cestaOf) ? pc : c) }); }
   // papinha/sopinha infantil em alguma descrição vence o ingrediente/sabor (MORANGA, FEIJAO, MANDIOCA, MANGA…)
   if (r.cat !== 'PAPINHA' && (r.per || []).includes('PAPINHA')) return Object.assign(r, { cat: 'PAPINHA', flag: 'PAPINHA_VENCE' });
   // bala/pirulito/marshmallow em alguma descrição vence sabor (fruta), docinho, gelatina, aroma, café, leite, carne ou bombom
@@ -1563,7 +1630,10 @@ function qtyText(q) { if (!q || q.tot === null) return ''; return q.n > 1 ? q.n 
 
 /* descritivo */
 function groupOf(cat) { const cc = cfg.categorias.find(c => c.nome === cat); if (cc && cc.cesta === 'FARMACIA') return 'FARMA'; if (cat.startsWith('CAFE')) return 'CAFE'; if (cat.startsWith('FARINHA')) return 'FARINHA'; if (cat.startsWith('CHOCOLATE')) return 'CHOCOLATE'; if (cat.includes('CONSERVA') || cat === 'AZEITONA') return 'CONSERVA'; return null; }
-function expand(t, grp) { t = prepQ(t); for (const [rx, r] of PHRASE) t = t.replace(rx, r); const g = GROUP_TOK[grp] || {}; return t.split(' ').map(x => g[x] || TOK[x] || x).join(' '); }
+// suplementos, vitaminas e complemento: cápsula/comprimido sai só na quantidade (60CPS); AZ é A-Z (multivitamínico), nunca AZEITONA
+const catCapsula = c => !!c && (c === 'COMPLEMENTO NUTRICIONAL' || SUP_CATS.has(c) || /VITAMIN|MINERA|POLIVIT|MULTIVIT|SUPLEMENTO(?! CAES)/.test(c));
+const FORMA_CAPS = ['CAPSULA', 'CAPSULAS', 'CAPS', 'CAP', 'CPS', 'CP', 'CPR', 'CPRS', 'CPD', 'CPDS', 'COMPRIMIDO', 'COMPRIMIDOS', 'COMPR', 'COMP', 'COMPS', 'CAPSU', 'LAS', 'PASTILHAS', 'SOFTGLS', 'SOFT', 'DURA', 'DURAS', 'MOLE', 'MOLES', 'SOFTGEL', 'SOFTGELS', 'SOFTGLS', 'TABLETE', 'TABLETES', 'TABS', 'TAB', 'CAPLET', 'CAPLETS', 'VEG', 'VEGETARIANAS', 'VEGETAIS'];
+function expand(t, grp, semAz) { t = prepQ(t); for (const [rx, r] of PHRASE) t = t.replace(rx, r); const g = GROUP_TOK[grp] || {}; return t.split(' ').map(x => semAz && (x === 'AZ' || FORMA_CAPS.includes(x)) ? x : (g[x] || TOK[x] || x)).join(' '); }
 const QTY_RX = new RegExp('(?<![A-Z])(\\d{1,3}\\s*X\\s*)?\\d+(?:\\.\\d+)?\\s*' + U + '(\\s*X\\s*\\d{1,3})?(?![A-Z])', 'g');
 const CONNECT = new Set(['COM', 'SEM', 'AO', 'DE', 'DO', 'DA', 'E']);
 function cleanTokens(t, drop) {
@@ -1586,9 +1656,10 @@ function tidy(words) {
   return out;
 }
 function complement(T, cat, ini, bn, grp, catCfg) {
-  const Tx = T.filter(t => t && t !== 'SEM DESCRICAO').map(t => expand(t, grp)); if (!Tx.length) return '';
+  const capsCat = catCapsula(cat);
+  const Tx = T.filter(t => t && t !== 'SEM DESCRICAO').map(t => expand(t, grp, capsCat)); if (!Tx.length) return '';
   const bw = new Set(bn ? bn.split(' ') : []); const bw4 = [...bw].filter(x => x.length >= 4);
-  const drop = new Set([...(catCfg ? catCfg.remover || [] : []), ...ini.split(' '), ...bw, ...SKIPTIPO]);
+  const drop = new Set([...(catCfg ? catCfg.remover || [] : []), ...ini.split(' '), ...bw, ...SKIPTIPO, ...(capsCat ? FORMA_CAPS : [])]);
   // abreviação de palavra do começo do descritivo é a mesma informação (SABAO LIQUIDO … LIQ … SABA, AMACIANTE … AMAC)
   const iniW = ini.split(' ').filter(x => x.length >= 4);
   const iniAbrev = w => w.length >= 3 && !/\d/.test(w) && !FLAVORS.has(w) && (iniW.some(x => x.length > w.length && x.startsWith(w)) || iniW.some(x => w === x + 'S' || w === x + 'ES'));
@@ -1767,7 +1838,7 @@ const rxTam = new Map();
 // só vale para ovos (OVO BRANCO, CAIPIRA, VERMELHO…): outras categorias da biblioteca têm palavra obrigatória incompleta (IOGURTE LIQUIDO x BEB LACTEA)
 function faltaObrigatoria(c, T) { if (!/^OVO /.test(c.nome) || c.nome === 'OVO DE PASCOA' || !(c.tambem || []).length) return false; if (!rxTam.has(c.nome)) rxTam.set(c.nome, termRx(c.tambem)); const tam = rxTam.get(c.nome); return !!tam && !T.some(t => tam.test(t)); }
 // categoria do arquivo: fica, a não ser que nenhuma descrição bata com ela E a descrição aponte para outra cesta
-const REGRA_FORTE = new Set(['DOCE_REGRA', 'CHOCPO_VENCE', 'ESSENCIA_OTP', 'PEIXE_VENCE', 'PIPOCA_VENCE', 'EMBALAGEM_OVO', 'PAPINHA_VENCE', 'DOCE_VENCE']);
+const REGRA_FORTE = new Set(['SUPLEMENTO_TIPO', 'TIPO_FORTE', 'DOCE_REGRA', 'CHOCPO_VENCE', 'ESSENCIA_OTP', 'PEIXE_VENCE', 'PIPOCA_VENCE', 'EMBALAGEM_OVO', 'PAPINHA_VENCE', 'DOCE_VENCE']);
 // biblioteca inteira (ativas e desativadas, menos farmácia), compilada uma vez por execução
 let LIB_TODA = null;
 function libToda(C) { if (LIB_TODA && LIB_TODA.base === C) return LIB_TODA.L;
@@ -1808,11 +1879,100 @@ function naoMarcaSug(g, cc, C, nivel) {
   const fraca = w => w.length <= 2 || GENERIC.has(w) || FLAVORS.has(w) || ATTR.has(w) || (w.length >= 4 && [..._sugProd].some(x => x.length > w.length && x.startsWith(w)));
   return N(g).split(' ').every(w => SUG_NAO_W.has(w) || propria(w) || (nivel >= 1 && _sugProd.has(w)) || (nivel >= 2 && fraca(w)));
 }
+// troca da categoria do arquivo pela votada só se a votada for crível: o tipo dela (nome ou termo incluído) aparece nas 3 primeiras
+// palavras de alguma descrição; categoria PET só com animal escrito; fruta/verdura/legume nunca vem de sabor ou ingrediente
+const RX_ANIMAL = /(?<![A-Z])(CAO|CAES|CACHORRO|CACHORROS|GATO|GATOS|FELINO|FELINOS|CANINO|CANINOS|PET|PETS|DOG|DOGS|CAT|CATS|PASSARO|PASSAROS|AVES|PEIXES|ROEDOR|ROEDORES|COELHO|HAMSTER|CALOPSITA|PERIQUITO|RACAO)(?![A-Z])/;
+const TIPO_STOP = new Set(['OUTROS', 'OUTRO', 'OUTRAS', 'PARA', 'COM', 'SEM', 'EM', 'DE', 'DO', 'DA', 'E', 'IN', 'NATURA', 'SAUDAVEL', 'TRADICIONAL', 'COMUM', 'ESPECIAL', 'PREMIUM', 'DIVERSOS', 'GERAL']);
+const credCache = new Map();
+const CESTA_COMIDA = new Set(['MERCEARIA', 'MERCEARIA BASICA', 'PERECIVEIS', 'BEBIDAS', '']);
+const RX_CAPS_ITEM = /(?<![A-Z])(\d+\s*)?(CAPS|CAPSULA|CAPSULAS|CPS|CP|CPR|CPRS|COMPRIMIDOS?|SOFTGELS?|TABLETES?)(?![A-Z])/;
+function credivel(c0, T, c1) {
+  if (!c0 || !T || !T.length) return false;
+  if (c0.cesta === 'PET' && !T.some(t => RX_ANIMAL.test(t))) return false;
+  const fruta0 = FRUTAS.has(c0.nome) || /^(OUTRAS VERDURAS|LEGUME|VERDURA|CARA\/INHAME|CEBOLA|ALHO|BATATA IN NATURA|TOMATE)/.test(c0.nome);
+  if (fruta0 && c1 && c1.cesta !== 'PERECIVEIS') return false; // sabor / ingrediente / produto processado nunca vira hortifrúti
+  // item em cápsula de categoria de suplemento só vai para outro suplemento ou farmácia (V FLAN, TESTO GH POTE 60 CAPS)
+  if (c1 && SUP_CATS.has(c1.nome) && !SUP_CATS.has(c0.nome) && c0.cesta !== 'FARMACIA' && T.some(t => RX_CAPS_ITEM.test(t))) return false;
+  const hs = T.slice(0, 4).map(t => t.replace(/^(\*|ZZ)+/, '').trim().split(' ')).filter(w => w.length && w[0]);
+  if (!hs.length) return false; const precisa = Math.ceil(hs.length / 2);
+  const nomeW = N(c0.nome).split(' ').filter(w => w.length >= 3 && !TIPO_STOP.has(w));
+  const rxW = w => new RegExp('(?<![A-Z0-9])' + escRx(w) + '(?![A-Z0-9])');
+  const comida1 = !c1 || CESTA_COMIDA.has(c1.cesta || ''), comida0 = CESTA_COMIDA.has(c0.cesta || '');
+  if (comida1 && !comida0) // alimento do arquivo para objeto (POTE, AROMA, PAPELARIA): o nome tem de ser a primeira palavra da maioria
+    return nomeW.length > 0 && hs.every(w => nomeW.includes(w[0]) || nomeW.includes(w[0].replace(/S$/, ''))) && !hs.some(w => w.length > 1 && data.dima && data.dima.map.has(w.slice(0, 2).join(' '))); // FORNO VELHO é marca
+  if (nomeW.length && hs.filter(w => nomeW.some(x => rxW(x).test(w.slice(0, 3).join(' ')))).length >= precisa) return true;
+  if (c1 && !(comida0 && comida1)) return false;
+  if (!credCache.has(c0.nome)) {
+    const ts = new Set(nomeW);
+    for (const x of [...(c0.incluir || []), ...(c0.tipo || []), c0.inicio || '']) { const n = N(x); if (n.length >= 3) ts.add(n); }
+    credCache.set(c0.nome, ts.size ? new RegExp('(?<![A-Z0-9])(' + [...ts].map(escRx).join('|') + ')(?![A-Z0-9])') : null);
+  }
+  const rx = credCache.get(c0.nome); if (!rx) return false;
+  // abreviação do nome no começo (BISC -> BISCOITO, SALG -> SALGADINHO) também vale
+  const abrev = w => w.length >= 4 && nomeW.some(x => x.length > w.length && x.startsWith(w));
+  return hs.filter(w => rx.test(w.slice(0, 3).join(' ')) || w.slice(0, 2).some(abrev)).length >= precisa;
+}
+// tipo votado como PRIMEIRA palavra da maioria das descrições (nome da categoria, plural, abreviação ou início do descritivo):
+// basta para trocar uma categoria do arquivo sem nenhuma evidência, mesmo da mesma cesta (COOKIES / SNACK / CASTANHA em MILHO PARA PIPOCA)
+function cabecaForte(c0, T) {
+  if (!c0 || !T || !T.length) return false;
+  const ws = new Set(N(c0.nome).split(' ').filter(w => w.length >= 3 && !TIPO_STOP.has(w)));
+  const ini = N(c0.inicio || '').split(' ')[0]; if (ini && ini.length >= 3) ws.add(ini);
+  if (!ws.size) return false;
+  const f = T.slice(0, 4).map(t => t.replace(/^(\*|ZZ)+/, '').trim().split(' ')[0]).filter(Boolean); if (!f.length) return false;
+  const bate = w => [...ws].some(x => w === x || w === x + 'S' || w + 'S' === x || (w.length >= 4 && x.length > w.length && x.startsWith(w)));
+  return f.filter(bate).length >= Math.ceil(f.length / 2);
+}
+// trocas que o arquivo não perde, mesmo com regra forte ou voto crível (aprendido no BACKLOG):
+// suplemento/complemento do arquivo nunca vira alimento pelo sabor ou ingrediente (shake de chocolate, óleo de abóbora em cápsula, levedo de cerveja);
+// salgadinho escrito mantém EXTRUSADO; fruta/queijo/ervilha/cogumelo não vêm de produto processado (extrusada, frita, desidratado, wasabi);
+// categoria de sabor/ingrediente (DOCE DE LEITE, BACON, BANANA, PISTACHE, ACAI…) só com o nome no começo de TODAS as descrições
+const RX_SALG_ESC = /(?<![A-Z])(SALG|SALGADINHO|SALGADINHOS|SNACK|SNACKS)(?![A-Z])/;
+const RX_PROC = /(?<![A-Z])(EXTRUSAD[AO]S?|FRIT[AO]S?|DESIDRATAD[AO]S?|CROCANTES?|CROC|CHIPS|WASABI|ASSAD[AO]S?|LASCAS|TORRAD[AO]S?|DRAGEAD[AO]S?)(?![A-Z])/;
+const CAT_INGRED_RX = /^(BANANA|ABOBORA|ERVILHA EM CONSERVA|COGUMELO|QUEIJO|FARINHA TAPIOCA|BACON|MILHO EM CONSERVA|ACAI|MOSTARDA)/;
+const CAT_SABOR = new Set(['DOCE DE LEITE', 'LEITE COMUM', 'CERVEJA', 'BANANA', 'ACAI', 'PISTACHE', 'AMENDOA', 'BACON', 'SORVETE PALITO', 'SORVETE MASSA', 'MOSTARDA', 'CAFE MOIDO', 'ERVA FRESCA',
+  'SALADA DE FRUTAS', 'QUEIJO PROVOLONE', 'ABOBORA', 'OLEO COCO', 'OLEO OUTRO', 'COPA', 'CARNE EXOTICA', 'BOLINHO/BOLINHA', 'EMPANADO DIVERSOS', 'APERITIVO', 'PROTEINA VEGETAL OUTROS', 'ARROZ BRANCO',
+  'OVO DE PASCOA', 'REFRIGERANTE', 'DRINKS', 'FARINHA TRIGO', 'MASSA CASEIRA', 'COQUETEL', 'LANCHE PRONTO', 'MASSA NHOQUE REFRIGERADA', 'ENERGETICO', 'POTE', 'FORNO',
+  'SOPA E CREME', 'COGUMELO FRESCO', 'PALMITO FRESCO', 'CHOCOLATE SAUDAVEL',  'TONICO FACIAL', 'TINTURA CAPILAR PERMANENTE']);
+function arqFica(s, c1, c0, a) {
+  if (!c0 || !c1 || c0.nome === s) return false; const T = a.T || []; if (!T.length) return false;
+  const metade = n => n >= Math.ceil(Math.min(T.length, 4) / 2), T4 = T.slice(0, 4);
+  const comida0 = CESTA_COMIDA.has(c0.cesta || '');
+  if (SUP_CATS.has(s) && comida0 && !SUP_CATS.has(c0.nome) && !catCapsula(c0.nome) && !/^(MEL |COMPOSTO DE MEL|EXTRATO DE PROPOLIS|CEREAL)/.test(c0.nome)) return true;
+  if (s === 'EXTRUSADO' && metade(T4.filter(t => RX_SALG_ESC.test(t)).length)) return true;
+  if ((CAT_INGRED_RX.test(c0.nome) || FRUTAS.has(c0.nome)) && metade(T4.filter(t => RX_PROC.test(t)).length)) return true;
+  // mistura em pó do arquivo (mousse, pudim, churros, battermix): não vira o produto pronto
+  if (/^MISTURA PO/.test(s) && !/^(MISTURA|FARINHA|MELHORADOR|CHOCOLATE EM PO|AROMA|FERMENTO)/.test(c0.nome) && T.some(t => /(?<![A-Z])(PO|MIST|MISTURA|MP|BASE|MIX|PREMIX|BATTERMIX)(?![A-Z])/.test(t))) return true;
+  if (/FRESC/.test(c0.nome) && !T.some(t => /FRESC/.test(t))) return true;
+  if (s === 'EXTRATO DE PROPOLIS' && c0.nome === 'COMPLEMENTO NUTRICIONAL' && !T.some(t => RX_CAPS_ITEM.test(t))) return true;
+  if (s === 'CACAU EM PO' && metade(T4.filter(t => /^(CACAU|CACAO)(?![A-Z])/.test(t)).length)) return true;
+  if (/^AMENDOIM/.test(s) && !/^AMENDOIM/.test(c0.nome) && metade(T4.filter(t => /^(AM|AMEND|AMENDOIM)(?![A-Z])/.test(t)).length)) return true;
+  if (/^PIPOCA/.test(c0.nome) && !metade(T4.filter(t => /^(PIP|PIPOCA|PIPOCAS|PIPOQUINHA)(?![A-Z])/.test(t)).length) && !T.some(t => /MICRO/.test(t))) return true;
+  if (CAT_SABOR.has(c0.nome)) { // nome da categoria tem de ser a primeira palavra de todas as descrições (até 4)
+    const ws = N(c0.nome).split(/[ \/]/).filter(w => w.length >= 3 && !TIPO_STOP.has(w));
+    const bate = t => { const f = t.replace(/^(\*|ZZ)+/, '').trim().split(' ')[0] || ''; return ws.some(x => f === x || f === x + 'S' || f + 'S' === x || (f.length >= 4 && x.startsWith(f))); };
+    if (!T4.every(bate)) return true;
+  }
+  return false;
+}
 function categoriaArquivo(it, a, byName, C) {
-  const s = it.sugCat; if (!prioArq() || !s || s === a.cat) return a;
+  const s = it.sugCat; if (!prioArq() || !s) return a;
   const c1 = byName.get(s); if (!c1) return a; // categoria que não existe na biblioteca
+  if (s === a.cat) {
+    // o voto só ficou com a categoria do arquivo por causa dela: sem nenhuma palavra da categoria na descrição (castanha, biscoito, chips
+    // em MILHO PARA PIPOCA), vota de novo sem o arquivo e troca se o tipo votado estiver escrito no começo da descrição
+    if (passe && passe.fixo) return a;
+    if (REGRA_FORTE.has(a.flag) || bateCategoria(c1, a.T) || nomeNaDesc(c1, a.T) || abrevNaDesc(c1, a.T) || sempreArq()) return a;
+    const r2 = aggregate(a.T, '', C, it.main); const cx = r2.cat !== OUT && r2.cat !== s && byName.get(r2.cat);
+    if (cx && credivel(cx, a.T, c1) && (cabecaForte(cx, a.T) || (cx.cesta || '') !== (c1.cesta || '')) && !(s === 'COMPLEMENTO NUTRICIONAL' && cx.cesta === 'FARMACIA')) {
+      const b = Object.assign({}, r2, { T: a.T, misturadas: a.misturadas, flag: 'ARQUIVO_SEM_EVIDENCIA' });
+      return (passe && passe.soDesc) ? Object.assign(b, { regraForte: s }) : Object.assign(b, { arqTrocada: s });
+    }
+    return a;
+  }
   if (passe && passe.fixo) return Object.assign({}, a, { cat: s, per: a.per.map(() => s), flag: 'ARQUIVO', arqCat: true }); // descritivo + sugestões: o descritivo segue sempre a categoria do arquivo
   const c0 = byName.get(a.cat);
+  if (!(passe && passe.soDesc) && !sempreArq() && arqFica(s, c1, c0, a)) return Object.assign({}, a, { cat: s, per: a.per.map(() => s), flag: 'ARQUIVO', arqCat: true });
   // regra ensinada (pipoca com sabor, embalagem de ovo, papinha, bala x sabor): o sabor/ingrediente do arquivo não vale como categoria
   // tipo do biscoito escrito na descrição (ROSCA, AMANTEIGADO, POLVILHO…) vence BISCOITO OUTROS / categoria de fora dos biscoitos do arquivo
   const biscForte = a.flag === 'BISCOITO_TIPO' && (s === 'BISCOITO OUTROS' || !/^BISCOITO/.test(s));
@@ -1824,7 +1984,13 @@ function categoriaArquivo(it, a, byName, C) {
     if (passe && passe.soDesc) return Object.assign({}, a, { regraForte: s }); // só descritivo também troca: é regra ensinada (status avisa)
     if (!sempreArq()) return Object.assign({}, a, { arqTrocada: s });
   }
-  if (a.cat !== OUT && (faltaObrigatoria(c1, a.T) || (ehSolida(s) && itemML(a.T)) || (!FRUTAS.has(a.cat) && faltaProduto(c1, a.T)))) {
+  const credVoto = credivel(c0, a.T, c1) && !(s === 'COMPLEMENTO NUTRICIONAL' && c0 && c0.cesta === 'FARMACIA' && !/VITAMIN|MINERA|POLIVIT|MULTIVIT/.test(a.cat)); // complemento do arquivo não vira remédio pelo princípio ativo (psyllium, melatonina)
+  if (a.cat !== OUT && credVoto && (faltaObrigatoria(c1, a.T) || (ehSolida(s) && itemML(a.T)) || (!FRUTAS.has(a.cat) && faltaProduto(c1, a.T)))) {
+    if (passe && passe.soDesc) return Object.assign({}, a, { regraForte: s });
+    if (!sempreArq()) return Object.assign({}, a, { arqTrocada: s });
+  }
+  // categoria do arquivo sem nenhuma evidência e o tipo votado é a primeira palavra das descrições: o arquivo está errado (mesmo da mesma cesta)
+  if (a.cat !== OUT && credVoto && !bateCategoria(c1, a.T) && !nomeNaDesc(c1, a.T) && !abrevNaDesc(c1, a.T) && cabecaForte(c0, a.T)) {
     if (passe && passe.soDesc) return Object.assign({}, a, { regraForte: s });
     if (!sempreArq()) return Object.assign({}, a, { arqTrocada: s });
   }
@@ -1833,7 +1999,7 @@ function categoriaArquivo(it, a, byName, C) {
   if (a.cat === OUT && C && c1.cesta && !bateCategoria(c1, a.T) && !nomeNaDesc(c1, a.T) && !abrevNaDesc(c1, a.T)) {
     const L = libToda(C); const r2 = aggregate(a.T, '', L, it.main); let x = r2.cat !== OUT ? r2.cat : tipoCategoria(a.T, L);
     const cx = x && byName.get(x);
-    if (cx && cx.cesta && cx.cesta !== c1.cesta && cx.cesta !== 'FARMACIA') {
+    if (cx && cx.cesta && cx.cesta !== c1.cesta && cx.cesta !== 'FARMACIA' && credivel(cx, a.T, c1)) {
       const b = Object.assign({}, a, { cat: x, per: a.per.map(() => x), flag: 'BIBLIOTECA' });
       if (passe && passe.soDesc) return Object.assign(b, { regraForte: s }); if (!sempreArq()) return Object.assign(b, { arqTrocada: s });
     }
@@ -1845,10 +2011,19 @@ function categoriaArquivo(it, a, byName, C) {
   // categoria do arquivo de outra cesta, sem nenhuma palavra dela na descrição (SHAMPOO num doce, LEITE COMUM num doce de leite de outra cesta):
   // é erro do arquivo -> troca também no modo só descritivo (status avisa)
   if (passe && passe.soDesc && a.cat !== OUT && c0 && c0.cesta && c1.cesta && c0.cesta !== c1.cesta && !bateCategoria(c1, a.T)) return Object.assign({}, a, { regraForte: s });
-  if (!bateCategoria(c1, a.T) && c0 && c0.cesta && c1.cesta && c0.cesta !== c1.cesta) {
+  const cabOk = true;
+  if (!bateCategoria(c1, a.T) && !nomeNaDesc(c1, a.T) && c0 && c0.cesta && c1.cesta && c0.cesta !== c1.cesta && credVoto && cabOk) {
     if (!sempreArq() && !(passe && passe.soDesc)) return Object.assign({}, a, { arqTrocada: s });
     if (passe && passe.soDesc) return Object.assign({}, a, { cat: s, per: a.per.map(() => s), flag: 'ARQUIVO', arqCat: true, catSuspeita: a.cat }); // só descritivo: nunca troca, só avisa
     return Object.assign({}, a, { cat: s, per: a.per.map(() => s), flag: 'ARQUIVO', arqCat: true, arqAviso: `Arquivo (mantido): categoria ${s} não bate com a descrição (ela aponta ${a.cat})` }); }
+  // arquivo sem nenhuma evidência (nem nome, nem abreviação, nem termo) e o voto viciado pelo arquivo não convenceu (GRISSINI, CASTANHA,
+  // COOKIES em MILHO PARA PIPOCA): vota de novo sem o arquivo; o tipo votado (ou o do começo da descrição) vale se for crível
+  if (a.cat !== s && !sempreArq() && !(passe && passe.soDesc) && !bateCategoria(c1, a.T) && !nomeNaDesc(c1, a.T) && !abrevNaDesc(c1, a.T)) {
+    const r2 = aggregate(a.T, '', C, it.main);
+    for (const x of [r2.cat, tipoCategoria(a.T, C)]) { const cx = x && x !== OUT && x !== s && byName.get(x);
+      if (cx && N(x).split(' ')[0] !== N(s).split(' ')[0] && !SUP_CATS.has(s) && (cabecaForte(cx, a.T) || tipoForteCat(a.T, C) === x) && credivel(cx, a.T, c1) && !arqFica(s, c1, cx, a))
+        return Object.assign({}, a, { cat: x, per: a.per.map(() => x), flag: 'ARQUIVO_SEM_EVIDENCIA', arqTrocada: s }); }
+  }
   return Object.assign({}, a, { cat: s, per: a.per.map(() => s), flag: 'ARQUIVO', arqCat: true });
 }
 function marcaNaDesc(mn, T) {
@@ -2092,7 +2267,7 @@ async function runCore(pfx = '') {
       else if (q.tot === 1 && kit && +(kit[1] || kit[2]) > 1) { const n = +(kit[1] || kit[2]); q = { tot: n, base: 'UN', n: 1, uv: n, flag: '' }; qDesc = true; } // KIT 2 SQUEEZE -> 2UN
     }
     // complemento nutricional em cápsulas / comprimidos: o conteúdo é a contagem em CPS (60CPS, 2X60CPS)
-    if (a.cat === 'COMPLEMENTO NUTRICIONAL') { const cq = qtdCapsulas(Tq); if (cq) { q = cq; qDesc = true; } }
+    if (catCapsula(a.cat)) { const cq = qtdCapsulas(Tq); if (cq) { q = cq; qDesc = true; } }
     // Farmácia sem início fixo no manual: começa pela marca; sem marca, pelo princípio ativo (ou pelo nome do produto)
     const farmaLivre = cc && cc.cesta === 'FARMACIA' && !cc.inicio;
     const paHit = farmaLivre && !bn && C.pa ? T.map(t => matchPA(t, C.pa)).find(Boolean) : null;
