@@ -799,6 +799,114 @@ const marcaCmed = nome => { if (!data.cmedProd) return false;
   if (!CMED_MARCAS) { CMED_MARCAS = new Set(); for (const k of data.cmedProd.keys()) { const w = N(k).split(' '); for (let i = 1; i <= Math.min(3, w.length); i++) CMED_MARCAS.add(w.slice(0, i).join(' ')); } }
   return CMED_MARCAS.has(N(nome)); };
 const hojaAtc = (T, C) => { const f = matchFM(T, C.fm); return !!(f && f.cat && /^[A-Z]\d\d[A-Z]/.test(nomeOf(f.cat)) && regMarca({ nome: f.nome }, C) && marcaCmed(f.nome)); };
+// ESTRUTURA NOVA (estrutura_farma.py -> K.farmaCatNova): VITAMINA OUTRO e MULTIVITAMINICO deixaram de existir; o suplemento
+// vai para a subcategoria pela composição escrita (A11/A12/A13, COLAGENO, PROPOLIS, C10B ômega 3, A07F probiótico...).
+// Ordem: classe da Anvisa (CMED do código de barras ou da mesma apresentação) -> tipo de produto -> vitaminas/minerais escritos.
+const catPorCod = (() => { let M = null; return cod => {
+  if (!M) { M = new Map(); for (const c of cfg.categorias) { if (c.cesta !== 'FARMACIA' && c.cesta) continue; const n = nomeOf(c.nome); const k = (/^([A-Z]\d\d[A-Z]\d?)\s/.exec(n + ' ') || [])[1] || N(n); if (!M.has(k)) M.set(k, c.nome); } }
+  return M.get(cod) || (cfg.categorias.some(c => c.nome === cod) ? cod : null); }; })();
+const VR = (...ws) => new RegExp('(?<![A-Z0-9])(' + ws.sort((a, b) => b.length - a.length).map(escRx).join('|') + ')(?![A-Z0-9])');
+const VIT_TIPO = [
+  [VR('NICOTINA', 'NICORETTE', 'NIQUITIN'), 'N07B'],
+  [VR('ACETILCISTEINA', 'NAC'), 'R05C'],
+  [VR('EMULSAO SCOTT', 'OLEO DE FIGADO DE BACALHAU', 'FIGADO DE BACALHAU'), 'A11C3'],
+  [VR('PROPOLIS', 'PROPOLES', 'PROPLIS', 'PROPOLYZ', 'EXT PROP'), 'PROPOLIS'],
+  [VR('COLAGENO TIPO 2', 'COLAGENO TIPO II', 'COLAGENO II', 'UC II', 'UCII', 'GLUCOSAMINA', 'CONDROITINA', 'MSM', 'ARTICMAX', 'CONDRO', 'CONDROLEX', 'CONDROFLEX', 'ARTICULAR', 'ARTICULACOES', 'ARTRO', 'MOBILITY'), 'M05X'],
+  [VR('COLAGENO', 'COLLAGEN', 'COLLAGEM', 'COLAGENO HIDROLISADO', 'VERISOL', 'PEPTAN'), 'COLAGENO'],
+  [VR('WHEY', 'PROTEINA', 'PROTEIN', 'PROT', 'ALBUMINA', 'CASEINA', 'HIPERPROTEICO', 'BEEF PROT'), 'WHEY PROTEIN'],
+  [VR('CREATINA', 'CREATINE', 'CREAPURE'), 'CREATINA'],
+  [VR('BCAA', 'GLUTAMINA', 'AMINOACIDO', 'AMINOACIDOS', 'LEUCINA', 'ARGININA', 'TAURINA', 'CARNITINA', 'BETA ALANINA', 'CITRULINA', 'BETA PUMP'), 'AMINOACIDOS'],
+  [VR('MALTODEXTRINA', 'DEXTROSE', 'CARBOIDRATO', 'PALATINOSE', 'WAXY', 'GEL CARBO'), 'CARBOIDRATO'],
+  [VR('PRE TREINO', 'PRETREINO', 'POS TREINO', 'PRE WORKOUT', 'CAFEINA', 'CAFFEINE'), 'PRE TREINO/POS TREINO'],
+  [VR('HIPERCALORICO', 'MASS', 'SUPRA MASS'), 'HIPERCALORICO'],
+  [VR('PROBIOTICO', 'PROBIOTICOS', 'PROBIOTICA', 'LACTOBACILLUS', 'BIFIDO', 'BIFIDOBACTERIUM', 'SACCHAROMYCES', 'KEFIR', 'UFC', 'SIMFORT', 'FLORATIL'), 'A07F'],
+  [VR('FIBRA', 'FIBRAS', 'MUCIL', 'PSYLLIUM', 'PSILIO', 'PLANTAGO', 'INULINA', 'BENEFIBER', 'FIBER MAIS'), 'A06A3'],
+  [VR('LAXANTE', 'LAXATIVO', 'SENE', 'CASCARA', 'CASCARA SAGRADA', 'TAMARINE', 'NATURETTI'), 'A06A2'],
+  [VR('ENZIMA', 'ENZIMAS', 'LACTASE', 'DIGESTIVO', 'DIGESTIVA', 'BROMELINA', 'PAPAINA'), 'A09A'],
+  [VR('SILIMARINA', 'ALCACHOFRA', 'BOLDO', 'HEPATO', 'CARDO MARIANO', 'MILK THISTLE', 'ESTHEP'), 'A05B'],
+  [VR('REIDRATANTE', 'REIDRATACAO', 'HIDRATACAO ORAL', 'SORO DE REIDRATACAO', 'ELETROLITO', 'ELETROLITOS', 'ISOTONICO', 'REPOSITOR'), 'A07G'],
+  [VR('MELATONINA'), 'N05B1'],
+  [VR('VALERIANA', 'PASSIFLORA', 'MULUNGU', 'MELISSA', 'CAMOMILA', 'KAVA', 'SONO', 'SLEEP', 'CALMANTE', 'ASHWAGANDHA', 'TRIPTOFANO', 'GABA', '5 HTP', '5HTP'), 'N05B5'],
+  [VR('GINKGO', 'GINKO', 'MEMORIA', 'COLINA', 'MULTICOLIN', 'FOSFATIDILSERINA', 'BACOPA', 'LECITINA', 'MIND', 'COGNI', 'CONCENTRESE', 'FOCO', 'COGNITIVO'), 'N06D'],
+  [VR('GINSENG', 'GUARANA', 'CATUABA', 'MARAPUAMA', 'ENERGIA', 'ENERGY', 'ENERGETICO', 'ENERGETICA', 'TONICO', 'GELEIA REAL', 'ELIXIR', 'INHAME'), 'A13A2'],
+  [VR('APETITE', 'BUCLINA', 'COBAVITAL', 'CIPROEPTADINA'), 'A15A'],
+  [VR('CRANBERRY', 'UVA URSI', 'D MANOSE', 'MANOSE'), 'G04A9'],
+  [VR('SAW PALMETTO', 'PROSTATA', 'SEMENTE DE ABOBORA', 'PYGEUM'), 'G04C9'],
+  [VR('TRIBULUS', 'TRIBULLUS', 'TRIBX', 'MACA PERUANA', 'MACA PERU', 'TESTO', 'TESTOVIRON', 'LIBIDO', 'FENO GREGO', 'LONG JACK', 'TONGKAT'), 'G04X'],
+  [VR('ISOFLAVONA', 'MENOPAUSA', 'AMORA MIURA', 'CIMICIFUGA', 'ONAGRA', 'PRIMULA', 'BORRAGEM', 'PRIM BORR', 'INOSITOL'), 'G02X9'],
+  [VR('CASTANHA DA INDIA', 'CASTANHA DE INDIA', 'CENTELLA', 'CENTELA', 'DIOSMINA', 'HESPERIDINA', 'PICNOGENOL', 'PYCNOGENOL', 'VARIZES', 'PINUS PINASTER'), 'C05C'],
+  [VR('COENZIMA', 'COQ 10', 'COQ10', 'Q10', 'UBIQUINOL'), 'C01X'],
+  [VR('GESTANTE', 'GESTANTES', 'GESTACAO', 'PRE NATAL', 'PRENATAL', 'MAMAE', 'MATERNA', 'LACTANTE', 'GESTAVIT', 'MATERDHA', 'FOLIFEME', 'OOGESTA', 'GEST', 'MATERNITY', 'LACT', 'MATHERLLY'), 'A11A1'],
+  [VR('OMEGA 3', 'OMEGA3', 'DHA', 'EPA', 'OMEGA 3 6 9', 'OMEGA', 'COMEGA', 'OLEO DE PEIXE', 'OLEO PEIXE', 'FISH OIL', 'KRILL', 'OLEO DE LINHACA', 'OLEO LINHACA', 'FITOESTEROL', 'OLEO DE CARTAMO', 'CARTAMO', 'CLA', 'OLEO DE ALHO'), 'C10B'],
+  [VR('LUTEINA', 'ZEAXANTINA', 'VISAO', 'OCULAR'), 'S01M'],
+  [VR('GUACO', 'XAROPE DE GUACO', 'AGRIAO', 'MEL E LIMAO', 'MEL LIMAO', 'EXPECTORANTE'), 'R05C'],
+  [VR('PICOLINATO DE CROMO', 'BERBERINA', 'PATA DE VACA', 'GYMNEMA', 'GLICEMIA'), 'A10X'],
+  [VR('TERMOGENICO', 'EMAGRECEDOR', 'EMAGRECE', 'SECA BARRIGA', 'BARRIGA', 'DETOX', 'QUITOSANA', 'CHITOSAN', 'CHA VERDE', 'GREEN TEA', 'HIBISCO', 'SBELTA', 'GARCINIA', 'MOUNJARO', 'SECAPS', 'LIPO', 'SACIEDADE', 'LARANJA MORO', 'BITTER'), 'A08A'],
+  [VR('SUSTAGEN', 'ENSURE', 'NUTREN', 'FORTINI', 'PEDIASURE', 'GLUCERNA', 'NUTRIDRINK', 'FRESUBIN', 'TROPHIC', 'ENTERAL', 'COMPLEMENTO ALIMENTAR', 'COMPLEMENTO ALIMEN', 'COMPLEMENTO NUTRICIONAL', 'NUTRIPLENO', 'NUTRIVITA', 'VITAL CARE', 'SHAKE'), 'COMPLEMENTO NUTRICIONAL'],
+];
+const VIT_W = { A: VR('VITAMINA A', 'VIT A', 'RETINOL', 'BETACAROTENO', 'BETA CAROTENO'), B1: VR('B1', 'TIAMINA'), B2: VR('B2', 'RIBOFLAVINA'), B3: VR('B3', 'NIACINA', 'NICOTINAMIDA'),
+  B5: VR('B5', 'PANTOTENICO'), B6: VR('B6', 'PIRIDOXINA'), B7: VR('BIOTINA', 'B7'), B9: VR('ACIDO FOLICO', 'FOLATO', 'B9', 'METILFOLATO', 'FOLICO', 'FOLIFER'),
+  B12: VR('B12', 'COBALAMINA', 'CIANOCOBALAMINA', 'METILCOBALAMINA', 'HIDROXOCOBALAMINA'),
+  C: VR('VITAMINA C', 'VIT C', 'VITA C', 'ACIDO ASCORBICO', 'ASCORBATO', 'C 1000', 'C1000', 'CEBION', 'CENEVIT', 'REDOXON', 'CEWIN', 'TARGIFOR'),
+  D: VR('VITAMINA D', 'VIT D', 'D3', 'D2', 'COLECALCIFEROL', 'DEPURA', 'ADDERA'), E: VR('VITAMINA E', 'VIT E', 'TOCOFEROL', 'GERME DE TRIGO'),
+  K: VR('VITAMINA K', 'VIT K', 'K2', 'K1', 'MK7', 'MK 7', 'MENAQUINONA') };
+const VIT_CB = VR('COMPLEXO B', 'COMPLEXO VITAMINICO B', 'B COMPLEX', 'CITONEURIN', 'CRONOBE');
+const VIT_MIN = { CA: VR('CALCIO', 'CALCIUM', 'CALTRATE', 'OSCAL', 'OS CAL', 'CALCITRAN', 'MIRACALCIO', 'CALCIOVITAL', 'DOLOMITA'), MG: VR('MAGNESIO', 'MAGNESIUM', 'MAGNEZIUS', 'ZMA', 'DIMALATO', 'TREONATO', 'TRIMAGNESIO', 'CAIMBRA'),
+  ZN: VR('ZINCO', 'ZINC', 'CDZ', 'UNIZINCO', 'ZMA'), FE: VR('FERRO', 'FERROSO', 'FERRICO', 'IRON', 'NEUTROFER', 'NORIPURUM', 'COMBIRON', 'FOLIFER', 'DFER'), SE: VR('SELENIO', 'SELENIUM'),
+  CR: VR('CROMO'), K: VR('POTASSIO', 'POTASSIUM', 'SLOW K', 'IONCLOR'), I: VR('IODO'), CU: VR('COBRE') };
+const VIT_POLI = VR('A Z', 'AZ', 'A-Z', 'DE A A Z', 'POLIVITAMINICO', 'POLIVITAMINICOS', 'POLIVIT', 'MULTIVITAMINICO', 'MULTIVITAMINICOS', 'MULTIVIT', 'CENTRUM', 'SUPRADYN', 'LAVITAN', 'VITAMINAS E MINERAIS', 'VITAMINA E MINERAL', 'PHARMATON', 'GERIVIX', 'SUPLEVIT', 'MULTDAY', 'VITASAY');
+const VIT_GEST = VR('GESTANTE', 'GESTANTES', 'GESTACAO', 'PRE NATAL', 'PRENATAL', 'MAMAE', 'MATERNA', 'MATER', 'LACTANTE');
+const VIT_KIDS = VR('KIDS', 'KID', 'INFANTIL', 'CRIANCA', 'CRIANCAS', 'JUNIOR', 'BABY', 'BEBE', 'PEDIATRICO', 'GOMINHAS');
+const VIT_SEN = VR('SENIOR', '50 MAIS', '60 MAIS', '50+', '60+', 'MAIS DE 50', 'TERCEIRA IDADE', 'MELHOR IDADE', 'SILVER', 'GERIATRICO', 'GERIVIX');
+function vitNova(T, cat, it) {
+  const ok = c => { const n = c && catPorCod(c); return n && cfg.categorias.some(x => x.nome === n) ? n : null; };
+  if (it && it.cmedCat && /^A1[123]|^B03|^B02B/.test(nomeOf(it.cmedCat))) return { cat: it.cmedCat, como: 'classe da Anvisa (CMED)' };
+  const t = ' ' + T.join(' | ') + ' ';
+  const r0 = (c, como) => ok(c) ? { cat: ok(c), como } : null;
+  for (const [rx, c] of VIT_TIPO) { const m = rx.exec(t); if (m && ok(c)) return { cat: ok(c), como: 'tipo de produto: ' + m[1] }; }
+  const v = new Set(Object.keys(VIT_W).filter(k => VIT_W[k].test(t))); if (VIT_CB.test(t)) v.add('CB');
+  if (/(?<![A-Z0-9])CDZ(?![A-Z0-9])/.test(t)) { v.add('C'); v.add('D'); }
+  if (/(?<![A-Z0-9])OMEGA[A-Z]+/.test(t) && !v.size) return r0('C10B', 'ômega 3 (nome do produto)');
+  if (!v.size && /\d\s?UI(?![A-Z])/.test(t)) v.add('D'); // só UI (RARIVIT 200UI): vitamina D if (/(?<![A-Z0-9])DFER(?![A-Z0-9])/.test(t)) v.add('D');
+  const m = new Set(Object.keys(VIT_MIN).filter(k => VIT_MIN[k].test(t)));
+  const lista = s => [...s].join('+'), r = (c, como) => ok(c) ? { cat: ok(c), como } : null;
+  const outrosB = [...v].filter(x => !/^(CB|B\d+)$/.test(x));
+  if (v.has('CB') && !VIT_POLI.test(t) && !m.size) return r(v.has('C') ? 'A11E2' : outrosB.length ? 'A11E3' : 'A11E1', 'complexo B' + (outrosB.length ? ' + ' + outrosB.join('+') : ''));
+  const poli = VIT_POLI.test(t) || cat === 'MULTIVITAMINICO' && v.size + m.size !== 1 || [...v].filter(x => x !== 'CB').length >= 4 || (v.size >= 3 && m.size >= 1);
+  if (poli) {
+    const min = m.size > 0 || /(?<![A-Z])MINERA(L|IS)(?![A-Z])/.test(t) || (VIT_POLI.test(t) && !/SEM MINERAIS|SO VITAMINAS/.test(t)) || cat === 'MULTIVITAMINICO';
+    const sub = VIT_GEST.test(t) ? '1' : VIT_KIDS.test(t) ? '2' : VIT_SEN.test(t) && min ? '3' : '4';
+    return r((min ? 'A11A' : 'A11B') + sub, `polivitamínico ${min ? 'com' : 'sem'} minerais` + { 1: ' (gestante)', 2: ' (infantil)', 3: ' (sênior)', 4: '' }[sub]);
+  }
+  const resto = (...k) => [...v, ...m].filter(x => !k.includes(x));
+  if (m.has('CA')) return r('A12A', 'cálcio' + (resto('CA').length ? ' + ' + resto('CA').join('+') : ''));
+  if (m.has('FE')) return r(resto('FE').length ? 'B03A2' : 'B03A1', 'ferro' + (resto('FE').length ? ' + ' + resto('FE').join('+') : ''));
+  if (v.has('C')) return r(resto('C').length ? 'A11G2' : 'A11G1', 'vitamina C' + (resto('C').length ? ' + ' + resto('C').join('+') : ''));
+  if (m.has('MG') && !v.size) return r('A12C1', 'magnésio' + (m.size > 1 ? ' + ' + resto('MG').join('+') : ''));
+  if (v.has('CB')) return r(resto('CB', 'B1', 'B2', 'B3', 'B5', 'B6', 'B7', 'B9', 'B12').length ? 'A11E3' : 'A11E1', 'complexo B');
+  if (v.has('B1') && !m.size && [...v].every(x => ['B1', 'B6', 'B12'].includes(x))) return r(v.size === 1 ? 'A11D3' : 'A11D4', lista(v));
+  if (v.has('B1') && !m.size) return r('A11D9', 'B1 + ' + resto('B1').join('+'));
+  const so = k => v.size === 1 && v.has(k) && !m.size;
+  if (so('B12')) return r('A11F', 'vitamina B12');
+  if (so('B6')) return r('A11X2', 'vitamina B6');
+  if (so('E')) return r('A11X3', 'vitamina E');
+  if (so('A')) return r('A11C1', 'vitamina A');
+  if (v.size === 2 && v.has('A') && v.has('D') && !m.size) return r('A11C3', 'vitaminas A + D');
+  if (v.has('D') && [...v].every(x => x === 'D' || x === 'K') && !m.size) return r('A11C2', 'vitamina D' + (v.has('K') ? ' + K2' : ''));
+  if (so('K')) return r('B02B1', 'vitamina K');
+  if (so('B9')) return r('B03X', 'ácido fólico');
+  if (m.size && !v.size) return r(m.size === 1 && m.has('MG') ? 'A12C1' : 'A12C2', 'minerais: ' + lista(m));
+  if (v.size) return r('A11X9', 'outras vitaminas: ' + lista(new Set([...v, ...m])));
+  // linha de polivitamínico sem composição escrita (MEGA MULHER, NUTRA HAIR, IMUNE, GUMMY KIDS, SENIOR)
+  const ln = VIT_LINHA.exec(t);
+  if (ln) { const sub = VIT_KIDS.test(t) ? '2' : VIT_SEN.test(t) ? '3' : '4'; return r('A11A' + sub, 'polivitamínico pela linha do produto: ' + ln[1] + ' (composição não escrita)'); }
+  const on = VIT_OUTROS.exec(t); if (on) return r('A13A2', 'outro nutriente: ' + on[1]);
+  // marca da base de vitaminas do cliente: mais da metade dos SKUs em MULTIVITAMINICO
+  const V = K.farmaVit; if (V && V.marcas) { const mm = V.marcas.find(x => x[3] >= 0.5 && x[4] >= 3 && !x[5] && new RegExp('(?<![A-Z0-9])' + escRx(x[0]) + '(?![A-Z0-9])').test(t)); if (mm) return r('A11A4', 'marca de polivitamínico na base do cliente: ' + mm[1]); }
+  return null;
+}
+const VIT_LINHA = VR('MULHER', 'HOMEM', 'MEN', 'WOMAN', 'WOMEN', 'FEMME', 'HAIR', 'CABELO', 'CABELOS', 'UNHA', 'UNHAS', 'HAIR SKIN NAILS', 'BEAUTY', 'BELEZA', 'IMUNE', 'IMUNIDADE', 'IMUNO', 'IMMUNE', 'MULTINUTRIENTES', 'GUMMY', 'GOMAS', 'GOMINHAS', 'KIDS', 'INFANTIL', 'SENIOR', 'VITALIDADE', 'TRIPLA ACAO', 'DAILY');
+const VIT_OUTROS = VR('CURCUMA', 'CURCUMINA', 'CURCUMED', 'ACAFRAO', 'SPIRULINA', 'ESPIRULINA', 'CHLORELLA', 'CLORELA', 'MORINGA', 'RESVERATROL', 'HIALURONICO', 'NUTRAHIALURONIC', 'ACEROLA', 'CAMU CAMU', 'BETERRABA', 'CLOROFILA', 'LEVEDO', 'LEVEDURA', 'ASTAXANTINA', 'LICOPENO', 'COGUMELO', 'GANODERMA', 'POLIFENOIS', 'GERMEN', 'SUPERFOOD', 'GREENS');
 const catVitAtc = nome => /^A1[123][A-Z]/.test(nomeOf(nome)) || nome === 'VITAMINA OUTRO' || nome === 'MULTIVITAMINICO';
 // devolve { m: marca da base (ou null), cat: VITAMINA OUTRO | MULTIVITAMINICO } quando o item é suplemento de vitamina/mineral
 // fabricante que só faz suplemento (vitaminas.py -> farmaVit.fabVit): escrito na descrição ou dono do prefixo do código de barras
@@ -2363,6 +2471,14 @@ async function runAll(opts = {}) {
     r.distintosTipo = 'SIM';
     r.alerts.unshift(`Produtos distintos no mesmo código (outra cesta): categoria CODIGO INTERNO, OUTRA MARCA e OUTRO FABRICANTE (era ${nomeOf(r.cat)}, ${r.marca}, ${r.fab})`);
     r.cat = CODIGO_INTERNO; r.marca = 'OUTRA MARCA'; r.fab = 'OUTRO FABRICANTE'; r.status = ''; r.pri = r.pri || 2; }
+  // estrutura nova de Farmácia: categoria que deixou de existir vai para a nova (VITAMINA OUTRO/MULTIVITAMINICO pela composição)
+  const NOVA = K.farmaCatNova || {};
+  for (const r of res) { const de = r.cat; if (!NOVA[de]) continue;
+    let v = (de === 'VITAMINA OUTRO' || de === 'MULTIVITAMINICO') ? vitNova(r.it.T, de, r.it) : null;
+    if (!v && de === 'MULTIVITAMINICO') v = { cat: NOVA[de], como: 'polivitamínico sem composição escrita' };
+    const para = v ? v.cat : NOVA[de]; if (!para || !byName.has(para) || para === de) continue;
+    r.cat = para; r.catNova = de;
+    r.alerts.push(`Estrutura nova: ${de} não existe mais; ${nomeOf(para)}` + (v ? ` (${v.como})` : (de === 'VITAMINA OUTRO' ? ' (sem composição escrita: conferir)' : ''))); }
   if (quiet) return res;
   data.results = res;
   const secs = ((performance.now() - t0) / 1000).toFixed(1);
