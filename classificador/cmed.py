@@ -239,16 +239,27 @@ def main():
             rows.append([','.join(eans), ix('prod', prod), apres, ix('lab', lab), ix('cls', cls), ix('sub', sub), ix('tipo', tipo)] + ([data_] if k else []))
             n_hist += 1 if k else 0
     # dados abertos de preços: códigos de barras que nenhuma edição da PMC tem (marcados 'ABERTOS'; classe pela substância)
-    sc0 = defaultdict(Counter)
-    for r in rows: sc0[';'.join(sorted(N(x) for x in re.split(r'[;,]', list(idx['sub'])[r[5]]) if N(x)))][list(idx['cls'])[r[4]]] += 1
-    cls_sub = {k: v.most_common(1)[0][0] for k, v in sc0.items()}
+    # classe: 1º pelo nome do produto nas listas PMC (NASONEX -> R1A1, mesmo com mometasona em creme D7A); 2º pela substância,
+    # só quando ela tem uma classe dominante (80%+) e não é "NC/NI" (fitoterápico sem substância: ENAX, SOMINEX, PROSTATAL)
+    sc0, pc0 = defaultdict(Counter), defaultdict(Counter)
+    L_SUB, L_CLS, L_PROD = list(idx['sub']), list(idx['cls']), list(idx['prod'])
+    chave_sub = lambda s: ';'.join(sorted(N(x) for x in re.split(r'[;,]', s) if N(x) and N(x) not in ('NC NI', 'NC', 'NI')))
+    for r in rows:
+        c = L_CLS[r[4]]
+        if not c: continue
+        k = chave_sub(L_SUB[r[5]])
+        if k: sc0[k][c] += 1
+        pc0[N(L_PROD[r[1]])][c] += 1
+    dom = lambda cnt: (lambda c, n: c if n / sum(cnt.values()) >= 0.8 else '')(*cnt.most_common(1)[0]) if cnt else ''
+    cls_sub = {k: dom(v) for k, v in sc0.items()}
+    cls_prod = {k: dom(v) for k, v in pc0.items()}
     fp, n_ab = here / 'dados' / 'cmed' / 'TA_PRECOS_MEDICAMENTOS.csv', 0
     if fp.exists():
         for r in csv.DictReader(io.StringIO(fp.read_bytes().decode('latin-1')), delimiter=';'):
             e = re.sub(r'\D', '', r.get('CO_EAN') or '').lstrip('0'); prod = (r.get('NO_PRODUTO') or '').strip()
             if len(e) < 8 or e in vistos or not prod: continue
             vistos.add(e); sub = (r.get('DS_SUBSTANCIA') or '').strip()
-            cls = cls_sub.get(';'.join(sorted(N(x) for x in re.split(r'[;,]', sub) if N(x))), '')
+            cls = cls_prod.get(N(prod)) or cls_sub.get(chave_sub(sub), '')
             rows.append([e, ix('prod', prod), (r.get('DS_APRESENTACAO') or '').strip(), ix('lab', r.get('NO_RAZAO_SOCIAL')), ix('cls', cls), ix('sub', sub), ix('tipo', ''), 'ABERTOS']); n_ab += 1
     inv = lambda d: [k for k, _ in sorted(d.items(), key=lambda kv: kv[1])]
     out = {'fonte': arqs[-1].name + (f' + {len(edicoes) - 1} edições anteriores' if len(edicoes) > 1 else '') + (f' + {n_ab} da base de preços (dados abertos)' if n_ab else ''), **{k: inv(v) for k, v in idx.items()}, 'rows': rows}

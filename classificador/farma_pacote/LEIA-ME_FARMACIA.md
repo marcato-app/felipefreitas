@@ -925,3 +925,14 @@ Ver `testes_farma/resultados.txt` (gerado por `node testes_farma/rodar.js`). Exe
   polivitamínico da base -> A11X9 com alerta "conferir". Regras completas no passo 8 do farma_regras.json (AppGen).
 - Base de vitaminas do cliente (12.423 itens): 904 (7%) ficam em A11X9 para conferir; marca/fabricante/conteúdo iguais.
 - Base final: `dados/saidas/Detalhe_2_FINAL_estrutura_nova.xlsx` (aba ESTRUTURA NOVA: antes -> depois e como decidiu).
+
+### 3.6v Classe dos "dados abertos de preços" da Anvisa (correção nov/2026)
+- Os ~29 mil códigos que só existem em TA_PRECOS_MEDICAMENTOS.csv (origem ABERTOS) vinham com a classe "pela substância":
+  fitoterápico/homeopático tem substância "NC/NI" e herdava a classe mais comum dos NC/NI (M2A); substância ambígua errava
+  a forma (mometasona spray nasal -> D7A creme; prednisolona comprimido -> S1B colírio).
+- Agora (cmed.py): 1º classe pelo NOME DO PRODUTO nas listas PMC (NASONEX -> R1A1, PRELONE -> H2A2, MIRENA -> G3A9);
+  2º pela substância só com classe dominante (80%+) e nunca NC/NI; senão fica sem classe (o app decide pela descrição).
+  6.516 códigos mudaram de classe. `farma_appgen/gera_base_anvisa.py` regera o JSON da base Anvisa do AppGen.
+- Correlatos: termos novos em CORRELATO OUTROS (seringa, agulha, escalpe, coletor, sonda, bolsa de ostomia), AUXILIAR PARA
+  TRATAMENTO (órteses, meia de compressão, bolsa térmica, muleta, palmilha), MONITORAMENTO E TESTE (tiras, lanceta, teste),
+  LUVA DE PROCEDIMENTO (luva) e MASCARA DE PROTECAO (libPatches correlato-2026-11).
