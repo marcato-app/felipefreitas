@@ -1,0 +1,50 @@
+name: Publicar classificador no GitHub Pages
+
+# Publica o site com a landing page (branch claude/dog-walker-landing-page-6l0v9y) na raiz
+# e o classificador em /classificador/, onde qualquer pessoa abre e baixa as planilhas sem login.
+on:
+  push:
+    branches:
+      - claude/modest-maxwell-y0utos
+    paths:
+      - 'classificador/**'
+      - '.github/workflows/classificador-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: app
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/dog-walker-landing-page-6l0v9y
+          path: landing
+      - name: Montar o site
+        run: |
+          mkdir -p site/classificador
+          rsync -a --exclude '.git' --exclude '.github' landing/ site/
+          python3 app/classificador/build.py
+          cp app/classificador/classificador.html site/classificador/index.html
+          touch site/.nojekyll
+          ls -la site site/classificador
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4
