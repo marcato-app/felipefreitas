@@ -561,3 +561,11 @@ Pontos pra checar, em ordem:
 - Arquivo sem evidência nenhuma: novo voto sem o arquivo, e troca se o tipo votado é a 1ª palavra da maioria e de outra família.
 - Resultado no BACKLOG: o app concorda com a classificação manual em 8252/8532 (o arquivo original concordava em 7637); das 163 trocas erradas do app, sobraram ~50.
 - **Pendente**: o app só separa descrições por vírgula. Arquivos com "DESC 1 | DESC 2" viram uma descrição só. Separar por " | " é o certo, mas no BACKLOG piorou 139 itens e melhorou 70, porque as regras de maioria precisam ser recalibradas. Ficou desligado.
+
+## Categoria do arquivo que exclui a própria descrição (2026-11-23)
+
+- `excluiArquivo(c, T)`: a lista `excluir` da categoria bate em pelo menos metade das descrições (até 4) do código.
+- `categoriaArquivo`: com "Priorizar os dados do arquivo", a categoria do arquivo não é mais mantida quando ela exclui uma palavra da descrição (LEITE COMUM do arquivo com DESNATADO / ZERO LACTOSE). Fica a categoria votada sem o arquivo, se ela mesma não excluir a descrição; alerta "Arquivo: categoria X exclui uma palavra da descrição; usada Y" (flag `ARQUIVO_EXCLUIDO`). "Sempre usar os dados do arquivo" continua mantendo tudo; no modo só descritivo vira aviso (`regraForte`).
+- Exemplos ensinados atualizados para essa regra: AZEITE EXTRA VIRGEM GALLO → AZEITE DE OLIVA (AZEITE OUTROS exclui EXTRA VIRGEM); FORMA GELO PLASUTIL → ACESSORIO COZINHA OUTROS (ASSADEIRA/FORMA exclui GELO).
+- libPatch `leite-saudavel-2026-11`: LEITE SAUDAVEL reconhece DESN, SEMIDESN, SEMI DESNATADO, S/LACTOSE, 0% LACTOSE, ZERO LAC, BAIXA LACTOSE, DESLACTOSADO, 0% GORDURA… e deixa de excluir INTEGRAL (zero lactose integral é saudável); LEITE COMUM exclui esses termos e LIGHT.
+- libPatch `feijao-inicio-2026-11`: descritivo de FEIJAO BRANCO/CARIOCA/CORDA/PRETO/VERMELHO começa com o nome completo da categoria (FEIJAO CORDA CAMIL FRADINHO 1KG); FEIJAO OUTROS continua com "FEIJAO". FEIJAO CORDA também pega FRADIN/FRAD/MACACAR.

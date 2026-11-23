@@ -1833,6 +1833,10 @@ function faltaProduto(c, T) { if (!rxCat.has(c.nome)) bateCategoria(c, []); cons
   if (!rxExc.has(c.nome)) rxExc.set(c.nome, termRx(c.excluir)); const exc = rxExc.get(c.nome);
   return !!exc && T.some(t => exc.test(t)); }
 const rxExc = new Map();
+// palavra excluída pela categoria em pelo menos metade das descrições (até 4) do código
+function excluiArquivo(c, T) { if (!c || !(c.excluir || []).length || !T || !T.length) return false;
+  if (!rxExc.has(c.nome)) rxExc.set(c.nome, termRx(c.excluir)); const exc = rxExc.get(c.nome); if (!exc) return false;
+  const T4 = T.slice(0, 4); return T4.filter(t => exc.test(t)).length >= Math.ceil(T4.length / 2); }
 // categoria que exige uma palavra (OVO BRANCO exige OVO/OVOS) e nenhuma descrição a tem: o arquivo está errado
 const rxTam = new Map();
 // só vale para ovos (OVO BRANCO, CAIPIRA, VERMELHO…): outras categorias da biblioteca têm palavra obrigatória incompleta (IOGURTE LIQUIDO x BEB LACTEA)
@@ -1962,6 +1966,15 @@ function categoriaArquivo(it, a, byName, C) {
     // o voto só ficou com a categoria do arquivo por causa dela: sem nenhuma palavra da categoria na descrição (castanha, biscoito, chips
     // em MILHO PARA PIPOCA), vota de novo sem o arquivo e troca se o tipo votado estiver escrito no começo da descrição
     if (passe && passe.fixo) return a;
+    // a descrição traz uma palavra que a própria categoria do arquivo exclui (LEITE COMUM com DESNATADO / ZERO LACTOSE):
+    // vota de novo sem o arquivo e fica com a categoria que a descrição aponta
+    if (!sempreArq() && !REGRA_FORTE.has(a.flag) && excluiArquivo(c1, a.T)) {
+      const r2 = aggregate(a.T, '', C, it.main); const cx = r2.cat !== OUT && r2.cat !== s && byName.get(r2.cat);
+      if (cx && !excluiArquivo(cx, a.T)) {
+        const b = Object.assign({}, r2, { T: a.T, misturadas: a.misturadas, flag: 'ARQUIVO_EXCLUIDO' });
+        return (passe && passe.soDesc) ? Object.assign(b, { regraForte: s }) : Object.assign(b, { arqTrocada: s });
+      }
+    }
     if (REGRA_FORTE.has(a.flag) || bateCategoria(c1, a.T) || nomeNaDesc(c1, a.T) || abrevNaDesc(c1, a.T) || sempreArq()) return a;
     const r2 = aggregate(a.T, '', C, it.main); const cx = r2.cat !== OUT && r2.cat !== s && byName.get(r2.cat);
     if (cx && credivel(cx, a.T, c1) && (cabecaForte(cx, a.T) || (cx.cesta || '') !== (c1.cesta || '')) && !(s === 'COMPLEMENTO NUTRICIONAL' && cx.cesta === 'FARMACIA')) {
@@ -1972,6 +1985,11 @@ function categoriaArquivo(it, a, byName, C) {
   }
   if (passe && passe.fixo) return Object.assign({}, a, { cat: s, per: a.per.map(() => s), flag: 'ARQUIVO', arqCat: true }); // descritivo + sugestões: o descritivo segue sempre a categoria do arquivo
   const c0 = byName.get(a.cat);
+  // a categoria do arquivo exclui uma palavra da descrição e o voto aponta outra (LEITE COMUM x DESNATADO -> LEITE SAUDAVEL)
+  if (!sempreArq() && c0 && excluiArquivo(c1, a.T || []) && !excluiArquivo(c0, a.T || [])) {
+    const b = Object.assign({}, a, { flag: 'ARQUIVO_EXCLUIDO' });
+    return (passe && passe.soDesc) ? Object.assign(b, { regraForte: s }) : Object.assign(b, { arqTrocada: s });
+  }
   if (!(passe && passe.soDesc) && !sempreArq() && arqFica(s, c1, c0, a)) return Object.assign({}, a, { cat: s, per: a.per.map(() => s), flag: 'ARQUIVO', arqCat: true });
   // regra ensinada (pipoca com sabor, embalagem de ovo, papinha, bala x sabor): o sabor/ingrediente do arquivo não vale como categoria
   // tipo do biscoito escrito na descrição (ROSCA, AMANTEIGADO, POLVILHO…) vence BISCOITO OUTROS / categoria de fora dos biscoitos do arquivo
@@ -2332,7 +2350,7 @@ async function runCore(pfx = '') {
     { const C0 = C.pa && T.map(t => matchPA(t, C.pa)).find(p => p && p.cat === a.cat);
       if (C0) alerts.push('Categoria pelo princípio ativo ' + C0.pa + (C0.corrigido ? ' (destino corrigido em relação à base)' : C0.validar ? ' (base pede validação)' : '')); }
     if (a.arqAviso) alerts.push(a.arqAviso);
-    if (a.arqTrocada) alerts.push(`Arquivo: categoria ${a.arqTrocada} não bate com a descrição (outra cesta); usada ${a.cat}`);
+    if (a.arqTrocada) alerts.push(a.flag === 'ARQUIVO_EXCLUIDO' ? `Arquivo: categoria ${a.arqTrocada} exclui uma palavra da descrição; usada ${a.cat}` : `Arquivo: categoria ${a.arqTrocada} não bate com a descrição (outra cesta); usada ${a.cat}`);
     alerts.push(...arqAl);
     if (descCortado) alerts.push(`Descritivo encurtado para ${DESC_MAX} caracteres: complemento abreviado/cortado (início, marca e conteúdo mantidos)`);
     if (descLongo) alerts.push(`Descritivo com ${desc.length} caracteres: só início + marca + conteúdo já passam de ${DESC_MAX}; revisar`);
