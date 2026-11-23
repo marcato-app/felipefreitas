@@ -213,6 +213,7 @@ function N(s) {
   s = s.replace(/[^A-Z0-9%,. ]+/g, ' ');
   s = s.replace(/(\d),(?=\d)/g, '$1.').replace(/,/g, ' ');
   s = s.replace(/\.(?!\d)/g, ' ').replace(/(?<!\d)\./g, ' ');
+  s = s.replace(/(?<![A-Z0-9.])(?:0 ?%|0|ZERO) ?(?:LACTOSE|LACTOS|LACT|LAC)(?![A-Z])/g, 'ZERO LACTOSE'); // 0% LACTOSE / ZERO LAC -> ZERO LACTOSE
   return s.replace(/\s+/g, ' ').trim();
 }
 function parseDescs(s) {
