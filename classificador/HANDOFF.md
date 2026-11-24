@@ -598,3 +598,8 @@ Pontos pra checar, em ordem:
 ## MISTURA PO OUTROS com início fixo (2026-11-24; libPatch `mistura-po-inicio-2026-11`)
 - A categoria deixou de ser dinâmica: o descritivo sempre começa com MISTURA PO (MISTURA PO DONA BENTA PANQUECA 200G, MISTURA PO ROYAL CHURROS 400G). O libSeed também foi atualizado.
 - MISTURA PO SOBREMESA também com início fixo MISTURA PO (libPatch `mistura-po-sobremesa-inicio-2026-11`): MISTURA PO DR OETKER PUDIM BAUNILHA 50G.
+
+## Perecíveis 1000UN → 1KG; PRATO PRONTO / PEIXE (2026-11-24; libPatch `perec-inicio-2026-11`)
+- Contenido 1000 do arquivo + palavra de unidade na descrição (12UN, C/10, 5UN) gerava 1000UN. Agora, em categoria da cesta PERECIVEIS (ou segmento FLV_SEG), 1000 UN vira 1000 G e o descritivo sai 1KG; em FLV/carnes, 1000 ML também vira 1KG (leite continua 1L).
+- PRATO PRONTO OUTROS começa com PRATO PRONTO e PEIXE OUTROS com PEIXE (deixaram de ser dinâmicas).
+- Corrigido o libSeed (é K.libSeed.categorias) para MISTURA PO OUTROS / MISTURA PO SOBREMESA, que tinham ficado só no patch.

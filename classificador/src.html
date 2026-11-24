@@ -2345,6 +2345,9 @@ async function runCore(pfx = '') {
     // FLV (fruta, legume, verdura) e carnes: conteúdo 1 (1UN, 1 do arquivo) é venda a quilo -> CONTENIDO 1000 e descritivo só com KG
     if (q.tot === 1 && (!q.base || q.base === 'UN') && (q.n || 1) === 1 && FLV_SEG.has(((K.segPadrao || {})[a.cat] || [])[0]) && a.cat !== 'HIGIENIZADOR DE SALADA') {
       q = { tot: 1000, base: 'G', n: 1, uv: 1000, flag: 'QTD_PADRAO', kg: true }; qDesc = true; }
+    // perecível (FLV, carnes, frios, massas refrigeradas...) com 1000 em unidade (contenido 1000 do arquivo + "UN" na descrição) é quilo: 1000 G e descritivo 1KG
+    if (q.tot === 1000 && (q.n || 1) === 1 && ((q.base === 'UN' && ((K.cestas || {})[a.cat] === 'PERECIVEIS' || FLV_SEG.has(((K.segPadrao || {})[a.cat] || [])[0]))) || (q.base === 'ML' && FLV_SEG.has(((K.segPadrao || {})[a.cat] || [])[0])))) {
+      q = { tot: 1000, base: 'G', n: 1, uv: 1000, flag: '' }; qDesc = true; }
     // perecível que caiu no padrão KG: o 1 (ou vazio) do arquivo dá lugar ao 1000
     if (q.kg && !qDesc) { const qa = qtdArquivo(it.sugQt); if (!qa || (qa.tot === 1 && (!qa.base || qa.base === 'UN'))) qDesc = true; }
     // Farmácia sem início fixo no manual: começa pela marca; sem marca, pelo princípio ativo (ou pelo nome do produto)
