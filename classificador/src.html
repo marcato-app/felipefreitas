@@ -881,6 +881,9 @@ function perfumariaCat(T, C) {
   if (W('RIMEL|MASCARA (DE |P |PARA )?CILIOS|MASCARA CILIOS')) return ok('MASCARA DE CILIOS');
   if (W('NECESSAIRE|NECESSARIE|NECESSER')) return ok('NECESSAIRE E ORGANIZADORES DE MAQUIAGEM');
   if (W('COPO') && has(/(?<![A-Z])(TREINAMENTO|TRANSICAO|INFANTIL|BEBE|BABY|ANTIVAZAMENTO|BICO|CANUDO KIDS)(?![A-Z])/)) return ok('COPO INFANTIL');
+  // gel capilar escrito como GEL COLA / GEL FIXADOR / GEL ... MEGA FIX (também com a marca antes: INFINITY HAIR GEL COLA): nunca cola nem refrigerante
+  if (T.some(t => /(?<![A-Z])GEL(?![A-Z])/.test(t)) && has(/(?<![A-Z])(FIXADOR|FIXACAO|FIX|MEGA FIX|CAPILAR|HAIR|CABELO|CABELOS|MODELADOR|MODELADORA|SUPER CERA|GEL COLA|EFEITO MOLHADO|BRILHO MOLHADO)(?![A-Z])/)
+      && !has(/(?<![A-Z])(DENTAL|DENTE|BANHO|ALCOOL|ANTISSEPTICO|ACENDEDOR|SANITARIO|LIMPEZA|INSTANTANEA|SUPER BONDER|DEPIL\w*|CONTATO|ADESIVO|SILICONE|VEDA\w*|LUBRIF\w*|CICATRI\w*|MASSAGEM|BARBEAR|LAMINA|UNHA|UNHAS|SOBRANCELHA|CILIOS|POMADA|PASTA|CERA|CREME|CUTICULA|LEAVE|ATIVADOR)(?![A-Z])/)) return ok(has(/(?<![A-Z])(INFANTIL|KIDS|BABY)(?![A-Z])/) ? 'GEL E GELATINA CAPILAR INFANTIL' : 'GEL E GELATINA CAPILAR');
   if (W('CADEIRA|CADEIRINHA|CAD') && has(/(?<![A-Z])(REFEICAO|ALIMENTACAO|PAPINHA)(?![A-Z])/)) return ok('CADEIRA REFEICAO INFANTIL');
   if (W('ANDADOR') && !has(/(?<![A-Z])(ADULTO|IDOSO|ORTOPEDICO|ALUMINIO DOBRAVEL)(?![A-Z])/)) return ok('ANDADOR INFANTIL');
   if (W('ESCOVA') && has(/(?<![A-Z])(MAMADEIRA|MAMADEIRAS)(?![A-Z])/)) return ok('ESCOVA PARA MAMADEIRA');
@@ -897,6 +900,28 @@ const INFANTIL_DE = { 'SHAMPOO LIQUIDO': 'SHAMPOO INFANTIL', 'SHAMPOO A SECO': '
   'KIT CAPILAR OUTROS': 'KIT CAPILAR INFANTIL', 'KIT SHAMPOO E CONDICIONADOR': 'KIT CAPILAR INFANTIL', 'CREME PARA ASSADURA': 'CREME PARA ASSADURA INFANTIL', 'ESCOVA PARA CABELO': 'ESCOVA E PENTE DE CABELO INFANTIL',
   'PENTE': 'ESCOVA E PENTE DE CABELO INFANTIL', 'BATOM': 'MAQUIAGEM INFANTIL', 'GLOSS E BRILHO': 'MAQUIAGEM INFANTIL', 'SOMBRA': 'MAQUIAGEM INFANTIL', 'KIT MAQUIAGEM': 'MAQUIAGEM INFANTIL', 'ESMALTE COMUM': 'MAQUIAGEM INFANTIL',
   'KIT DE  BANHO': 'KIT INFANTIL', 'KIT DE CUIDADOS CORPORAL': 'KIT INFANTIL', 'TESOURA PARA CABELO': 'KIT ACESSORIO INFANTIL', 'COPO': 'COPO INFANTIL', 'CADEIRA E BANCO': null };
+// BAZAR x bebê: copo, prato, talher, tigela, pote e acessórios de alimentação de bebê (marcas e sinais de bebê) vão para puericultura;
+// espátula de cutícula / manicure nunca é utensílio de cozinha
+const RX_BEBE_BZ = /(?<![A-Z])(INFANTIL|INFANTIS|INF|KIDS|BABY|BEBE|BEBES|BB|BUBA|BUB|LILLO|KUKA|NUK|AVENT|PHILIPS AVENT|MAM|PIMPOLHO|MULTIKIDS|CLINGO|PETITA|NEOPAN|BABYGO|BABY GO|CHICCO|NUBY|MUNCHKIN|TOMMEE|TOMMEE TIPPEE|FISHER PRICE|LOLLY|GIROTONDO|PITUCA|ADOLETA|ABABY|SKIP HOP|TWISTSHAKE|CAJOVIL|DERMIWIL|PASSEAR BABY|KITSTAR|MOMO|PEPETA|LIKLUC|MEDELA|LANSINOH|MESES|TREINAMENTO|TRANSICAO|ANTIVAZAMENTO|ANTIVAZ|VENTOSA|PAPINHA|MAMADEIRA|MAMADEIRAS|AMAMENTACAO|BENTO BOX|LUNCHBOX)(?![A-Z])|\+ ?\d{1,2} ?M(?![A-Z])|\d{1,2} ?\+ ?M(?![A-Z])/;
+const BZ_COZ_BEBE = new Set(['COPO', 'CANECA', 'PRATO', 'TALHER', 'RECIPIENTE', 'UTILIDADE OUTROS', 'POTE', 'TERMICO OUTROS', 'ACESSORIO COZINHA OUTROS', 'UTENSILIOS', 'EMBALAGEM OUTROS', 'DESCARTAVEL OUTROS', 'COPO DESCARTAVEL', 'SALADEIRA', 'BANDEJA', 'XICARA', 'FAQUEIRO', 'APARELHO DE JANTAR']);
+function bazarBebeCat(cat, T, C) {
+  const lib = C.libNames || C.names; const ok = n => (n && lib.has(n)) ? n : null;
+  if (!T.length) return null; const all = T.join(' | '); const has = rx => rx.test(all);
+  if (cat === 'UTENSILIOS' && has(/(?<![A-Z])(ESPATULA|ESPAT)(?![A-Z])/) && !has(/(?<![A-Z])(BOLO|CONFEIT\w*|COZINHA|FRITURA|NYLON|CHURRASCO|PIZZA|PAO|MASSA|CULINARIA|PANELA|HAMBURGUER)(?![A-Z])/)
+      && has(/(?<![A-Z])(CUTICULA|CUTICULAS|CUTILA|UNHA|UNHAS|MANICURE|CUTELARIA|DESENCRAVADOR|CURETA|BISTURI|DUPLA|MERHEJE|SANTA CLARA|MUNDIAL|DILCINTIA|RICCA|ENOX|NATI|ISIS|PANVEL|VERTIX|RASPADOR)(?![A-Z])/)) return ok('CUTELARIA OUTROS');
+  if (!BZ_COZ_BEBE.has(cat) || !T.some(t => RX_BEBE_BZ.test(t.replace(/GIOVANNA BABY|BABY LISS|BABYLISS|BABY DOLL|BABY BLUE|BABY ROSE|BABY PINK/g, ' ')))) return null;
+  if (has(/(?<![A-Z])(PET|CAES|CAO|CACHORRO|GATO|GATOS|FELINO)(?![A-Z])/) && !has(/(?<![A-Z])(ZOO|BUBAZOO|BABY|BEBE|INFANTIL)(?![A-Z])/)) return null;
+  const t0 = T[0];
+  if (has(/(?<![A-Z])(ESCOVA|ESCOVAS)(?![A-Z])/) && has(/(?<![A-Z])(MAMADEIRA|MAMADEIRAS|BICOS|BICO|CANUDO|CANUDOS)(?![A-Z])/)) return ok('ESCOVA PARA MAMADEIRA');
+  const copoT0 = /^(\S+ ){0,2}(COPO|COPOS|COPINHO|CANECA|CANECAS|CANACA)(?![A-Z])/.test(t0) || T.filter(t => /(?<![A-Z])(COPO|COPOS|COPINHO|CANECA|CANECAS)(?![A-Z])/.test(t)).length * 2 > T.length;
+  if (copoT0 && !/^(KIT|CONJUNTO|CONJ|CJ|CJT|JOGO|JG) /.test(t0) && !/^(?!COPO|COPOS|COPINHO|CANECA|CANECAS)(\S+ ){0,2}(CANUDO|CANUDOS|ESCOVA|BICO|TAMPA|REFIL)(?![A-Z])/.test(t0)) return ok('COPO INFANTIL');
+  if (has(/(?<![A-Z])(LEITE MATERNO|LEITE EM PO|LEITE PO|AMAMENTACAO|SEIO|SEIOS|ESTERILIZ\w*|ESTERELIZ\w*|DOSADOR|DOSADORA|ESCORREDOR|CONCHA|CONCHAS|CANUDO|CANUDOS|REPOSITOR|BOLSA TERMICA|PROTETOR TERMICO|MAMADEIRA|MAMADEIRAS|TROCADOR|TROCADORES|SACOS? DE FRALDA\w*)(?![A-Z])/) && !has(/(?<![A-Z])(PRATO|PRATINHO|BOWL|TIGELA|TIGELINHA|TALHER|TALHERES)(?![A-Z])/)) return ok('OUTROS BEBE PUERICULTURA LEVE');
+  if (/^(KIT|CONJUNTO|CONJ|CJ|CJT|JOGO|JG)(?![A-Z])/.test(t0) && ['PRATO', 'PRATINHO', 'BOWL', 'TIGELA', 'COPO', 'CANECA', 'COLHER', 'GARFO', 'TALHER', 'TALHERES'].filter(w => new RegExp('(?<![A-Z])' + w + '(?![A-Z])').test(all)).length >= 3) return ok('KIT ACESSORIO INFANTIL');
+  if (has(/(?<![A-Z])(COPO|COPOS|COPINHO|CANECA|CANECAS|CANACA)(?![A-Z])/) && ['COPO', 'CANECA', 'DESCARTAVEL OUTROS', 'COPO DESCARTAVEL', 'XICARA', 'UTILIDADE OUTROS', 'TERMICO OUTROS'].includes(cat)) return ok('COPO INFANTIL');
+  if (cat !== 'ACESSORIO COZINHA OUTROS' && has(/(?<![A-Z])(PRATO|PRATOS|PRATINHO|PRATIO|BOWL|TIGELA|TIGELAS|TIGELINHA|TIJELA|TIJALA|TALHER|TALHERES|COLHER|COLHERES|GARFO|FACA|BENTO BOX|LUNCHBOX|MARMITINHA|POTE TERMICO|POTE TERM|AMASSADOR|PORTA FRUTINHA|ALIMENTADOR)(?![A-Z])/)) return ok('REFEICAO INFANTIL');
+  if (has(/(?<![A-Z])(COPO|COPOS|COPINHO|CANECA)(?![A-Z])/)) return ok('COPO INFANTIL');
+  return null;
+}
 // marcas de dermocosmético (farmácia): protetor/creme delas continua na farmácia
 const RX_DERMO = /(?<![A-Z])(LA ROCHE|ROCHE POSAY|LA ROCHE POSAY|VICHY|AVENE|EUCERIN|BIODERMA|ISDIN|CETAPHIL|CERAVE|EPISOL|ADCOS|NEOSTRATA|SKINCEUTICALS|SESDERMA|MANTECORP|ANTHELIOS|FOTOPROTETOR|PHOTODERM|ACTINE|EPIDRAT|DERMAGE|DARROW|PHARMAPELE|NUXE|URIAGE|FILLERINA|PROFUSE|ISDINCEUTICS|EXTRAPROTECT|FOTOULTRA|MINESOL|SUNMAX)(?![A-Z])/;
 const RX_INFANTIL = /(?<![A-Z])(INFANTIL|INFANTIS|INF|KIDS|KID|BABY|BEBE|BEBES|BB|JOHNSONS BABY|CRIANCA|CRIANCAS|TURMA DA MONICA|PEPPA|PATRULHA CANINA|BARBIE|FROZEN|HOT WHEELS|MINNIE|PRINCESAS|TANDY|GRANADO BEBE|MUSTELA|BEPANTOL BABY|HIPOGLOS|ACQUA KIDS|NENEM)(?![A-Z])/;
@@ -1106,19 +1131,35 @@ function melCat(T, C, cesta0) {
 }
 // garrafa térmica: garrafa/GF/bule/termo/ampola com TERMICA, ISOTERMICA, INOX, PAREDE DUPLA, VACUO, PRESSAO, TERMOS, ou de marca térmica
 const RX_GARRAFA_INI = /^(GARRAFA|GARRAFAS|GARRAF|GARR|GF|BULE|TERMO|TERMOS|AMPOLA|REFIL GARRAFA|TERMICA|TERMICO)(?![A-Z])/;
-const RX_TERMICA_W = /(?<![A-Z])(TERMICA|TERMICAS|TERMICO|TERMICOS|TERM|ISOTERMICA|ISOTERMICO|ISOTERM|INOX|ACO INOX|PAREDE DUPLA|DUPLA PAREDE|VACUO|PRESSAO|TERMOS|TERMO|STANLEY|TERMOLAR|INVICTA|SOPRANO TERM\w*|HYDRO ?FLASK|THERMOS|ZOJIRUSHI|NIGRAS|BRASFORT TERM\w*)(?![A-Z])/;
+const RX_TERMICA_W = /(?<![A-Z])(TERMICA|TERMICAS|TERMICO|TERMICOS|TERM|ISOTERMICA|ISOTERMICO|ISOTERM|INOX|ACO INOX|PAREDE DUPLA|DUPLA PAREDE|VACUO|PRESSAO|TERMOS|TERMO|STANLEY|TERMOLAR|INVICTA|SOPRANO TERM\w*|HYDRO ?FLASK|THERMOS|ZOJIRUSHI|NIGRAS|BRASFORT TERM\w*|ALADDIN|ALADIN|ALADIM|ALLADIN|UNITERMI|THERMOFORT|TERMOPRO|HAUSKRAFT)(?![A-Z])/;
 const GARRAFA_UN = new Set(['GARRAFA TERMICA', 'GARRAFA OUTROS', 'SQUEEZE']);
+function garrafaTermicaUma(t0) {
+  const t = t0.replace(/^(\*|ZZ|BZ|UT|LJ|HIPER|UTILIDADE|UTILIDADES)+ ?/, '').replace(/^(\*|ZZ)+/, '').replace(/^GARRAFATERM/, 'GARRAFA TERM').trim(); if (!t) return false;
+  if (/^SQUEEZE(?![A-Z])/.test(t) && /(?<![A-Z])(TERMICA|TERMICO|TERM|ISOTERMICA|ISOTERMICO|PAREDE DUPLA|VACUO)(?![A-Z])/.test(t)) return true; // squeeze térmico
+  if (/^(TERMOLAR|STANLEY|INVICTA|THERMOS|HYDRO FLASK|SOPRANO|MOR|PACCO) (GARRAFA|GF|GFA|BULE|TERMICA|TERMICO|TERMO)(?![A-Z])/.test(t)) return true; // marca térmica antes do tipo
+  // garrafa / garrafão / botijão / jarra / cantil / recipiente + TERM… (também com a marca antes: UNITERMI GARRAFA TERM, MOR GFA TERM, LYOR GARRAF TERM; e KIT/CJ GARRAFA TERM + xícaras)
+  const TIPO = '(?:GARRAFA|GARRAFAS|GARRAF|GARR|GARA|GAR|GFA|GF|GRF|GARRAFAO|GARFAO|GFAO|BOTIJAO|JARRA|GALAO|CANTIL|RECIPIENTE|RECIP|REC|GARRAFINHA)';
+  const TERMW = '(?:TERM\\w*|ISOTERM\\w*|TER)';
+  if (new RegExp('^(?:(?:KIT|CJ|CONJ|CONJUNTO|JOGO|JG|A)\\s)?(?:[A-Z0-9]+\\s){0,2}' + TIPO + '\\.?\\s(?:[A-Z0-9]+\\s){0,2}' + TERMW + '(?![A-Z])').test(t)
+      && !/^(CAIXA|CX|BOLSA|LANCHEIRA|MOCHILA|MARMITA|POTE|BALDE|COPO|CANECA|CUIA|SACOLA|TAMPA|ROLHA|ESCOVA|CAPA|ADESIVO|BOBINA|MANTA|PASTA|FAIXA|TOALHA|SUPORTE|PORTA|ANEL|ANEIS|KIT ANE|CANUDO|CANUDOS|BICO|VEDACAO|ALCA|REFIL TAMPA|PROTETOR|CAPINHA)(?![A-Z])/.test(t)
+      && !/(?<![A-Z])(TERMOMETRO|TERMOSTATO|TERMINAL|TERMOFIXO|TERMOENCOLHIVEL|TERMOCOLANTE|TERCO|TERRA|TERRACO|TERERE COPO)(?![A-Z])/.test(t)) return true;
+  if (/^(BULE|TERMOBULE|GARRAFA BULE)(?![A-Z])/.test(t) && !/(?<![A-Z])(ELETRIC\w*|CHALEIRA|AGATA|ESMALTAD\w*|PORCELANA|LOUCA|CHA PORCELANA)(?![A-Z])/.test(t)) return true; // bule térmico
+  if (!RX_GARRAFA_INI.test(t) || !RX_TERMICA_W.test(t)) return false;
+  if (/^(AMPOLA|TERMO|TERMOS)(?![A-Z])/.test(t) && !/(?<![A-Z])(TERMICA|TERMICO|TERM|INOX|ISOTERMIC\w*|GARRAFA)(?![A-Z])/.test(t.replace(/^(TERMO|TERMOS) /, ''))) return false; // ampola de tratamento, termo de garantia
+  if (/(?<![A-Z])(SQUEEZE|CANECA|COPO|JARRA|CAIXA|BOLSA|BAU|BALDE|LANCHEIRA|MARMITA|POTE|CUIA|BOMBA|SACOLA|TAMPA PARA|ROLHA|ESCOVA|LIMPADOR|ADESIVO|CAPA|CERVEJA|VINHO|AGUA MINERAL|SUCO|CACHACA|WHISKY|AZEITE)(?![A-Z])/.test(t)
+      && !/^(GARRAFA|GF|BULE) TERM/.test(t)) return false;
+  if (/^(TERMO|TERMOS)(?![A-Z])/.test(t) && /(?<![A-Z])(METRO|HIGROMETRO|STATO|STATICO|DIGITAL)(?![A-Z])/.test(t)) return false; // termômetro / termostato
+  return true;
+}
 function garrafaTermicaCat(T, C) {
   if (!T || !T.length || !T[0]) return null; const lib = C.libNames || C.names; if (!lib.has('GARRAFA TERMICA')) return null;
-  const t = T[0].replace(/^(\*|ZZ)+/, '').trim();
-  if (/^SQUEEZE(?![A-Z])/.test(t) && /(?<![A-Z])(TERMICA|TERMICO|ISOTERMICA|ISOTERMICO|PAREDE DUPLA|VACUO)(?![A-Z])/.test(t)) return 'GARRAFA TERMICA'; // squeeze térmico
-  if (/^(TERMOLAR|STANLEY|INVICTA|THERMOS|HYDRO FLASK|SOPRANO|MOR|PACCO) (GARRAFA|GF|BULE|TERMICA|TERMICO|TERMO)(?![A-Z])/.test(t)) return 'GARRAFA TERMICA'; // marca térmica antes do tipo
-  if (!RX_GARRAFA_INI.test(t) || !RX_TERMICA_W.test(t)) return null;
-  if (/^(AMPOLA|TERMO|TERMOS)(?![A-Z])/.test(t) && !/(?<![A-Z])(TERMICA|TERMICO|TERM|INOX|ISOTERMIC\w*|GARRAFA)(?![A-Z])/.test(t.replace(/^(TERMO|TERMOS) /, ''))) return null; // ampola de tratamento, termo de garantia
-  if (/(?<![A-Z])(SQUEEZE|CANECA|COPO|JARRA|CAIXA|BOLSA|BAU|BALDE|LANCHEIRA|MARMITA|POTE|CUIA|BOMBA|SACOLA|TAMPA PARA|ROLHA|ESCOVA|LIMPADOR|ADESIVO|CAPA|CERVEJA|VINHO|AGUA MINERAL|SUCO|CACHACA)(?![A-Z])/.test(t)
-      && !/^(GARRAFA|GF|BULE) TERM/.test(t)) return null;
-  if (/^(TERMO|TERMOS)(?![A-Z])/.test(t) && /(?<![A-Z])(METRO|HIGROMETRO|STATO|STATICO|DIGITAL)(?![A-Z])/.test(t)) return null; // termômetro / termostato
-  return 'GARRAFA TERMICA';
+  // a primeira descrição decide; ou a maioria das descrições (UNITERMI ... SALMAO, MOR GFA TERM ... PESSEGO: cor/sabor nunca vence)
+  const ok = T.map(garrafaTermicaUma); const n = ok.filter(Boolean).length;
+  if (ok[0]) return 'GARRAFA TERMICA';
+  if (n * 2 > T.length) return 'GARRAFA TERMICA';
+  // alguma descrição diz térmica e nenhuma diz material de garrafa comum (PET, plástico, alumínio, vidro, squeeze)
+  if (n >= 1 && /^(GARRAFA|GARRAF|GARR|GAR|GFA|GF|GRF|GA)(?![A-Z])/.test(T[0].replace(/^(\*|ZZ|BZ|UT|UD|LJ) ?/, '')) && !T.some(t => /(?<![A-Z])(PET|PLAST\w*|PP|ALUM\w*|VIDRO|VD|SQUEEZE|SQZ|TRITAN|POLICARB\w*|AGUA|DAGUA|SEMITERMICA|SEMI TERMICA)(?![A-Z])/.test(t))) return 'GARRAFA TERMICA';
+  return null;
 }
 // complemento nutricional: produto para complementar a nutrição do corpo (ômega 3, óleo de peixe/krill, maca peruana, spirulina,
 // chlorella, coenzima Q10; cúrcuma, óleos, colágeno, moringa… em cápsulas), além do escrito COMPLEMENTO NUTRICIONAL / ALIMENTAR.
@@ -1311,16 +1352,19 @@ function aggregate1(T0, sug, C, main) {
   // pipoca: o sabor (CALABRESA, PICANHA, QUEIJO, CHOCOLATE, LEITE CONDENSADO, BACON, SAL…) nunca é a categoria.
   // PIPOCA / POPCORN / POP CORN (ou MILHO) + MICRO (MICROONDAS, MICRO-ONDAS, MICROOND…) -> PIPOCA MICRO-ONDAS;
   // PIPOCA / POPCORN sem MICRO que caiu em outro alimento -> categoria de pipoca votada ou PIPOCA PRONTA
+  { const gt = garrafaTermicaCat(T, C); if (gt) return Object.assign(r, { cat: gt, flag: 'GARRAFA_TERMICA', per: r.per.map(() => gt) }); }
   { const sp = suplementoCat(T, C, sug, r.cat); if (sp) return Object.assign(r, { cat: sp, flag: 'SUPLEMENTO_TIPO', per: r.per.map(() => sp) }); }
   { const tf = tipoForteCat(T, C); if (tf) return Object.assign(r, { cat: tf, flag: 'TIPO_FORTE', per: r.per.map(() => tf) }); }
   { const cn = complementoCat(T, C); if (cn) return Object.assign(r, { cat: cn, flag: 'COMPLEMENTO_TIPO', per: r.per.map(() => cn) }); }
   if (cestaOf(r.cat) !== 'FARMACIA' || (/^DERMOCOSMETICO/.test(r.cat) && !T.some(t => RX_DERMO.test(t)))) { const pc0 = perfumariaCat(T, C); if (pc0) { const pc = infantilDe(pc0, T, C) || pc0; if (pc !== r.cat) return Object.assign(r, { cat: pc, flag: 'PERFUMARIA_TIPO', per: r.per.map(() => pc) }); return r; } }
   { const ic = cestaOf(r.cat) !== 'FARMACIA' && infantilDe(r.cat, T, C); if (ic) return Object.assign(r, { cat: ic, flag: 'INFANTIL', per: r.per.map(x => x === r.cat ? ic : x) }); }
+  { const bb = bazarBebeCat(r.cat, T, C); if (bb && bb !== r.cat) return Object.assign(r, { cat: bb, flag: 'BAZAR_BEBE', per: r.per.map(x => x === r.cat ? bb : x) }); }
+  // ACESSORIO COZINHA OUTROS é o genérico: objeto da 1ª palavra com categoria própria de bazar (ESPREMEDOR → UTENSILIOS) vence
+  if (r.cat === 'ACESSORIO COZINHA OUTROS' && T.length) { const n = OBJ_CAT[(T[0].replace(/^(\*|ZZ)+/, '').trim().split(' ')[0]) || '']; if (n && n !== r.cat && (C.libNames || C.names).has(n) && cestaOf(n) === 'BAZAR' && !excluiObjeto(n, T, C)) return Object.assign(r, { cat: n, flag: 'OBJETO_BAZAR', per: r.per.map(x => x === r.cat ? n : x) }); }
   { const lc = limpezaCat(T, C); if (lc && lc !== r.cat) return Object.assign(r, { cat: lc, flag: 'LIMPEZA_TIPO', per: r.per.map(() => lc) }); }
   { const bc = biscoitoCat(T, C); if (bc) return Object.assign(r, { cat: bc, flag: 'BISCOITO_TIPO', per: r.per.map(() => bc) }); }
   { const mi = massaInstCat(T, C); if (mi) return Object.assign(r, { cat: mi, flag: 'MASSA_INST', per: r.per.map(() => mi) }); }
   { const ml = melCat(T, C, cestaOf(r.cat)); if (ml) return Object.assign(r, { cat: ml, flag: 'MEL_TIPO', per: r.per.map(() => ml) }); }
-  { const gt = garrafaTermicaCat(T, C); if (gt) return Object.assign(r, { cat: gt, flag: 'GARRAFA_TERMICA', per: r.per.map(() => gt) }); }
   { const mc = misturaCat(T, C, r.cat); if (mc && mc !== r.cat) return Object.assign(r, { cat: mc, flag: 'MISTURA_TIPO', per: r.per.map(() => mc) }); }
   { const dc = doceCat(T, C); if (dc) return Object.assign(r, { cat: dc, flag: 'DOCE_REGRA', per: r.per.map(() => dc) }); }
   { const cp = chocPoCat(T, C); if (cp) return Object.assign(r, { cat: cp, flag: 'CHOCPO_VENCE', per: r.per.map(() => cp) }); }
@@ -3080,7 +3124,7 @@ function migrarCategorias() {
       const add = (k, l) => { c[k] = c[k] || []; for (const t of l || []) if (!c[k].includes(t)) { c[k].push(t); n++; } };
       const del = (k, l) => { const rm = new Set(l || []); if (!rm.size || !c[k]) return; const k0 = c[k].length; c[k] = c[k].filter(t => !rm.has(t)); n += k0 - c[k].length; };
       add('tipo', p.tipo); del('tipo', p.remover_tipo);
-      if (!cfg.migracoes.includes(pid)) { add('incluir', p.incluir); add('excluir', p.excluir); add('forte', p.forte); add('tambem', p.tambem); if (p.inicio) { c.inicio = p.inicio; c.dinamico = false; n++; } del('incluir', p.remover_incluir); del('excluir', p.remover_excluir); del('forte', p.remover_forte); }
+      if (!cfg.migracoes.includes(pid)) { add('incluir', p.incluir); add('excluir', p.excluir); add('forte', p.forte); add('tambem', p.tambem); if (p.inicio) { c.inicio = p.inicio; c.dinamico = false; n++; } if (p.dinamico) { c.inicio = ''; c.dinamico = true; n++; } del('incluir', p.remover_incluir); del('excluir', p.remover_excluir); del('forte', p.remover_forte); }
     }
     if (!cfg.migracoes.includes(pid)) { cfg.migracoes.push(pid); n++; }
   }
