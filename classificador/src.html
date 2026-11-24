@@ -647,6 +647,7 @@ function classifyRules(t, C) {
 // posição da palavra que diz o tipo do produto: pula código de embalagem (ENCART, UTIL...), números e marca do dicionário
 const SKIPTIPO = new Set('ENCART ENCARTELADO ENC ENCT UTIL UTI UTILID UD JD CL TRK BZ MB MC REF COD CJ EMB PCT BAZAR PAPELARIA PAPELARIAS ESCOLAR ESC OUTROS OUTRAS INATIVO SUBSTITUICAO'.split(' '));
 // categoria dinâmica: o descritivo começa pelo tipo (1ª palavra) quando é um termo da própria categoria (ex.: ESTOJO, PASTA)
+const FLV_SEG = new Set(['FRUTA IN NATURA', 'LEGUME', 'VERDURA']);
 const INI_ABREV_LONGA = new Set(['CONG', 'REFRIG', 'RESF', 'INST', 'PREM', 'TRAD']);
 const INI_FRASES = (K.inicioFrases || []).map(N).sort((a, b) => b.length - a.length);
 function tipoIni(T, per, cat, C) {
@@ -2295,6 +2296,11 @@ async function runCore(pfx = '') {
     }
     // complemento nutricional em cápsulas / comprimidos: o conteúdo é a contagem em CPS (60CPS, 2X60CPS)
     if (catCapsula(a.cat)) { const cq = qtdCapsulas(Tq); if (cq) { q = cq; qDesc = true; } }
+    // FLV (fruta, legume, verdura): conteúdo 1 (1UN, 1 do arquivo) é venda a quilo -> CONTENIDO 1000 e descritivo só com KG
+    if (q.tot === 1 && (!q.base || q.base === 'UN') && (q.n || 1) === 1 && FLV_SEG.has(((K.segPadrao || {})[a.cat] || [])[0]) && a.cat !== 'HIGIENIZADOR DE SALADA') {
+      q = { tot: 1000, base: 'G', n: 1, uv: 1000, flag: 'QTD_PADRAO', kg: true }; qDesc = true; }
+    // perecível que caiu no padrão KG: o 1 (ou vazio) do arquivo dá lugar ao 1000
+    if (q.kg && !qDesc) { const qa = qtdArquivo(it.sugQt); if (!qa || (qa.tot === 1 && (!qa.base || qa.base === 'UN'))) qDesc = true; }
     // Farmácia sem início fixo no manual: começa pela marca; sem marca, pelo princípio ativo (ou pelo nome do produto)
     const farmaLivre = cc && cc.cesta === 'FARMACIA' && !cc.inicio;
     const paHit = farmaLivre && !bn && C.pa ? T.map(t => matchPA(t, C.pa)).find(Boolean) : null;

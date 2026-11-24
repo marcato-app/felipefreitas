@@ -577,3 +577,5 @@ Pontos pra checar, em ordem:
 - `FRALDINHA` (corte bovino) não cai mais na regra de fralda da perfumaria (só vai para fralda com BEBE/BABY/INFANTIL/DESCARTAVEL/tamanho).
 - libPatch `pereciveis-2026-11`: CORACAO/FIGADO/MOELA DE FRANGO → MIUDOS AVES; DRUMET → COXINHA DA ASA; PASSARINHO DE FRANGO → PETISCO DE FRANGO; SALSINHA/CHEIRO VERDE → ERVA FRESCA; BROCOLIS/COUVE FLOR sem "CONG" saem de VEGETAL CONGELADO.
 - `inicioFrases` + CHEIRO VERDE, COUVE FLOR, FRANGO A PASSARINHO; início abreviado (CONG, REFRIG, RESF, INST, PREM, TRAD) remove a palavra longa repetida (PAO DE QUEIJO CONG … CONGELADO).
+- FLV (segmentos FRUTA IN NATURA, LEGUME, VERDURA; exceto HIGIENIZADOR DE SALADA): conteúdo final 1 (1UN, "UN" solto, 1 do arquivo) vira CONTENIDO 1000 e descritivo com `KG` — também no modo "arquivo mantido" (qDesc). Contagens maiores (3UN, C/12) e pesos explícitos (500G, 1KG) não mudam.
+- Perecível que cai no padrão KG também troca o 1 (ou vazio) do arquivo por 1000 no modo "arquivo mantido".
