@@ -597,3 +597,4 @@ Pontos pra checar, em ordem:
 
 ## MISTURA PO OUTROS com início fixo (2026-11-24; libPatch `mistura-po-inicio-2026-11`)
 - A categoria deixou de ser dinâmica: o descritivo sempre começa com MISTURA PO (MISTURA PO DONA BENTA PANQUECA 200G, MISTURA PO ROYAL CHURROS 400G). O libSeed também foi atualizado.
+- MISTURA PO SOBREMESA também com início fixo MISTURA PO (libPatch `mistura-po-sobremesa-inicio-2026-11`): MISTURA PO DR OETKER PUDIM BAUNILHA 50G.
