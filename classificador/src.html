@@ -647,6 +647,7 @@ function classifyRules(t, C) {
 // posição da palavra que diz o tipo do produto: pula código de embalagem (ENCART, UTIL...), números e marca do dicionário
 const SKIPTIPO = new Set('ENCART ENCARTELADO ENC ENCT UTIL UTI UTILID UD JD CL TRK BZ MB MC REF COD CJ EMB PCT BAZAR PAPELARIA PAPELARIAS ESCOLAR ESC OUTROS OUTRAS INATIVO SUBSTITUICAO'.split(' '));
 // categoria dinâmica: o descritivo começa pelo tipo (1ª palavra) quando é um termo da própria categoria (ex.: ESTOJO, PASTA)
+const INI_ABREV_LONGA = new Set(['CONG', 'REFRIG', 'RESF', 'INST', 'PREM', 'TRAD']);
 const INI_FRASES = (K.inicioFrases || []).map(N).sort((a, b) => b.length - a.length);
 function tipoIni(T, per, cat, C) {
   const x = C.cats.find(y => y.c.nome === cat); if (!x) return '';
@@ -805,7 +806,8 @@ function perfumariaCat(T, C) {
     if (has(/(?<![A-Z])KIT(?![A-Z])/)) return ok('KIT PROTETOR SOLAR');
     return ok('PROTETOR SOLAR CORPORAL');
   }
-  if (W('FRALD\\w*|FRALDA|FRALDAS') && !has(/(?<![A-Z])(PET|CAES|CACHORRO|BOLSA|TROCADOR|LIXEIRA|ORGANIZADOR)(?![A-Z])/)) {
+  if (W('FRALD\\w*|FRALDA|FRALDAS') && !has(/(?<![A-Z])(PET|CAES|CACHORRO|BOLSA|TROCADOR|LIXEIRA|ORGANIZADOR)(?![A-Z])/)
+    && !(has(/(?<![A-Z])FRALDINHA(?![A-Z])/) && !has(/(?<![A-Z])(BEBE|BABY|INFANTIL|DESCARTAVEL|DESC|PANO|TAM|RN|XG|XXG)(?![A-Z])/))) { // FRALDINHA (corte bovino) não é fralda
     if (has(/(?<![A-Z])(GERIATR\w*|ADULTO|ADULTA|BIGFRAL|TENA|PLENITUD|MAIOR IDADE|GERIATRICA)(?![A-Z])/)) return ok('FRALDA GERIATRICA');
     if (has(/(?<![A-Z])(PANO|ECOLOGICA|LAVAVEL|LAVAVEIS|REUTILIZAVEL)(?![A-Z])/)) return ok('FRALDA OUTROS');
     if (has(/(?<![A-Z])(PANTS|CALCA|CALCINHA|CUECA|PANT)(?![A-Z])/)) return ok('FRALDA DESCARTAVEL PANTS');
@@ -1627,7 +1629,7 @@ function itemQty(T, sug) {
 }
 const fmtn = v => Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : String(+v.toFixed(3));
 function fmtUnit(v, base) { if (base !== 'G' && base !== 'ML') return fmtn(v) + base; if (v >= 1000) return fmtn(Math.round(v) / 1000) + (base === 'G' ? 'KG' : 'L'); return fmtn(v) + (base === 'G' ? 'G' : 'ML'); }
-function qtyText(q) { if (!q || q.tot === null) return ''; return q.n > 1 ? q.n + 'X' + fmtUnit(q.uv, q.base) : fmtUnit(q.tot, q.base); }
+function qtyText(q) { if (!q || q.tot === null) return ''; if (q.kg && q.tot === 1000 && q.base === 'G') return 'KG'; return q.n > 1 ? q.n + 'X' + fmtUnit(q.uv, q.base) : fmtUnit(q.tot, q.base); }
 
 /* descritivo */
 function groupOf(cat) { const cc = cfg.categorias.find(c => c.nome === cat); if (cc && cc.cesta === 'FARMACIA') return 'FARMA'; if (cat.startsWith('CAFE')) return 'CAFE'; if (cat.startsWith('FARINHA')) return 'FARINHA'; if (cat.startsWith('CHOCOLATE')) return 'CHOCOLATE'; if (cat.includes('CONSERVA') || cat === 'AZEITONA') return 'CONSERVA'; return null; }
@@ -1663,7 +1665,7 @@ function complement(T, cat, ini, bn, grp, catCfg) {
   const drop = new Set([...(catCfg ? catCfg.remover || [] : []), ...ini.split(' '), ...bw, ...SKIPTIPO, ...(capsCat ? FORMA_CAPS : [])]);
   // abreviação de palavra do começo do descritivo é a mesma informação (SABAO LIQUIDO … LIQ … SABA, AMACIANTE … AMAC)
   const iniW = ini.split(' ').filter(x => x.length >= 4);
-  const iniAbrev = w => w.length >= 3 && !/\d/.test(w) && !FLAVORS.has(w) && (iniW.some(x => x.length > w.length && x.startsWith(w)) || iniW.some(x => w === x + 'S' || w === x + 'ES'));
+  const iniAbrev = w => w.length >= 3 && !/\d/.test(w) && !FLAVORS.has(w) && (iniW.some(x => x.length > w.length && x.startsWith(w)) || iniW.some(x => w === x + 'S' || w === x + 'ES') || iniW.some(x => INI_ABREV_LONGA.has(x) && w.length > x.length && w.startsWith(x))); // PAO DE QUEIJO CONG … CONGELADO: não repete
   // semConector: palavra retirada leva junto o conector que vinha logo depois (BALA DE COCO -> COCO, nunca "DECARLI DE RECHEADA")
   const toksDe = (t, semConector) => {
     let tt = t; if (bn) { tt = tt.replace(new RegExp('(?<![A-Z0-9])' + escRx(bn) + '(?![A-Z0-9])', 'g'), ' ').replace(new RegExp('(?<![A-Z0-9])' + escRx(bn.replace(/ /g, '')) + '(?![A-Z0-9])', 'g'), ' '); }
@@ -2232,7 +2234,10 @@ async function runCore(pfx = '') {
     // item que não é de consumo com peso/volume solto e contagem grande ("CARTUCHO 2KG C/500"): o conteúdo é a contagem
     if (q.tot !== null && q.n === 1 && (q.base === 'G' || q.base === 'ML') && (cc ? CESTA_NAO_CONSUMO.has(cc.cesta) : a.cat === OUT)) {
       const u = countQty(Tq); if (u && u.tot >= (cc ? 20 : 100)) q = u; }
+    const perec = !!cc && cc.cesta === 'PERECIVEIS';
     let qf = prioArq() ? qtdArquivo(it.sugQt) : null, qDesc = false;
+    // PERECIVEIS: 1 (UN) do arquivo é só o valor padrão; sem quantidade na descrição vale o padrão KG (1000)
+    if (perec && qf && qf.tot === 1 && (!qf.base || qf.base === 'UN') && q.tot === null && !countQty(Tq) && !(passe && passe.fixo)) { arqAl.push('Arquivo com 1UN em perecível sem quantidade na descrição; usado KG (1000)'); qf = null; }
     // arquivo com 1 (UN) é o valor padrão: se a descrição traz quantidade de verdade, vale a da descrição
     if (qf && qf.tot === 1 && (!qf.base || qf.base === 'UN') && !(passe && passe.fixo)) {
       const qd = q.tot !== null ? q : (countQty(Tq) || { tot: null }); // peso/volume ou contagem (C/10, 10UN) da descrição
@@ -2272,10 +2277,13 @@ async function runCore(pfx = '') {
       else if (pk && (q.tot === null || (q.tot === 1 && q.base === 'UN'))) { q = { tot: pk.n, base: 'UN', n: 1, uv: pk.n, flag: '' }; cx = qtyText(q); qDesc = true; }
       arqAl.push(cx ? `Código de 14 dígitos (caixa): conteúdo ${cx}` : pk ? `Código de 14 dígitos (caixa): a descrição indica ${pk.n} unidades, mas não deu para montar o pack com o conteúdo; revisar` : 'Código de 14 dígitos (caixa) sem quantidade de unidades na descrição; revisar');
     }
-    if (q.tot === null) { const u = countQty(Tq); if (u) q = u; else { const d = defaultQty((cc && cc.qtdPadrao) || cfg.qtdPadrao); if (d) q = d; } }
+    // PERECIVEIS sem quantidade na descrição: vendido a quilo -> CONTENIDO 1000 e descritivo termina só com "KG" (sem o 1)
+    if (q.tot === null) { const u = countQty(Tq); if (u) q = u; else { const d = defaultQty((cc && cc.qtdPadrao) || (perec ? '' : cfg.qtdPadrao)); if (d) q = d; } }
     // sempre sai uma unidade de medida: vendido a quilo (KG/GRANEL sem número) -> 1KG; nada -> 1UN; número sem unidade -> UN
-    if (q.tot === null) { const kg = Tq.some(t => /(?<![A-Z0-9])(KG|KILO|QUILO|GRANEL)(?![A-Z0-9])/.test(t));
-      q = { tot: kg ? 1000 : 1, base: kg ? 'G' : 'UN', n: 1, uv: kg ? 1000 : 1, flag: 'QTD_PADRAO' }; }
+    if (q.tot === null) { const kg = perec || Tq.some(t => /(?<![A-Z0-9])(KG|KILO|QUILO|GRANEL)(?![A-Z0-9])/.test(t));
+      const un1 = perec && Tq.some(t => /(?<![A-Z0-9])(UN|UND|UNID|UNIDADE|UNIT)(?![A-Z0-9])/.test(t)) && !Tq.some(t => /(?<![A-Z0-9])(KG|KILO|QUILO|GRANEL)(?![A-Z0-9])/.test(t)); // ALFACE CRESPA UN: vendido por unidade
+      if (un1) q = { tot: 1, base: 'UN', n: 1, uv: 1, flag: 'QTD_PADRAO' };
+      else q = { tot: kg ? 1000 : 1, base: kg ? 'G' : 'UN', n: 1, uv: kg ? 1000 : 1, flag: 'QTD_PADRAO', kg: perec && kg }; }
     if (!q.base) q = Object.assign({}, q, { base: 'UN' });
     // garrafas (GARRAFA TERMICA, GARRAFA OUTROS, SQUEEZE): o conteúdo é a unidade (1UN, ou o pack 2UN/KIT 3); a litragem (1L, 500ML) é complemento do descritivo
     let volGarrafa = '';

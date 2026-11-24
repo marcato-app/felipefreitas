@@ -569,3 +569,11 @@ Pontos pra checar, em ordem:
 - Exemplos ensinados atualizados para essa regra: AZEITE EXTRA VIRGEM GALLO → AZEITE DE OLIVA (AZEITE OUTROS exclui EXTRA VIRGEM); FORMA GELO PLASUTIL → ACESSORIO COZINHA OUTROS (ASSADEIRA/FORMA exclui GELO).
 - libPatch `leite-saudavel-2026-11`: LEITE SAUDAVEL reconhece DESN, SEMIDESN, SEMI DESNATADO, S/LACTOSE, 0% LACTOSE, ZERO LAC, BAIXA LACTOSE, DESLACTOSADO, 0% GORDURA… e deixa de excluir INTEGRAL (zero lactose integral é saudável); LEITE COMUM exclui esses termos e LIGHT.
 - libPatch `feijao-inicio-2026-11`: descritivo de FEIJAO BRANCO/CARIOCA/CORDA/PRETO/VERMELHO começa com o nome completo da categoria (FEIJAO CORDA CAMIL FRADINHO 1KG); FEIJAO OUTROS continua com "FEIJAO". FEIJAO CORDA também pega FRADIN/FRAD/MACACAR.
+
+## PERECIVEIS: quantidade padrão KG e ajustes de categorias (2026-11-24)
+- Cesta PERECIVEIS sem quantidade na descrição (nem peso/volume, nem contagem, nem `qtdPadrao` da categoria): CONTENIDO 1000 (G) e o descritivo termina só com `KG` (sem o 1). Implementado em `q.kg` + `qtyText` (`KG` quando `q.kg && tot 1000 G`).
+- Exceções: descrição com `UN`/`UND`/`UNIDADE` sem número (ALFACE CRESPA UN) → 1UN; o 1 (UN) que vem do arquivo é tratado como valor padrão e é trocado por KG quando a descrição não tem quantidade.
+- Descrição com peso explícito (1KG, 700G) continua como antes (`1KG`, `700G`).
+- `FRALDINHA` (corte bovino) não cai mais na regra de fralda da perfumaria (só vai para fralda com BEBE/BABY/INFANTIL/DESCARTAVEL/tamanho).
+- libPatch `pereciveis-2026-11`: CORACAO/FIGADO/MOELA DE FRANGO → MIUDOS AVES; DRUMET → COXINHA DA ASA; PASSARINHO DE FRANGO → PETISCO DE FRANGO; SALSINHA/CHEIRO VERDE → ERVA FRESCA; BROCOLIS/COUVE FLOR sem "CONG" saem de VEGETAL CONGELADO.
+- `inicioFrases` + CHEIRO VERDE, COUVE FLOR, FRANGO A PASSARINHO; início abreviado (CONG, REFRIG, RESF, INST, PREM, TRAD) remove a palavra longa repetida (PAO DE QUEIJO CONG … CONGELADO).
