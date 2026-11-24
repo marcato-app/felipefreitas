@@ -594,3 +594,6 @@ Pontos pra checar, em ordem:
 - MOCHILA virou dinâmica (descritivo LANCHEIRA …, NECESSAIRE …, não MOCHILA LANCHEIRA). Patch aceita `dinamico: true`.
 - Gel capilar (GEL COLA / GEL FIXADOR / MEGA FIX, com marca antes) → GEL E GELATINA CAPILAR em `perfumariaCat` (não com POMADA/PASTA/CERA/CREME/LEAVE/ATIVADOR); COLA OUTROS/INSTANTANEA excluem FIXADOR/CAPILAR/HAIR.
 - Testes: 176 casos de ajuste + 60 de controle (100%) foram para testes/regras_ensinadas.csv (marca `*`).
+
+## MISTURA PO OUTROS com início fixo (2026-11-24; libPatch `mistura-po-inicio-2026-11`)
+- A categoria deixou de ser dinâmica: o descritivo sempre começa com MISTURA PO (MISTURA PO DONA BENTA PANQUECA 200G, MISTURA PO ROYAL CHURROS 400G). O libSeed também foi atualizado.
