@@ -580,3 +580,4 @@ Pontos pra checar, em ordem:
 - FLV (segmentos FRUTA IN NATURA, LEGUME, VERDURA; exceto HIGIENIZADOR DE SALADA): conteúdo final 1 (1UN, "UN" solto, 1 do arquivo) vira CONTENIDO 1000 e descritivo com `KG` — também no modo "arquivo mantido" (qDesc). Contagens maiores (3UN, C/12) e pesos explícitos (500G, 1KG) não mudam.
 - Perecível que cai no padrão KG também troca o 1 (ou vazio) do arquivo por 1000 no modo "arquivo mantido".
 - A mesma regra do 1 → 1000/KG vale para carnes: segmentos BOVINO IN NATURA, FRANGO IN NATURA, SUINO IN NATURA, ACOUGUE OUTROS, CORDEIRO, COMEMORATIVO, PEIXE, FRUTOS DO MAR, BACALHAU, DEFUMADOS e LINGUICA (`FLV_SEG`). Industrializados embalados (hambúrguer, empanado, frios) ficam fora.
+- Estendido (pedido do usuário) a carnes industrializadas e frios: segmentos HAMBURGUER, EMPANADO, ALMONDEGA E KIBE, SALSICHA, FRIOS INDUSTRIALIZADOS e CARNES PREP CONGELADAS também trocam 1 por 1000/KG.
